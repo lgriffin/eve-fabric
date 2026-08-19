@@ -8,7 +8,7 @@ function makeNode(overrides: Partial<CapabilityFlowNode> = {}): CapabilityFlowNo
     position: { x: 100, y: 100 },
     data: {
       capabilityId: 'market.orders',
-      capabilityVersion: 1,
+      capabilityVersion: '1.0.0',
       label: 'Market Orders',
       source: 'ESI',
       inputs: [
@@ -140,7 +140,7 @@ describe('Connection Validation', () => {
         id: 'resolver',
         data: {
           capabilityId: 'universe.resolveType',
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           label: 'Resolve Type',
           source: 'SDE',
           inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
@@ -153,7 +153,7 @@ describe('Connection Validation', () => {
         id: 'orders',
         data: {
           capabilityId: 'market.orders',
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           label: 'Market Orders',
           source: 'ESI',
           inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
@@ -179,7 +179,7 @@ describe('Connection Validation', () => {
         id: 'resolver',
         data: {
           capabilityId: 'universe.resolveRegion',
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           label: 'Resolve Region',
           source: 'SDE',
           inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
@@ -192,7 +192,7 @@ describe('Connection Validation', () => {
         id: 'orders',
         data: {
           capabilityId: 'market.orders',
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           label: 'Market Orders',
           source: 'ESI',
           inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],

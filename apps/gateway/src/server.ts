@@ -1,8 +1,13 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
+import { InMemoryFabricRegistry } from '@eve-fabric/domain';
 import { schemaPackageRoutes } from './routes/schema-package.js';
+import { createRegistryRoutes } from './routes/registry-routes.js';
+import { createPublishRoutes } from './routes/publish-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
+import { seedPrebuiltCapabilities } from './seed-capabilities.js';
+import { seedDemoCapabilities } from './seed-demo.js';
 
 export interface ServerOptions {
   readonly port?: number | undefined;
@@ -82,6 +87,30 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   // Schema package REST routes
   void app.register(schemaPackageRoutes);
 
+  // Pipeline storage (shared between pipeline CRUD and publish routes)
+  const savedPipelines = new Map<
+    string,
+    { yaml: string; name: string; version: number; savedAt: string }
+  >();
+
+  // Fabric Registry
+  const registry = new InMemoryFabricRegistry();
+  seedPrebuiltCapabilities(registry);
+  seedDemoCapabilities(registry);
+
+  void app.register(createRegistryRoutes(registry));
+  void app.register(
+    createPublishRoutes(registry, (id, version) => {
+      const saved = savedPipelines.get(id);
+      if (!saved || saved.version !== version) return undefined;
+      try {
+        return JSON.parse(saved.yaml) as import('@eve-fabric/domain').PipelineDefinition;
+      } catch {
+        return undefined;
+      }
+    }),
+  );
+
   // Pipeline execution endpoint
   app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
     '/api/pipelines/execute',
@@ -133,11 +162,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   );
 
   // Pipeline CRUD endpoints
-  const savedPipelines = new Map<
-    string,
-    { yaml: string; name: string; version: number; savedAt: string }
-  >();
-
   app.post('/api/pipelines', async (req, reply) => {
     const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
     const id = `pipeline-${Date.now()}`;

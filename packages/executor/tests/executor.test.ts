@@ -63,7 +63,7 @@ function makeTestAdapter(name: string, data: unknown = { result: 'ok' }): Source
         provenance: {
           source: name as never,
           capability: { id: 'test.step' as never },
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           cached: false,
           upstream: [],
         },
@@ -147,7 +147,7 @@ describe('Executor', () => {
             provenance: {
               source: 'TEST' as never,
               capability: { id: 'test.x' as never },
-              capabilityVersion: 1,
+              capabilityVersion: '1.0.0',
               cached: false,
               upstream: [],
             },
@@ -341,7 +341,7 @@ describe('Executor', () => {
             provenance: {
               source: 'TEST' as never,
               capability: { id: 'test.x' as never },
-              capabilityVersion: 1,
+              capabilityVersion: '1.0.0',
               cached: false,
               upstream: [],
             },
@@ -378,7 +378,7 @@ describe('Executor', () => {
             provenance: {
               source: 'TEST' as never,
               capability: { id: 'test.step1' as never },
-              capabilityVersion: 1,
+              capabilityVersion: '1.0.0',
               cached: false,
               upstream: [],
             },

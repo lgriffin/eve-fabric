@@ -2,7 +2,7 @@ import { defineCapability } from '../define-capability.js';
 
 export const distance = defineCapability({
   id: 'route.distance',
-  version: 1,
+  version: '1.0.0',
   name: 'Route Distance',
   description: 'Calculate jump distance between two solar systems',
   inputs: {

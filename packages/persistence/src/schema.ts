@@ -7,7 +7,7 @@ import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 export const capabilities = sqliteTable('capabilities', {
   id: text('id').primaryKey(),
-  version: integer('version').notNull(),
+  version: text('version').notNull(),
   name: text('name').notNull(),
   description: text('description').notNull(),
   source: text('source').notNull(),

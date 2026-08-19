@@ -13,7 +13,6 @@
     "test:bdd": "cucumber-js"
   },
   "dependencies": {
-    "@eve-fabric/domain": "workspace:*",
     "@cucumber/cucumber": "^11.0.0"
   },
   "devDependencies": {

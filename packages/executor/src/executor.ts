@@ -7,6 +7,7 @@ import type {
   ProvenanceRecord,
 } from '@eve-fabric/domain';
 import { planExecution } from '@eve-fabric/planner';
+import { aggregateProvenance } from './aggregate-provenance.js';
 
 export interface ExecutionMetrics {
   readonly totalDurationMs: number;
@@ -211,7 +212,7 @@ export class Executor {
           provenance: {
             source: 'CACHE',
             capability: step.capability,
-            capabilityVersion: step.capability.version ?? 1,
+            capabilityVersion: step.capability.version ?? '1.0.0',
             cached: true,
             upstream: [],
           },
@@ -253,9 +254,15 @@ export class Executor {
 
     const durationMs = Date.now() - stepStart;
 
+    let provenance = result.provenance;
+    if (source === 'COMPOSITE' || provenance.upstream.length > 0) {
+      const aggregated = aggregateProvenance([provenance, ...provenance.upstream]);
+      provenance = { ...provenance, upstream: aggregated };
+    }
+
     return {
       data: result.data,
-      provenance: result.provenance,
+      provenance,
       durationMs,
       cacheHit: false,
     };

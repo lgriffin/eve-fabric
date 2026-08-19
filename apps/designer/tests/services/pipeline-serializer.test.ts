@@ -14,7 +14,7 @@ function makeFlowNode(id: string, capabilityId: string): CapabilityFlowNode {
     position: { x: 0, y: 0 },
     data: {
       capabilityId,
-      capabilityVersion: 1,
+      capabilityVersion: '1.0.0',
       label: id,
       source: 'ESI',
       inputs: [],

@@ -2,27 +2,29 @@ import { create } from 'zustand';
 
 export interface CatalogCapability {
   id: string;
-  version: number;
+  version: string;
   name: string;
   description: string;
   source: string;
   inputs: Array<{ name: string; semanticType: string; required: boolean }>;
   outputs: Array<{ name: string; semanticType: string }>;
   category: string;
+  isComposite: boolean;
 }
 
-export interface CatalogState {
+interface CatalogState {
   capabilities: CatalogCapability[];
   searchQuery: string;
   selectedSource: string | null;
   isLoading: boolean;
 }
 
-export interface CatalogActions {
+interface CatalogActions {
   setCapabilities: (capabilities: CatalogCapability[]) => void;
   setSearchQuery: (query: string) => void;
   setSelectedSource: (source: string | null) => void;
   setLoading: (loading: boolean) => void;
+  fetchCapabilities: () => Promise<void>;
   filteredCapabilities: () => CatalogCapability[];
 }
 
@@ -39,7 +41,7 @@ function deriveCategory(id: string): string {
 }
 
 export function enrichWithCategory(cap: Omit<CatalogCapability, 'category'>): CatalogCapability {
-  return { ...cap, category: deriveCategory(cap.id) };
+  return { ...cap, category: cap.isComposite ? 'Composite' : deriveCategory(cap.id) };
 }
 
 export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get) => ({
@@ -62,6 +64,23 @@ export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get
 
   setLoading: (loading) => {
     set({ isLoading: loading });
+  },
+
+  fetchCapabilities: async () => {
+    set({ isLoading: true });
+    try {
+      const response = await fetch('/api/registry');
+      if (!response.ok) throw new Error('Failed to fetch capabilities');
+      const data = (await response.json()) as {
+        capabilities: Array<Omit<CatalogCapability, 'category'>>;
+      };
+      set({
+        capabilities: data.capabilities.map(enrichWithCategory),
+        isLoading: false,
+      });
+    } catch {
+      set({ isLoading: false });
+    }
   },
 
   filteredCapabilities: () => {

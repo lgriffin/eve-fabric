@@ -1,4 +1,5 @@
 import type { ExecutionPlan, ExecutionStep } from '@eve-fabric/domain';
+import { deduplicateSteps } from './deduplicate.js';
 
 export interface ParallelGroup {
   readonly stepIds: readonly string[];
@@ -122,7 +123,10 @@ function buildParallelGroups(
  * Coalesce steps that target the same data source so they can
  * potentially be batched.
  */
-function buildCoalescedGroups(plan: ExecutionPlan): readonly CoalescedGroup[] {
+function buildCoalescedGroups(
+  plan: ExecutionPlan,
+  steps: readonly ExecutionStep[],
+): readonly CoalescedGroup[] {
   const capabilityToSource = new Map<string, string>();
 
   for (const req of plan.sourceRequirements) {
@@ -133,7 +137,7 @@ function buildCoalescedGroups(plan: ExecutionPlan): readonly CoalescedGroup[] {
 
   const sourceToSteps = new Map<string, string[]>();
 
-  for (const step of plan.steps) {
+  for (const step of steps) {
     const source = capabilityToSource.get(step.capability.id);
     if (source !== undefined) {
       let list = sourceToSteps.get(source);
@@ -160,7 +164,8 @@ function buildCoalescedGroups(plan: ExecutionPlan): readonly CoalescedGroup[] {
  * with dependency-ordered steps, parallel groups, and coalesced requests.
  */
 export function planExecution(plan: ExecutionPlan): PlannedExecution {
-  const levels = topologicalLevels(plan.steps);
+  const { steps: dedupedSteps } = deduplicateSteps(plan.steps);
+  const levels = topologicalLevels(dedupedSteps);
 
   const orderedSteps: string[] = [];
   for (const level of levels) {
@@ -169,8 +174,8 @@ export function planExecution(plan: ExecutionPlan): PlannedExecution {
     }
   }
 
-  const parallelGroups = buildParallelGroups(plan.steps, levels);
-  const coalescedRequests = buildCoalescedGroups(plan);
+  const parallelGroups = buildParallelGroups(dedupedSteps, levels);
+  const coalescedRequests = buildCoalescedGroups(plan, dedupedSteps);
 
   return {
     orderedSteps,

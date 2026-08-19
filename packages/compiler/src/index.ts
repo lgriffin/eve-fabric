@@ -46,3 +46,5 @@ export type {
   SourceRequirement,
   CacheStrategy,
 } from './execution-types.js';
+
+export type { PipelineDefinition } from './pipeline-types.js';

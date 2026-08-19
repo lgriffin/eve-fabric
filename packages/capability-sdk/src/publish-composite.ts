@@ -5,36 +5,35 @@ import type {
   CachePolicy,
   CostModel,
 } from '@eve-fabric/domain';
-import { CapabilityCatalog, capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import {
+  CapabilityCatalog,
+  capabilityId,
+  capabilityVersion,
+  DependencyGraph,
+} from '@eve-fabric/domain';
 
 export interface PublishResult {
   readonly capability: CapabilityDefinition;
   readonly diagnostics: readonly string[];
 }
 
-/**
- * Publishes a pipeline as a COMPOSITE capability.
- *
- * 1. Validates the pipeline (all capability refs exist in catalog)
- * 2. Extracts pipeline inputs as capability inputs (SemanticPorts)
- * 3. Extracts pipeline outputs by resolving output port references through the catalog
- * 4. Creates a CapabilityDefinition with source 'COMPOSITE' and pipelineRef set
- * 5. Aggregates auth requirements from all nodes (union of scopes)
- * 6. Aggregates cache policies (least cacheable wins)
- * 7. Sums cost models
- * 8. Registers the new capability in the catalog
- */
 export function publishAsComposite(
   pipeline: PipelineDefinition,
   catalog: CapabilityCatalog,
   options: {
     readonly id: string;
-    readonly version: number;
+    readonly version: string | number;
     readonly name: string;
     readonly description: string;
   },
+  dependencyGraph?: DependencyGraph,
 ): PublishResult {
   const diagnostics: string[] = [];
+
+  const compositeRef = {
+    id: capabilityId(options.id),
+    version: capabilityVersion(options.version),
+  };
 
   // 1. Validate pipeline — resolve all capability refs
   const resolvedCapabilities = new Map<string, CapabilityDefinition>();
@@ -47,11 +46,26 @@ export function publishAsComposite(
           : undefined;
       const def = catalog.get(capId, capVer);
       resolvedCapabilities.set(node.id, def);
+
+      if (dependencyGraph) {
+        const depRef = { id: capId, version: capVer };
+        if (dependencyGraph.hasCycle(compositeRef, depRef)) {
+          const cyclePath = dependencyGraph.findCyclePath(compositeRef, depRef);
+          const pathStr = cyclePath
+            ? cyclePath.join(' -> ')
+            : `${options.id} -> ${node.capability.id as string}`;
+          diagnostics.push(`Circular dependency detected: ${pathStr}`);
+        }
+      }
     } catch {
       diagnostics.push(
         `Node "${node.id}" references unknown capability "${node.capability.id as string}"`,
       );
     }
+  }
+
+  if (diagnostics.length > 0) {
+    throw new Error(`Cannot publish composite: ${diagnostics.join('; ')}`);
   }
 
   // 2. Extract pipeline inputs as capability inputs
@@ -141,7 +155,17 @@ export function publishAsComposite(
   // 8. Register the new capability in the catalog
   catalog.register(rawDef);
 
-  // Retrieve the normalized capability from the catalog
+  // 9. Register dependency edges in the graph
+  if (dependencyGraph) {
+    for (const dep of dependencies) {
+      const depRef = {
+        id: dep.id,
+        version: dep.version,
+      };
+      dependencyGraph.addDependency(compositeRef, depRef);
+    }
+  }
+
   const capability = catalog.get(capabilityId(options.id), capabilityVersion(options.version));
 
   return { capability, diagnostics };

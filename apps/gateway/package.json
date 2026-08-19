@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@eve-fabric/cache": "workspace:*",
+    "@eve-fabric/capability-sdk": "workspace:*",
     "@eve-fabric/compiler": "workspace:*",
     "@eve-fabric/domain": "workspace:*",
     "@eve-fabric/esi-adapter": "workspace:*",
@@ -25,7 +26,8 @@
     "fastify": "^5.0.0",
     "fastify-plugin": "^6.0.0",
     "graphql": "^16.9.0",
-    "graphql-yoga": "^5.7.0"
+    "graphql-yoga": "^5.7.0",
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "tsx": "^4.0.0",

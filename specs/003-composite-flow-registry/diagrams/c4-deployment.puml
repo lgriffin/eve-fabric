@@ -1,0 +1,34 @@
+@startuml C4_Deployment_EVE_Fabric
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+title Deployment Diagram - EVE Fabric (Development Mode)
+
+Deployment_Node(browser, "Developer Browser", "Chrome / Firefox / Edge") {
+  Container(spa, "Fabric Studio", "React 18 SPA", "Visual pipeline designer\nserved by Vite dev server")
+}
+
+Deployment_Node(devMachine, "Developer Machine", "Node.js 20 LTS") {
+
+  Deployment_Node(viteProcess, "Vite Dev Server", "localhost:5173") {
+    Container(vite, "Vite HMR Server", "Vite 5.x", "Serves Fabric Studio SPA\nwith hot module replacement.\nProxies API calls to Gateway.")
+  }
+
+  Deployment_Node(gatewayProcess, "Gateway Process", "localhost:3456") {
+    Container(gateway, "Gateway API", "Fastify", "REST + GraphQL endpoints.\nRegistry, publish, pipelines,\nexecution, schema packages.")
+
+    Container(inMemStore, "In-Memory Stores", "TypeScript Maps", "FabricRegistry (capabilities +\ndependency graph),\nPipeline storage (saved YAML),\nCapabilityCatalog (indexed).")
+  }
+}
+
+Deployment_Node(external, "External Services") {
+  Container(esi, "EVE Online ESI", "CCP API", "https://esi.evetech.net")
+}
+
+Rel(spa, vite, "Loads SPA assets", "HTTP / WebSocket (HMR)")
+Rel(spa, gateway, "API requests\n(registry, publish,\nexecute, pipelines)", "HTTP / JSON")
+Rel(vite, gateway, "Proxy /api/* requests", "HTTP")
+Rel(gateway, inMemStore, "Read/write\ncapabilities,\npipelines,\ndependencies")
+Rel(gateway, esi, "ESI capability execution", "HTTPS / REST")
+
+@enduml

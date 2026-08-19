@@ -6,3 +6,5 @@ export {
 } from './planner.js';
 
 export { prunePlan } from './prune.js';
+
+export { deduplicateSteps, type DeduplicationResult } from './deduplicate.js';

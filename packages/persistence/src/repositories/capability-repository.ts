@@ -1,8 +1,9 @@
 import type { CapabilityDefinition } from '@eve-fabric/domain';
+import { compareVersions } from '@eve-fabric/domain';
 
 export interface CapabilityRepository {
   save(def: CapabilityDefinition): Promise<void>;
-  getById(id: string, version?: number): Promise<CapabilityDefinition | undefined>;
+  getById(id: string, version?: string): Promise<CapabilityDefinition | undefined>;
   list(): Promise<CapabilityDefinition[]>;
   delete(id: string): Promise<boolean>;
 }
@@ -10,7 +11,7 @@ export interface CapabilityRepository {
 export class InMemoryCapabilityRepository implements CapabilityRepository {
   private readonly store = new Map<string, CapabilityDefinition>();
 
-  private key(id: string, version: number): string {
+  private key(id: string, version: string): string {
     return `${id}@${version}`;
   }
 
@@ -18,14 +19,14 @@ export class InMemoryCapabilityRepository implements CapabilityRepository {
     this.store.set(this.key(def.id, def.version), def);
   }
 
-  async getById(id: string, version?: number): Promise<CapabilityDefinition | undefined> {
+  async getById(id: string, version?: string): Promise<CapabilityDefinition | undefined> {
     if (version !== undefined) {
       return this.store.get(this.key(id, version));
     }
     let latest: CapabilityDefinition | undefined;
     for (const def of this.store.values()) {
       if ((def.id as string) === id) {
-        if (!latest || (def.version as number) > (latest.version as number)) {
+        if (!latest || compareVersions(def.version, latest.version) > 0) {
           latest = def;
         }
       }

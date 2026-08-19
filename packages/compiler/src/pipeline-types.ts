@@ -5,10 +5,4 @@
  * pipeline types from a single local path.
  */
 
-export type {
-  PipelineDefinition,
-  PipelineNode,
-  PipelineEdge,
-  PipelineInput,
-  PipelineOutput,
-} from '@eve-fabric/domain';
+export type { PipelineDefinition } from '@eve-fabric/domain';

@@ -55,11 +55,11 @@ describe('CapabilityId property-based tests', () => {
 });
 
 describe('CapabilityVersion property-based tests', () => {
-  it('accepts all positive integers', () => {
+  it('accepts all positive integers and converts to semver', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 100_000 }), (v) => {
         const result = capabilityVersion(v);
-        expect(result).toBe(v);
+        expect(result as string).toBe(`${v}.0.0`);
       }),
     );
   });

@@ -20,7 +20,7 @@ export function determineSources(
   pipeline: PipelineDefinition,
   catalog: CapabilityCatalog,
 ): SourceRequirement[] {
-  const sourceMap = new Map<string, { id: string; version?: number | undefined }[]>();
+  const sourceMap = new Map<string, { id: string; version?: string | undefined }[]>();
 
   for (const node of pipeline.nodes) {
     try {

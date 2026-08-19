@@ -22,6 +22,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run lint
       - run: pnpm run format:check
 
@@ -36,6 +37,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run typecheck
 
   unit-tests:
@@ -52,6 +54,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run test
 
   bdd-tests:
@@ -65,6 +68,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run test:bdd
 
   coverage:
@@ -78,6 +82,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run coverage
       - uses: actions/upload-artifact@v4
         with:
@@ -95,6 +100,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - name: Dead code detection
         run: pnpm run knip
       - name: Secret scanning
@@ -112,6 +118,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run test:mutation
       - uses: actions/upload-artifact@v4
         with:

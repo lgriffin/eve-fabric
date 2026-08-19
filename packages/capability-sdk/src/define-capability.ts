@@ -11,7 +11,7 @@ import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/dom
 
 export interface DefineCapabilityConfig {
   id: string;
-  version: number;
+  version: string | number;
   name: string;
   description: string;
   inputs: Record<string, { type: string; description?: string; required?: boolean }>;

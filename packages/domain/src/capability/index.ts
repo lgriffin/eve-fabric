@@ -6,6 +6,9 @@ export {
   capabilityVersion,
   capabilityIdSchema,
   capabilityVersionSchema,
+  compareVersions,
+  isCompatibleUpgrade,
+  isBreakingUpgrade,
 } from './capability-id.js';
 
 export {

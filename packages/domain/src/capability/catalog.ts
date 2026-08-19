@@ -4,10 +4,10 @@ import type { CapabilitySource } from './value-objects.js';
 import type { SemanticTypeId } from '../semantic-type/semantic-type.js';
 import { capabilityDefinitionSchema } from './schemas.js';
 import type { SemanticPort } from './semantic-port.js';
-import { capabilityId, capabilityVersion } from './capability-id.js';
+import { capabilityId, capabilityVersion, compareVersions } from './capability-id.js';
 
 function catalogKey(id: CapabilityId, version: CapabilityVersion): string {
-  return `${id as string}@${version as number}`;
+  return `${id as string}@${version as string}`;
 }
 
 function portsToMap(
@@ -44,14 +44,14 @@ export class CapabilityCatalog {
 
       if (this.definitions.has(key)) {
         throw new Error(
-          `Capability "${id as string}" version ${version as number} is already registered`,
+          `Capability "${id as string}" version ${version as string} is already registered`,
         );
       }
 
       this.definitions.set(key, normalized);
 
       const currentLatest = this.latestVersions.get(id);
-      if (currentLatest === undefined || (version as number) > (currentLatest as number)) {
+      if (currentLatest === undefined || compareVersions(version, currentLatest) > 0) {
         this.latestVersions.set(id, version);
       }
       return;
@@ -71,7 +71,7 @@ export class CapabilityCatalog {
 
     if (this.definitions.has(key)) {
       throw new Error(
-        `Capability "${id as string}" version ${version as number} is already registered`,
+        `Capability "${id as string}" version ${version as string} is already registered`,
       );
     }
 
@@ -110,7 +110,7 @@ export class CapabilityCatalog {
     this.definitions.set(key, normalized);
 
     const currentLatest = this.latestVersions.get(id);
-    if (currentLatest === undefined || (version as number) > (currentLatest as number)) {
+    if (currentLatest === undefined || compareVersions(version, currentLatest) > 0) {
       this.latestVersions.set(id, version);
     }
   }
@@ -120,7 +120,7 @@ export class CapabilityCatalog {
       const key = catalogKey(id, version);
       const def = this.definitions.get(key);
       if (!def) {
-        throw new Error(`Capability "${id as string}" version ${version as number} not found`);
+        throw new Error(`Capability "${id as string}" version ${version as string} not found`);
       }
       return def;
     }

@@ -30,8 +30,8 @@ describe('Domain type contracts', () => {
     expectTypeOf<string>().not.toEqualTypeOf<CapabilityId>();
   });
 
-  it('CapabilityVersion is not assignable from plain number', () => {
-    expectTypeOf<number>().not.toEqualTypeOf<CapabilityVersion>();
+  it('CapabilityVersion is not assignable from plain string', () => {
+    expectTypeOf<string>().not.toEqualTypeOf<CapabilityVersion>();
   });
 
   it('CapabilityRef has required id and optional version', () => {

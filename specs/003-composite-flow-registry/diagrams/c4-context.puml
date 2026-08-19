@@ -1,0 +1,21 @@
+@startuml C4_Context_EVE_Fabric
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+title System Context Diagram - EVE Fabric
+
+Person(designer, "Pipeline Designer", "Builds, publishes, and composes\ncapability pipelines in Fabric Studio")
+
+System(eveFabric, "EVE Fabric", "Visual pipeline designer and execution engine\nfor composing EVE Online data capabilities.\nSupports recursive composition via\nthe Fabric Registry.")
+
+System_Ext(esiApi, "EVE Online ESI API", "CCP's public REST API\nproviding live game data\n(market, universe, characters)")
+
+System_Ext(sdeData, "EVE Static Data Export", "Offline reference data\n(types, regions, stations,\nblueprints, attributes)")
+
+Rel(designer, eveFabric, "Designs pipelines,\npublishes composites,\ninspects dependencies", "HTTPS / Browser")
+
+Rel(eveFabric, esiApi, "Fetches live game data\n(market orders, routes,\ncharacter skills)", "HTTPS / REST")
+
+Rel(eveFabric, sdeData, "Reads static reference data\n(type IDs, region names,\nstation locations)", "File / HTTP")
+
+@enduml

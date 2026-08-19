@@ -2,7 +2,7 @@ import { defineCapability } from '../define-capability.js';
 
 export const orders = defineCapability({
   id: 'market.orders',
-  version: 1,
+  version: '1.0.0',
   name: 'Market Orders',
   description: 'Fetch market orders for an item in a region',
   inputs: {
@@ -21,7 +21,7 @@ export const orders = defineCapability({
 
 export const aggregate = defineCapability({
   id: 'market.aggregate',
-  version: 1,
+  version: '1.0.0',
   name: 'Aggregate Market Data',
   description: 'Aggregate market orders into lowest sell and highest buy prices',
   inputs: {

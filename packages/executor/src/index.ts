@@ -12,3 +12,5 @@ export {
   traceParallelGroup,
   traceProvenance,
 } from './tracing.js';
+
+export { aggregateProvenance } from './aggregate-provenance.js';

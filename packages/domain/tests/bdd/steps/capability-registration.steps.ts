@@ -185,8 +185,8 @@ Then('the registration should fail with {string}', function (this: CapWorld, msg
 });
 
 Then('I should get version {int}', function (this: CapWorld, version: number) {
-  const def = this.lastResult as { version: number };
-  assert.equal(def.version as number, version);
+  const def = this.lastResult as { version: string };
+  assert.equal(def.version as string, `${version}.0.0`);
 });
 
 Then('I should find {int} capability/capabilities', function (this: CapWorld, count: number) {

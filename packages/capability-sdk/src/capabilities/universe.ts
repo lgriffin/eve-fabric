@@ -2,7 +2,7 @@ import { defineCapability } from '../define-capability.js';
 
 export const resolveType = defineCapability({
   id: 'universe.resolve.type',
-  version: 1,
+  version: '1.0.0',
   name: 'Resolve Type',
   description: 'Resolve an EVE item type by name or ID',
   inputs: {
@@ -19,7 +19,7 @@ export const resolveType = defineCapability({
 
 export const resolveRegion = defineCapability({
   id: 'universe.resolve.region',
-  version: 1,
+  version: '1.0.0',
   name: 'Resolve Region',
   description: 'Resolve an EVE region by name or ID',
   inputs: {
@@ -36,7 +36,7 @@ export const resolveRegion = defineCapability({
 
 export const resolveSolarSystem = defineCapability({
   id: 'universe.resolve.solar.system',
-  version: 1,
+  version: '1.0.0',
   name: 'Resolve Solar System',
   description: 'Resolve an EVE solar system by name or ID',
   inputs: {
@@ -53,7 +53,7 @@ export const resolveSolarSystem = defineCapability({
 
 export const resolveLocation = defineCapability({
   id: 'universe.resolve.location',
-  version: 1,
+  version: '1.0.0',
   name: 'Resolve Location',
   description: 'Resolve a location reference to a solar system',
   inputs: {

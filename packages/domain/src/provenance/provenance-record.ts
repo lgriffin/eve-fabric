@@ -6,7 +6,7 @@ export interface ProvenanceRecord {
   readonly source: DataSource;
   readonly sourceVersion?: string | undefined;
   readonly capability: CapabilityRef;
-  readonly capabilityVersion: number;
+  readonly capabilityVersion: string;
   readonly retrievedAt?: Date | undefined;
   readonly calculatedAt?: Date | undefined;
   readonly cached: boolean;

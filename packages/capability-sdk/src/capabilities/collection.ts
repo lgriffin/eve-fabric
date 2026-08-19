@@ -2,7 +2,7 @@ import { defineCapability } from '../define-capability.js';
 
 export const filter = defineCapability({
   id: 'collection.filter',
-  version: 1,
+  version: '1.0.0',
   name: 'Filter Collection',
   description: 'Filter a collection by a numeric threshold predicate',
   inputs: {
@@ -20,7 +20,7 @@ export const filter = defineCapability({
 
 export const sort = defineCapability({
   id: 'collection.sort',
-  version: 1,
+  version: '1.0.0',
   name: 'Sort Collection',
   description: 'Sort a collection by a field in ascending or descending order',
   inputs: {
@@ -37,7 +37,7 @@ export const sort = defineCapability({
 
 export const limit = defineCapability({
   id: 'collection.limit',
-  version: 1,
+  version: '1.0.0',
   name: 'Limit Collection',
   description: 'Take the first N items from a collection',
   inputs: {

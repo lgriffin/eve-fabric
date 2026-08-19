@@ -26,7 +26,7 @@ export function pipelineToFlow(definition: PipelineDefinition): {
     },
     data: {
       capabilityId: node.capability.id,
-      capabilityVersion: (node.capability.version as number) ?? 1,
+      capabilityVersion: (node.capability.version as string) ?? '1.0.0',
       label: node.id,
       source: '',
       inputs: [],
@@ -202,7 +202,7 @@ export function yamlToPipeline(yaml: string): PipelineDefinition {
         id: nodeId,
         capability: {
           id: '' as PipelineNode['capability']['id'],
-          version: 1 as PipelineNode['capability']['version'],
+          version: '1.0.0' as PipelineNode['capability']['version'],
         },
       });
     }

@@ -23,7 +23,7 @@ describe('defineCapability', () => {
     });
 
     expect(cap.id).toBe('test.capability');
-    expect(cap.version).toBe(1);
+    expect(cap.version as string).toBe('1.0.0');
     expect(cap.name).toBe('Test Capability');
     expect(cap.source).toBe('ESI');
     expect(cap.inputs.get('item')).toBeDefined();
@@ -69,8 +69,8 @@ describe('defineCapability', () => {
 });
 
 describe('allCapabilities', () => {
-  it('exports 10 initial capabilities', () => {
-    expect(allCapabilities).toHaveLength(10);
+  it('exports 13 capabilities (10 primitives + 3 demos)', () => {
+    expect(allCapabilities).toHaveLength(13);
   });
 
   it('includes all expected capability IDs', () => {
@@ -83,6 +83,9 @@ describe('allCapabilities', () => {
     expect(ids).toContain('collection.filter');
     expect(ids).toContain('collection.sort');
     expect(ids).toContain('collection.limit');
+    expect(ids).toContain('demo.market.snapshot');
+    expect(ids).toContain('demo.route.analysis');
+    expect(ids).toContain('demo.hauling.cost');
   });
 
   it('every capability has at least one output', () => {
@@ -111,7 +114,7 @@ outputs:
 `;
     const cap = parseCapabilityManifest(yaml);
     expect(cap.id).toBe('test.parse');
-    expect(cap.version).toBe(1);
+    expect(cap.version as string).toBe('1.0.0');
     expect(cap.inputs.get('item')?.semanticType).toBe('eve.type.reference');
     expect(cap.outputs.get('result')?.semanticType).toBe('eve.market.order');
   });

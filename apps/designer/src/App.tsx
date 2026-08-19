@@ -8,6 +8,9 @@ import { ExecutionPlanPreview } from './components/preview/ExecutionPlanPreview.
 import { ResultsPanel } from './components/preview/ResultsPanel.js';
 import { Toolbar } from './components/shared/Toolbar.js';
 import { NodeDetailPanel } from './components/detail/NodeDetailPanel.js';
+import { PublishDialog } from './components/publish/PublishDialog.js';
+import { BreadcrumbNav } from './components/drilldown/BreadcrumbNav.js';
+import { CompositeOverlay } from './components/drilldown/CompositeOverlay.js';
 import { usePipelineStore } from './stores/pipeline-store.js';
 import {
   flowToPipeline,
@@ -25,6 +28,7 @@ type PreviewTab = 'diagnostics' | 'graphql' | 'execution' | 'results';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<PreviewTab>('diagnostics');
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const nodes = usePipelineStore((s) => s.nodes);
   const edges = usePipelineStore((s) => s.edges);
   const pipelineId = usePipelineStore((s) => s.pipelineId);
@@ -32,6 +36,9 @@ export function App() {
   const pipelineVersion = usePipelineStore((s) => s.pipelineVersion);
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const executionSession = usePipelineStore((s) => s.executionSession);
+  const drilldownStack = usePipelineStore((s) => s.drilldownStack);
+  const openComposite = usePipelineStore((s) => s.openComposite);
+  const closeComposite = usePipelineStore((s) => s.closeComposite);
   const loadPipeline = usePipelineStore((s) => s.loadPipeline);
   const capabilities = useCatalogStore((s) => s.capabilities);
 
@@ -148,7 +155,27 @@ export function App() {
           onSave={handleSave}
           onExport={handleExport}
           onImport={handleImport}
+          onPublish={() => setPublishDialogOpen(true)}
         />
+
+        {drilldownStack.length > 0 && (
+          <BreadcrumbNav
+            pipelineName={pipelineName}
+            stack={drilldownStack}
+            onNavigate={(depth) => {
+              if (depth < 0) {
+                while (usePipelineStore.getState().drilldownStack.length > 0) {
+                  closeComposite();
+                }
+              } else {
+                const currentLen = usePipelineStore.getState().drilldownStack.length;
+                for (let i = currentLen - 1; i > depth; i--) {
+                  closeComposite();
+                }
+              }
+            }}
+          />
+        )}
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           <CapabilityPalette />
@@ -218,6 +245,15 @@ export function App() {
 
           {selectedNodeId && <NodeDetailPanel />}
         </div>
+        <PublishDialog open={publishDialogOpen} onClose={() => setPublishDialogOpen(false)} />
+
+        {drilldownStack.length > 0 && (
+          <CompositeOverlay
+            entry={drilldownStack[drilldownStack.length - 1]!}
+            onClose={closeComposite}
+            onDrillDown={openComposite}
+          />
+        )}
       </div>
     </ReactFlowProvider>
   );
