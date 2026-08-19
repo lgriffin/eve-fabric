@@ -1,0 +1,52 @@
+@startuml C4_Container_EVE_Fabric
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title Container Diagram - EVE Fabric
+
+Person(designer, "Pipeline Designer", "Builds and publishes\ncapability pipelines")
+
+System_Ext(esiApi, "EVE Online ESI API", "Live game data")
+System_Ext(sdeData, "EVE Static Data Export", "Offline reference data")
+
+System_Boundary(eveFabric, "EVE Fabric") {
+
+  Container(studio, "Fabric Studio", "React 18, @xyflow/react, Zustand, Vite", "Visual pipeline designer SPA.\nDrag-and-drop capability nodes,\npublish composites, drill-down\ninto composite internals.")
+
+  Container(gateway, "Gateway API", "Fastify, GraphQL Yoga, Zod", "REST + GraphQL API server.\nRegistry browse/publish endpoints,\npipeline CRUD, schema packages,\nexecution dispatch.")
+
+  Container(registry, "Fabric Registry", "TypeScript, In-Memory", "Unified capability registry.\nStores ESI, SDE, DERIVED, COMPOSITE\ncapabilities with dependency graph,\nsemver versioning, cycle detection.")
+
+  Container(compiler, "Semantic Compiler", "TypeScript", "Validates pipelines: resolves\ncapabilities, checks semantic wiring,\ndetects cycles, expands composites,\nestimates cost.")
+
+  Container(planner, "Execution Planner", "TypeScript", "Topological sort, parallel grouping,\nsource coalescing, step deduplication\nacross composite boundaries.")
+
+  Container(executor, "Pipeline Executor", "TypeScript", "Executes planned steps against\ndata sources. Aggregates provenance\nfrom composite sub-steps.")
+
+  Container(capSdk, "Capability SDK", "TypeScript", "Define and publish capabilities.\nPre-built ESI/SDE/DERIVED definitions.\npublishAsComposite with validation.")
+
+  Container(esiAdapter, "ESI Adapter", "TypeScript, esi.ts", "Translates capability execution\ninto ESI API calls with\ncaching and rate limiting.")
+
+  Container(sdeAdapter, "SDE Adapter", "TypeScript", "Provides static EVE data\nlookups for type resolution,\nregion mapping, station info.")
+}
+
+Rel(designer, studio, "Uses", "HTTPS / Browser")
+Rel(studio, gateway, "REST API calls\n(registry, pipelines,\npublish, execute)", "HTTP / JSON")
+
+Rel(gateway, registry, "Browse, publish,\nversion queries")
+Rel(gateway, compiler, "Validate pipelines\nbefore publish/execute")
+Rel(gateway, planner, "Plan execution\nwith deduplication")
+Rel(gateway, executor, "Execute planned steps")
+
+Rel(compiler, registry, "Resolve capability\ndefinitions")
+Rel(planner, registry, "Expand composites\nfor deduplication")
+
+Rel(executor, esiAdapter, "Execute ESI\ncapabilities")
+Rel(executor, sdeAdapter, "Execute SDE\ncapabilities")
+
+Rel(capSdk, registry, "Register pre-built\ncapabilities on startup")
+
+Rel(esiAdapter, esiApi, "REST calls", "HTTPS")
+Rel(sdeAdapter, sdeData, "Data lookups", "File / HTTP")
+
+@enduml

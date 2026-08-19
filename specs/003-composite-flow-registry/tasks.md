@@ -179,9 +179,9 @@
 
 ### Implementation for User Story 8
 
-- [ ] T047 [US8] Create demo pipeline definitions for Market Snapshot (resolve type → market orders → filter → sort), Route Analysis (resolve location → route distance), and Hauling Cost (route distance → volume/collateral calculation) as composable flows in packages/capability-sdk/src/capabilities/demos/
-- [ ] T048 [US8] Create Trade Opportunity pipeline definition composing Market Snapshot + Route Analysis + Hauling Cost and add demo seed function that registers all demo capabilities and publishes composites on gateway startup in dev mode in apps/gateway/src/seed-demo.ts
-- [ ] T049 [US8] Verify end-to-end: Trade Opportunity appears in Capability Palette, can be placed on canvas, opened for drill-down (shows three sub-composites), and executed with provenance tracing to original ESI/SDE/DERIVED sources
+- [x] T047 [US8] Create demo pipeline definitions for Market Snapshot (resolve type → market orders → filter → sort), Route Analysis (resolve location → route distance), and Hauling Cost (route distance → volume/collateral calculation) as composable flows in packages/capability-sdk/src/capabilities/demos/
+- [x] T048 [US8] Create Trade Opportunity pipeline definition composing Market Snapshot + Route Analysis + Hauling Cost and add demo seed function that registers all demo capabilities and publishes composites on gateway startup in dev mode in apps/gateway/src/seed-demo.ts
+- [x] T049 [US8] Verify end-to-end: Trade Opportunity appears in Capability Palette, can be placed on canvas, opened for drill-down (shows three sub-composites), and executed with provenance tracing to original ESI/SDE/DERIVED sources
 
 **Checkpoint**: User Story 8 complete — the defining success criterion is met: recursive composition works end-to-end.
 
@@ -191,10 +191,10 @@
 
 **Purpose**: Quality gates, exports, and final validation
 
-- [ ] T050 [P] Update barrel exports for all new modules: packages/domain/src/index.ts, packages/persistence/src/index.ts, packages/persistence/src/repositories/index.ts, packages/planner/src/index.ts, packages/executor/src/index.ts
-- [ ] T051 [P] Run pnpm run validate (lint + format:check + typecheck + coverage + knip) and fix all issues
-- [ ] T052 Validate quickstart.md instructions: verify setup, dev server startup, and demo scenario match implementation
-- [ ] T053 Run pnpm run validate final pass to confirm all quality gates pass
+- [x] T050 [P] Update barrel exports for all new modules: packages/domain/src/index.ts, packages/persistence/src/index.ts, packages/persistence/src/repositories/index.ts, packages/planner/src/index.ts, packages/executor/src/index.ts
+- [x] T051 [P] Run pnpm run validate (lint + format:check + typecheck + coverage + knip) and fix all issues
+- [x] T052 Validate quickstart.md instructions: verify setup, dev server startup, and demo scenario match implementation
+- [x] T053 Run pnpm run validate final pass to confirm all quality gates pass
 
 ---
 

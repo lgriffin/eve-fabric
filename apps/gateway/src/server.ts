@@ -7,6 +7,7 @@ import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { seedPrebuiltCapabilities } from './seed-capabilities.js';
+import { seedDemoCapabilities } from './seed-demo.js';
 
 export interface ServerOptions {
   readonly port?: number | undefined;
@@ -95,6 +96,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   // Fabric Registry
   const registry = new InMemoryFabricRegistry();
   seedPrebuiltCapabilities(registry);
+  seedDemoCapabilities(registry);
 
   void app.register(createRegistryRoutes(registry));
   void app.register(

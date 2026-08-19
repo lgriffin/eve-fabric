@@ -1,0 +1,66 @@
+@startuml C4_Component_Registry
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+title Component Diagram - Fabric Registry Subsystem
+
+Person(designer, "Pipeline Designer", "")
+
+Container_Boundary(studioUi, "Fabric Studio (React SPA)") {
+  Component(publishDialog, "PublishDialog", "React Component", "Modal for naming, versioning,\nand selecting public I/O contract\nof a composite capability.")
+
+  Component(contractEditor, "ContractEditor", "React Component", "Checkbox-based selector for\npipeline inputs and outputs\nto expose as public contract.")
+
+  Component(compositeOverlay, "CompositeOverlay", "React Component", "Read-only React Flow canvas\nshowing internal pipeline of a\ncomposite capability. Supports\nnested drill-down.")
+
+  Component(breadcrumbNav, "BreadcrumbNav", "React Component", "Navigable breadcrumb trail\nfor drill-down depth:\nParent > Child > Grandchild.")
+
+  Component(capabilityNode, "CapabilityNode", "React Component", "Canvas node with semantic\nhandles, source badge,\nand Open button for\nCOMPOSITE nodes.")
+
+  Component(palette, "CapabilityPalette", "React Component", "Draggable list of all\nregistered capabilities\nwith source filter and\nversion badges.")
+
+  Component(pipelineStore, "pipeline-store", "Zustand Store", "Pipeline state, drilldown stack,\npublishAsCapability action,\nopenComposite/closeComposite.")
+
+  Component(catalogStore, "catalog-store", "Zustand Store", "Fetches capability list from\nGET /api/registry.\nProvides palette data.")
+}
+
+Container_Boundary(gatewayApi, "Gateway API (Fastify)") {
+  Component(registryRoutes, "Registry Routes", "Fastify Plugin", "GET /api/registry\nGET /api/registry/:id\nGET /:id/versions\nGET /:id/dependencies\nGET /:id/upgrades")
+
+  Component(publishRoutes, "Publish Routes", "Fastify Plugin", "POST /api/registry/publish\nZod validation, pipeline lookup,\nversion immutability (409),\ncycle detection.")
+
+  Component(seedCaps, "Seed Capabilities", "Startup Module", "Registers pre-built ESI/SDE/\nDERIVED capabilities from\nCapability SDK on server start.")
+}
+
+Container_Boundary(domainRegistry, "Fabric Registry (Domain)") {
+  Component(fabricRegistry, "FabricRegistry", "TypeScript Interface", "Domain port defining\nregistry operations:\nregister, publish, get,\nlist, findUpgrades,\ngetDependencyGraph.")
+
+  Component(inMemoryRegistry, "InMemoryFabricRegistry", "Domain Service", "In-memory implementation.\nComposes CapabilityCatalog\nand DependencyGraph.\nEnforces version immutability.")
+
+  Component(depGraph, "DependencyGraph", "Data Structure", "Directed acyclic graph.\nCycle detection (iterative DFS),\ntransitive closure,\nreverse lookup, impact analysis.")
+
+  Component(catalog, "CapabilityCatalog", "Data Structure", "Indexed capability storage.\nSemver-keyed lookups,\nlatest-version tracking,\nsource-based filtering.")
+}
+
+Rel(designer, palette, "Drags capabilities")
+Rel(designer, publishDialog, "Publishes flows")
+Rel(designer, capabilityNode, "Opens composites")
+
+Rel(palette, catalogStore, "Reads capabilities")
+Rel(catalogStore, registryRoutes, "GET /api/registry", "HTTP")
+Rel(publishDialog, contractEditor, "Embeds")
+Rel(publishDialog, pipelineStore, "publishAsCapability()")
+Rel(pipelineStore, publishRoutes, "POST /api/registry/publish", "HTTP")
+Rel(capabilityNode, pipelineStore, "openComposite()")
+Rel(pipelineStore, compositeOverlay, "Renders when\ndrilldownStack non-empty")
+Rel(compositeOverlay, breadcrumbNav, "Renders breadcrumbs")
+
+Rel(registryRoutes, inMemoryRegistry, "list, get,\ngetVersions,\nfindUpgrades,\ngetDependencyGraph")
+Rel(publishRoutes, inMemoryRegistry, "get (check exists),\nregister (publish)")
+Rel(seedCaps, inMemoryRegistry, "register()")
+
+Rel_U(inMemoryRegistry, fabricRegistry, "Implements")
+Rel(inMemoryRegistry, catalog, "register, get,\nlist, has")
+Rel(inMemoryRegistry, depGraph, "addDependency,\nhasCycle,\nbuildDependencyTree")
+
+@enduml
