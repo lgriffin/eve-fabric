@@ -1,5 +1,5 @@
 import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import { capabilityId, capabilityVersion, compareVersions } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { CompilerDiagnostic } from './diagnostics.js';
 
@@ -54,7 +54,9 @@ export function resolveVersions(
             context: {
               capability: capIdStr,
               suggestion:
-                available.length > 0 ? `Use version ${available[available.length - 1]}` : undefined,
+                available.length > 0
+                  ? `Use version ${[...available].sort((a, b) => compareVersions(capabilityVersion(a), capabilityVersion(b))).at(-1)}`
+                  : undefined,
             },
           });
         }

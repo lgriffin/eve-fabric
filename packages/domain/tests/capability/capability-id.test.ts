@@ -69,6 +69,20 @@ describe('capabilityVersion', () => {
     expect(() => capabilityVersion('1.0')).toThrow('Invalid capability version');
     expect(() => capabilityVersion('abc')).toThrow('Invalid capability version');
   });
+
+  it('accepts prerelease versions', () => {
+    expect(capabilityVersion('1.0.0-beta.1') as string).toBe('1.0.0-beta.1');
+    expect(capabilityVersion('2.0.0-alpha') as string).toBe('2.0.0-alpha');
+    expect(capabilityVersion('1.0.0-rc1') as string).toBe('1.0.0-rc1');
+  });
+
+  it('accepts build metadata versions', () => {
+    expect(capabilityVersion('1.0.0+build.123') as string).toBe('1.0.0+build.123');
+  });
+
+  it('accepts prerelease with build metadata', () => {
+    expect(capabilityVersion('1.0.0-beta.1+build.456') as string).toBe('1.0.0-beta.1+build.456');
+  });
 });
 
 describe('compareVersions', () => {
@@ -89,6 +103,18 @@ describe('compareVersions', () => {
 
   it('returns 0 for equal versions', () => {
     expect(compareVersions(capabilityVersion('1.2.3'), capabilityVersion('1.2.3'))).toBe(0);
+  });
+
+  it('ranks prerelease below release', () => {
+    expect(
+      compareVersions(capabilityVersion('1.0.0-alpha'), capabilityVersion('1.0.0')),
+    ).toBeLessThan(0);
+  });
+
+  it('compares large version numbers correctly', () => {
+    expect(
+      compareVersions(capabilityVersion('999999999.0.0'), capabilityVersion('1000000000.0.0')),
+    ).toBeLessThan(0);
   });
 });
 
