@@ -1,0 +1,51 @@
+id: route.info
+version: 1
+name: RouteInfo
+description: >
+  Calculates route information between two solar systems, resolving
+  each system reference and computing distance, jump count, and
+  security ratings along the path.
+
+inputs:
+  - name: origin
+    semanticType: eve.system.reference
+    description: Origin solar system
+    required: true
+  - name: destination
+    semanticType: eve.system.reference
+    description: Destination solar system
+    required: true
+
+nodes:
+  - id: resolveOrigin
+    capability:
+      id: universe.resolveSolarSystem
+      version: 1
+
+  - id: resolveDestination
+    capability:
+      id: universe.resolveSolarSystem
+      version: 1
+
+  - id: calculateRoute
+    capability:
+      id: route.distance
+      version: 1
+
+edges:
+  - from: input.origin
+    to: resolveOrigin.systemRef
+  - from: input.destination
+    to: resolveDestination.systemRef
+  - from: resolveOrigin.system
+    to: calculateRoute.originSystem
+  - from: resolveDestination.system
+    to: calculateRoute.destinationSystem
+
+outputs:
+  - name: route
+    source: calculateRoute.route
+  - name: originSystem
+    source: resolveOrigin.system
+  - name: destinationSystem
+    source: resolveDestination.system
