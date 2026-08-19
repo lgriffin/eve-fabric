@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { prunePlan } from '../src/prune.js';
-import type {
-  ExecutionPlan,
-  ExecutionStep,
-  PipelineDefinition,
-} from '@eve-fabric/domain';
+import type { ExecutionPlan, ExecutionStep, PipelineDefinition } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 
-function makeStep(overrides: Partial<ExecutionStep> & { id: string; capId: string }): ExecutionStep {
+function makeStep(
+  overrides: Partial<ExecutionStep> & { id: string; capId: string },
+): ExecutionStep {
   return {
     id: overrides.id,
     capability: {
@@ -116,9 +114,7 @@ describe('prunePlan', () => {
       makeStep({ id: 'c', capId: 'cap.three' }),
     ];
     const plan = makePlan(steps, {
-      parallelGroups: [
-        { steps: ['a', 'b', 'c'], canParallelize: true },
-      ],
+      parallelGroups: [{ steps: ['a', 'b', 'c'], canParallelize: true }],
     });
     const pipeline = makePipeline([
       { name: 'out1', source: 'a.result' },
@@ -159,9 +155,7 @@ describe('prunePlan', () => {
       sourceRequirements: [
         {
           source: 'ESI',
-          capabilities: [
-            { id: capabilityId('market.orders'), version: capabilityVersion(1) },
-          ],
+          capabilities: [{ id: capabilityId('market.orders'), version: capabilityVersion(1) }],
         },
         {
           source: 'SDE',

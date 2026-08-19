@@ -12,6 +12,38 @@ import {
 } from '@xyflow/react';
 import type { PipelineDefinition } from '@eve-fabric/domain';
 import type { CompilerDiagnostic } from './types.js';
+import type { ExecutionPlan } from '@eve-fabric/compiler';
+
+export type ExecutionNodeState =
+  'idle' | 'queued' | 'executing' | 'completed' | 'failed' | 'skipped';
+
+export interface ExecutionStepMetrics {
+  durationMs: number;
+  cached: boolean;
+  source?: string;
+  error?: string;
+}
+
+export interface ExecutionSession {
+  id: string;
+  status: 'running' | 'completed' | 'failed' | 'cancelled';
+  stepStatuses: Record<string, ExecutionNodeState>;
+  stepResults: Record<string, unknown>;
+  stepMetrics: Record<string, ExecutionStepMetrics>;
+  outputs: Record<string, unknown>;
+  errors: Array<{ stepId: string; message: string; code: string }>;
+}
+
+export interface BridgingSuggestion {
+  sourceNodeId: string;
+  sourcePortName: string;
+  targetNodeId: string;
+  targetPortName: string;
+  suggestedCapabilityId: string;
+  suggestedCapabilityName: string;
+  sourceType: string;
+  targetType: string;
+}
 
 export interface CapabilityNodeData {
   capabilityId: string;
@@ -34,6 +66,10 @@ export interface PipelineState {
   diagnostics: CompilerDiagnostic[];
   isDirty: boolean;
   selectedNodeId: string | null;
+  compiledPlan: ExecutionPlan | null;
+  graphqlSdl: string | null;
+  executionSession: ExecutionSession | null;
+  bridgingSuggestions: BridgingSuggestion[];
 }
 
 export interface PipelineActions {
@@ -46,6 +82,21 @@ export interface PipelineActions {
   setPipeline: (definition: PipelineDefinition) => void;
   setSelectedNode: (nodeId: string | null) => void;
   setPipelineMeta: (meta: { id?: string; name?: string; version?: number }) => void;
+  setCompiledPlan: (plan: ExecutionPlan | null) => void;
+  setGraphqlSdl: (sdl: string | null) => void;
+  setExecutionSession: (session: ExecutionSession | null) => void;
+  updateStepStatus: (
+    stepId: string,
+    status: ExecutionNodeState,
+    metrics?: ExecutionStepMetrics,
+  ) => void;
+  setBridgingSuggestions: (suggestions: BridgingSuggestion[]) => void;
+  setExecutionOutputs: (outputs: Record<string, unknown>) => void;
+  loadPipeline: (
+    nodes: CapabilityFlowNode[],
+    edges: Edge[],
+    meta: { id: string; name: string; version: number },
+  ) => void;
   reset: () => void;
 }
 
@@ -58,6 +109,10 @@ const initialState: PipelineState = {
   diagnostics: [],
   isDirty: false,
   selectedNodeId: null,
+  compiledPlan: null,
+  graphqlSdl: null,
+  executionSession: null,
+  bridgingSuggestions: [],
 };
 
 export const usePipelineStore = create<PipelineState & PipelineActions>()((set, get) => ({
@@ -117,6 +172,62 @@ export const usePipelineStore = create<PipelineState & PipelineActions>()((set, 
       pipelineName: meta.name ?? get().pipelineName,
       pipelineVersion: meta.version ?? get().pipelineVersion,
       isDirty: true,
+    });
+  },
+
+  setCompiledPlan: (plan) => {
+    set({ compiledPlan: plan });
+  },
+
+  setGraphqlSdl: (sdl) => {
+    set({ graphqlSdl: sdl });
+  },
+
+  setExecutionSession: (session) => {
+    set({ executionSession: session });
+  },
+
+  updateStepStatus: (stepId, status, metrics) => {
+    const session = get().executionSession;
+    if (!session) return;
+    set({
+      executionSession: {
+        ...session,
+        stepStatuses: { ...session.stepStatuses, [stepId]: status },
+        stepMetrics: metrics ? { ...session.stepMetrics, [stepId]: metrics } : session.stepMetrics,
+      },
+    });
+  },
+
+  setBridgingSuggestions: (suggestions) => {
+    set({ bridgingSuggestions: suggestions });
+  },
+
+  setExecutionOutputs: (outputs) => {
+    const session = get().executionSession;
+    if (!session) return;
+    set({
+      executionSession: {
+        ...session,
+        status: 'completed',
+        outputs,
+      },
+    });
+  },
+
+  loadPipeline: (nodes, edges, meta) => {
+    set({
+      nodes,
+      edges,
+      pipelineId: meta.id,
+      pipelineName: meta.name,
+      pipelineVersion: meta.version,
+      isDirty: false,
+      diagnostics: [],
+      compiledPlan: null,
+      graphqlSdl: null,
+      executionSession: null,
+      bridgingSuggestions: [],
     });
   },
 

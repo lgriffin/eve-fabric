@@ -11,7 +11,10 @@ function catalogKey(id: CapabilityId, version: CapabilityVersion): string {
 }
 
 function portsToMap(
-  record: Record<string, { name: string; semanticType: string; description?: string | undefined; required: boolean }>,
+  record: Record<
+    string,
+    { name: string; semanticType: string; description?: string | undefined; required: boolean }
+  >,
 ): ReadonlyMap<string, SemanticPort> {
   const map = new Map<string, SemanticPort>();
   for (const [key, val] of Object.entries(record)) {
@@ -35,8 +38,8 @@ export class CapabilityCatalog {
     // If inputs is already a Map, this is a normalized CapabilityDefinition
     if (def.inputs instanceof Map) {
       const normalized = definition as CapabilityDefinition;
-      const id = capabilityId(normalized.id as string);
-      const version = capabilityVersion(normalized.version as number);
+      const id = capabilityId(normalized.id);
+      const version = capabilityVersion(normalized.version);
       const key = catalogKey(id, version);
 
       if (this.definitions.has(key)) {
@@ -47,12 +50,9 @@ export class CapabilityCatalog {
 
       this.definitions.set(key, normalized);
 
-      const currentLatest = this.latestVersions.get(id as string);
-      if (
-        currentLatest === undefined ||
-        (version as number) > (currentLatest as number)
-      ) {
-        this.latestVersions.set(id as string, version);
+      const currentLatest = this.latestVersions.get(id);
+      if (currentLatest === undefined || (version as number) > (currentLatest as number)) {
+        this.latestVersions.set(id, version);
       }
       return;
     }
@@ -80,13 +80,14 @@ export class CapabilityCatalog {
       version,
       name: data.name,
       description: data.description,
-      inputs: portsToMap(data.inputs as Record<string, { name: string; semanticType: string; description?: string | undefined; required: boolean }>),
-      outputs: portsToMap(data.outputs as Record<string, { name: string; semanticType: string; description?: string | undefined; required: boolean }>),
+      inputs: portsToMap(data.inputs),
+      outputs: portsToMap(data.outputs),
       source: data.source,
       dependencies: data.dependencies.map((d): CapabilityRef => {
-        const ref: CapabilityRef = d.version !== undefined
-          ? { id: capabilityId(d.id), version: capabilityVersion(d.version) }
-          : { id: capabilityId(d.id) };
+        const ref: CapabilityRef =
+          d.version !== undefined
+            ? { id: capabilityId(d.id), version: capabilityVersion(d.version) }
+            : { id: capabilityId(d.id) };
         return ref;
       }),
       auth: { required: data.auth.required, scopes: data.auth.scopes },
@@ -100,19 +101,17 @@ export class CapabilityCatalog {
         estimatedLatencyMs: data.cost.estimatedLatencyMs,
         esiCallCount: data.cost.esiCallCount,
       },
-      pipelineRef: data.pipelineRef !== undefined
-        ? { id: data.pipelineRef.id, version: data.pipelineRef.version }
-        : undefined,
+      pipelineRef:
+        data.pipelineRef !== undefined
+          ? { id: data.pipelineRef.id, version: data.pipelineRef.version }
+          : undefined,
     };
 
     this.definitions.set(key, normalized);
 
-    const currentLatest = this.latestVersions.get(id as string);
-    if (
-      currentLatest === undefined ||
-      (version as number) > (currentLatest as number)
-    ) {
-      this.latestVersions.set(id as string, version);
+    const currentLatest = this.latestVersions.get(id);
+    if (currentLatest === undefined || (version as number) > (currentLatest as number)) {
+      this.latestVersions.set(id, version);
     }
   }
 
@@ -121,13 +120,11 @@ export class CapabilityCatalog {
       const key = catalogKey(id, version);
       const def = this.definitions.get(key);
       if (!def) {
-        throw new Error(
-          `Capability "${id as string}" version ${version as number} not found`,
-        );
+        throw new Error(`Capability "${id as string}" version ${version as number} not found`);
       }
       return def;
     }
-    const latestVersion = this.latestVersions.get(id as string);
+    const latestVersion = this.latestVersions.get(id);
     if (latestVersion === undefined) {
       throw new Error(`Capability "${id as string}" not found`);
     }
@@ -138,7 +135,7 @@ export class CapabilityCatalog {
     if (version !== undefined) {
       return this.definitions.has(catalogKey(id, version));
     }
-    return this.latestVersions.has(id as string);
+    return this.latestVersions.has(id);
   }
 
   findBySemanticInput(typeId: SemanticTypeId): CapabilityDefinition[] {

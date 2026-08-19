@@ -13,45 +13,45 @@ Manifests are authored in YAML and validated at registration time
 using Zod schemas.
 
 ```yaml
-id: market.orders                    # Required. Dot-notation unique ID.
-version: 1                           # Required. Positive integer.
-name: Market Orders                  # Required. Human-readable.
-description: >                       # Required.
+id: market.orders # Required. Dot-notation unique ID.
+version: 1 # Required. Positive integer.
+name: Market Orders # Required. Human-readable.
+description: > # Required.
   Fetch current market orders for a given
   item type in a specific region.
 
-inputs:                              # Required. May be empty for source-only.
+inputs: # Required. May be empty for source-only.
   region:
-    type: eve.region.reference       # Required. Registered semantic type ID.
-    description: Target region       # Optional.
-    required: true                   # Optional. Default: true.
+    type: eve.region.reference # Required. Registered semantic type ID.
+    description: Target region # Optional.
+    required: true # Optional. Default: true.
   item:
     type: eve.type.reference
     required: true
 
-outputs:                             # Required. At least one.
+outputs: # Required. At least one.
   orders:
     type: eve.market.order.collection
     description: List of market orders
 
-source: ESI                          # Required. ESI | SDE | DERIVED | CACHE | COMPOSITE
+source: ESI # Required. ESI | SDE | DERIVED | CACHE | COMPOSITE
 
-dependencies:                        # Optional.
+dependencies: # Optional.
   - universe.resolveRegion
   - universe.resolveType
 
-auth:                                # Required.
+auth: # Required.
   required: true
   scopes:
     - esi-markets.structure_markets.v1
 
-cache:                               # Required.
+cache: # Required.
   cacheable: true
   defaultTtlSeconds: 300
   stalePermitted: true
   identityInKey: false
 
-cost:                                # Required.
+cost: # Required.
   estimatedLatencyMs: 500
   esiCallCount: 1
 ```

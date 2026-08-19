@@ -29,14 +29,11 @@ function makeValidOptions(): ExportOptions {
         },
       ],
       edges: [],
-      outputs: [
-        { name: 'orders', source: 'fetch-orders.orders' },
-      ],
+      outputs: [{ name: 'orders', source: 'fetch-orders.orders' }],
     },
-    graphqlSdl: 'type Query {\n  orders(regionId: Int!): [Order!]!\n}\n\ntype Order {\n  id: ID!\n  price: Float!\n}',
-    mappings: [
-      { graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' },
-    ],
+    graphqlSdl:
+      'type Query {\n  orders(regionId: Int!): [Order!]!\n}\n\ntype Order {\n  id: ID!\n  price: Float!\n}',
+    mappings: [{ graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' }],
     policies: {
       cache: {
         cacheable: true,
@@ -54,9 +51,7 @@ function makeValidOptions(): ExportOptions {
       createdAt: new Date('2025-01-01T00:00:00Z'),
       tags: ['test', 'market'],
       gatewayMinimumVersion: '1.0.0',
-      requiredCapabilities: [
-        { id: 'market.orders', version: 1 },
-      ],
+      requiredCapabilities: [{ id: 'market.orders', version: 1 }],
     },
   };
 }
@@ -141,7 +136,8 @@ describe('exportSchemaPackage', () => {
   it('rejects package containing secrets', () => {
     const options = makeValidOptions();
     (options.pipelineDefinition.nodes[0] as { config?: Record<string, unknown> }).config = {
-      authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+      authorization:
+        'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
     };
     const result = exportSchemaPackage(options);
     expect(result.success).toBe(false);

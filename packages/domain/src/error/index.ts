@@ -28,8 +28,19 @@ export type {
 } from './runtime-errors.js';
 
 import { GatewayError } from './gateway-error.js';
-import type { SchemaError, SemanticCompositionError, MissingCapabilityError, MissingAuthScopeError } from './compiler-errors.js';
-import type { SourceUnavailableError, SourceRateLimitedError, InvalidSourceResponseError, DerivedComputationError, PolicyRejectionError } from './runtime-errors.js';
+import type {
+  SchemaError,
+  SemanticCompositionError,
+  MissingCapabilityError,
+  MissingAuthScopeError,
+} from './compiler-errors.js';
+import type {
+  SourceUnavailableError,
+  SourceRateLimitedError,
+  InvalidSourceResponseError,
+  DerivedComputationError,
+  PolicyRejectionError,
+} from './runtime-errors.js';
 
 export type GatewayErrorType =
   | SchemaError

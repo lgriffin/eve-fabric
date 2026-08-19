@@ -1,8 +1,4 @@
-import type {
-  CapabilityDefinition,
-  SourceAdapter,
-  SourceAdapterResult,
-} from '@eve-fabric/domain';
+import type { CapabilityDefinition, SourceAdapter, SourceAdapterResult } from '@eve-fabric/domain';
 
 /**
  * Skeleton SDE (Static Data Export) adapter.

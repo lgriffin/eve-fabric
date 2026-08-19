@@ -54,7 +54,12 @@ function unrelatedCapDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -119,7 +124,12 @@ describe('suggestIntermediates', () => {
       source: 'ESI' as const,
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: true, defaultTtlSeconds: 300, stalePermitted: true, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 300,
+        stalePermitted: true,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 200, esiCallCount: 1 },
     });
 
@@ -159,7 +169,12 @@ describe('suggestIntermediates', () => {
       source: 'SDE' as const,
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: true, defaultTtlSeconds: 3600, stalePermitted: true, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 3600,
+        stalePermitted: true,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 10, esiCallCount: 0 },
     });
 

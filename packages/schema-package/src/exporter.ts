@@ -36,9 +36,7 @@ export interface ExportFailure {
  * Export a schema package from its constituent parts.
  * Validates all fields, strips any credentials, and returns a validated SchemaPackage.
  */
-export function exportSchemaPackage(
-  options: ExportOptions,
-): ExportResult | ExportFailure {
+export function exportSchemaPackage(options: ExportOptions): ExportResult | ExportFailure {
   const raw = {
     id: options.id,
     name: options.name,
@@ -59,9 +57,7 @@ export function exportSchemaPackage(
   if (findings.length > 0) {
     return {
       success: false,
-      errors: findings.map(
-        (f) => `Secret detected at "${f.fieldPath}": ${f.patternName}`,
-      ),
+      errors: findings.map((f) => `Secret detected at "${f.fieldPath}": ${f.patternName}`),
     };
   }
 
@@ -70,9 +66,7 @@ export function exportSchemaPackage(
   if (!parsed.success) {
     return {
       success: false,
-      errors: parsed.error.issues.map(
-        (i) => `${i.path.join('.')}: ${i.message}`,
-      ),
+      errors: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
     };
   }
 

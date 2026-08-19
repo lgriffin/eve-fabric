@@ -39,7 +39,10 @@ describe('resolveVersions', () => {
       name: 'Test',
       inputs: [],
       nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+        },
       ],
       edges: [],
       outputs: [{ name: 'r', source: 'orders.result' }],
@@ -57,9 +60,7 @@ describe('resolveVersions', () => {
       version: 1,
       name: 'Test',
       inputs: [],
-      nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders') } },
-      ],
+      nodes: [{ id: 'orders', capability: { id: capabilityId('market.orders') } }],
       edges: [],
       outputs: [{ name: 'r', source: 'orders.result' }],
     };
@@ -77,7 +78,10 @@ describe('resolveVersions', () => {
       name: 'Test',
       inputs: [],
       nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(99) } },
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(99) },
+        },
       ],
       edges: [],
       outputs: [{ name: 'r', source: 'orders.result' }],
@@ -95,9 +99,7 @@ describe('resolveVersions', () => {
       version: 1,
       name: 'Test',
       inputs: [],
-      nodes: [
-        { id: 'missing', capability: { id: capabilityId('nonexistent.cap') } },
-      ],
+      nodes: [{ id: 'missing', capability: { id: capabilityId('nonexistent.cap') } }],
       edges: [],
       outputs: [{ name: 'r', source: 'missing.result' }],
     };
@@ -114,7 +116,10 @@ describe('resolveVersions', () => {
       name: 'Test',
       inputs: [],
       nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+        },
         { id: 'agg', capability: { id: capabilityId('market.aggregate') } },
       ],
       edges: [],

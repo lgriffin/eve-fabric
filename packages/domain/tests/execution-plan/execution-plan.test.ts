@@ -141,9 +141,7 @@ describe('ExecutionPlan', () => {
         },
       ],
       authRequirements: { required: true, scopes: ['esi-markets.read_structures.v1'] },
-      cacheStrategy: [
-        { stepId: 'step-1', cacheable: true, ttlSeconds: 300, identityInKey: false },
-      ],
+      cacheStrategy: [{ stepId: 'step-1', cacheable: true, ttlSeconds: 300, identityInKey: false }],
       costEstimate: { totalLatencyMs: 500, esiCallCount: 1, parallelLatencyMs: 500 },
       createdAt: new Date('2026-01-01T00:00:00Z'),
     };

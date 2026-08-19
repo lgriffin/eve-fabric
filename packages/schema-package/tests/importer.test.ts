@@ -64,9 +64,7 @@ function makeValidPackageData() {
       outputs: [{ name: 'orders', source: 'fetch-orders.orders' }],
     },
     graphqlSdl: 'type Query { orders: [Order!]! }\ntype Order { id: ID! }',
-    mappings: [
-      { graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' },
-    ],
+    mappings: [{ graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' }],
     policies: {
       cache: {
         cacheable: true,
@@ -102,9 +100,7 @@ describe('importSchemaPackage', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.diagnostics.some((d) => d.code === 'INVALID_SCHEMA'),
-      ).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'INVALID_SCHEMA')).toBe(true);
     }
   });
 
@@ -121,9 +117,7 @@ describe('importSchemaPackage', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.diagnostics.some((d) => d.code === 'VERSION_INCOMPATIBLE'),
-      ).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'VERSION_INCOMPATIBLE')).toBe(true);
     }
   });
 
@@ -150,26 +144,21 @@ describe('importSchemaPackage', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.diagnostics.some((d) => d.code === 'MISSING_CAPABILITY'),
-      ).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'MISSING_CAPABILITY')).toBe(true);
     }
   });
 
   it('fails when secrets are detected', () => {
     const data = {
       ...makeValidPackageData(),
-      description:
-        'token=abcdef1234567890abcdef1234567890',
+      description: 'token=abcdef1234567890abcdef1234567890',
     };
     const catalog = makeCatalog();
     const result = importSchemaPackage(data, catalog, '1.0.0');
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.diagnostics.some((d) => d.code === 'SECRET_DETECTED'),
-      ).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'SECRET_DETECTED')).toBe(true);
     }
   });
 
@@ -183,9 +172,7 @@ describe('importSchemaPackage', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(
-        result.diagnostics.some((d) => d.code === 'SECRET_DETECTED'),
-      ).toBe(true);
+      expect(result.diagnostics.some((d) => d.code === 'SECRET_DETECTED')).toBe(true);
     }
   });
 

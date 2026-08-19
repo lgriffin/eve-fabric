@@ -67,26 +67,26 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 
 ### Package Overview
 
-| Package | Purpose |
-|---------|---------|
-| `@eve-fabric/domain` | Branded types, capability model, pipeline model, error hierarchy, ports |
-| `@eve-fabric/compiler` | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
-| `@eve-fabric/planner` | Dependency ordering, parallel group detection, request coalescing |
-| `@eve-fabric/executor` | Concurrent execution engine with provenance tracking |
-| `@eve-fabric/graphql` | GraphQL type/query/input generation, custom scalars, selection-set pruning |
-| `@eve-fabric/capability-sdk` | `defineCapability` helper, YAML manifest parser, 10 initial EVE capabilities |
-| `@eve-fabric/esi-adapter` | ESI.ts integration (wraps `@lgriffin/esi.ts`) |
-| `@eve-fabric/sde-adapter` | Static Data Export adapter |
-| `@eve-fabric/cache` | In-memory cache with TTL and stale-while-revalidate |
-| `@eve-fabric/schema-package` | Schema export/import with secret scanning |
-| `@eve-fabric/persistence` | Drizzle ORM schema and repository implementations |
-| `@eve-fabric/test-support` | BDD world class and shared test helpers |
+| Package                      | Purpose                                                                                                                      |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `@eve-fabric/domain`         | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
+| `@eve-fabric/compiler`       | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
+| `@eve-fabric/planner`        | Dependency ordering, parallel group detection, request coalescing                                                            |
+| `@eve-fabric/executor`       | Concurrent execution engine with provenance tracking                                                                         |
+| `@eve-fabric/graphql`        | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
+| `@eve-fabric/capability-sdk` | `defineCapability` helper, YAML manifest parser, 10 initial EVE capabilities                                                 |
+| `@eve-fabric/esi-adapter`    | ESI.ts integration (wraps `@lgriffin/esi.ts`)                                                                                |
+| `@eve-fabric/sde-adapter`    | Static Data Export adapter                                                                                                   |
+| `@eve-fabric/cache`          | In-memory cache with TTL and stale-while-revalidate                                                                          |
+| `@eve-fabric/schema-package` | Schema export/import with secret scanning                                                                                    |
+| `@eve-fabric/persistence`    | Drizzle ORM schema and repository implementations                                                                            |
+| `@eve-fabric/test-support`   | BDD world class and shared test helpers                                                                                      |
 
 ### Apps
 
-| App | Purpose |
-|-----|---------|
-| `apps/gateway` | Fastify server with GraphQL Yoga, serves compiled pipeline schemas |
+| App             | Purpose                                                                    |
+| --------------- | -------------------------------------------------------------------------- |
+| `apps/gateway`  | Fastify server with GraphQL Yoga, serves compiled pipeline schemas         |
 | `apps/designer` | React + React Flow visual pipeline designer with drag-and-drop composition |
 
 ## Key Concepts
@@ -117,9 +117,7 @@ const marketOrders: CapabilityDefinition = {
     ['regionId', { name: 'regionId', semanticType: regionRefType }],
     ['typeId', { name: 'typeId', semanticType: typeRefType }],
   ]),
-  outputs: new Map([
-    ['orders', { name: 'orders', semanticType: orderCollectionType }],
-  ]),
+  outputs: new Map([['orders', { name: 'orders', semanticType: orderCollectionType }]]),
   auth: { required: true, scopes: ['esi-markets.read_markets.v1'] },
   cache: { strategy: 'ttl', ttlSeconds: 300 },
   cost: { weight: 1 },
@@ -226,24 +224,24 @@ The visual designer runs at `http://localhost:5173` with drag-and-drop pipeline 
 
 Three example pipelines are included in `examples/`:
 
-| Example | Description |
-|---------|-------------|
+| Example             | Description                                               |
+| ------------------- | --------------------------------------------------------- |
 | `trade-opportunity` | Multi-region trade profit calculation with route distance |
-| `market-schema` | Simple market price lookup for an item in a region |
-| `route-schema` | Jump distance calculation between solar systems |
+| `market-schema`     | Simple market price lookup for an item in a region        |
+| `route-schema`      | Jump distance calculation between solar systems           |
 
 ## Tooling
 
-| Tool | Command | Purpose |
-|------|---------|---------|
-| Vitest | `pnpm -r run test` | Unit and integration tests |
-| Cucumber.js | `pnpm --filter @eve-fabric/domain run test:bdd` | Behavior-driven scenarios |
-| Stryker | `pnpm run mutate` | Mutation testing (compiler + planner) |
-| TypeDoc | `pnpm run docs` | API documentation generation |
-| ESLint | `pnpm run lint` | Linting with TypeScript rules |
-| Prettier | `pnpm run format` | Code formatting |
-| Changesets | `pnpm changeset` | Version management |
-| Husky | automatic | Pre-commit secret scanning |
+| Tool        | Command                                         | Purpose                               |
+| ----------- | ----------------------------------------------- | ------------------------------------- |
+| Vitest      | `pnpm -r run test`                              | Unit and integration tests            |
+| Cucumber.js | `pnpm --filter @eve-fabric/domain run test:bdd` | Behavior-driven scenarios             |
+| Stryker     | `pnpm run mutate`                               | Mutation testing (compiler + planner) |
+| TypeDoc     | `pnpm run docs`                                 | API documentation generation          |
+| ESLint      | `pnpm run lint`                                 | Linting with TypeScript rules         |
+| Prettier    | `pnpm run format`                               | Code formatting                       |
+| Changesets  | `pnpm changeset`                                | Version management                    |
+| Husky       | automatic                                       | Pre-commit secret scanning            |
 
 ## Project Constitution
 
@@ -258,17 +256,17 @@ This project follows a [constitution](.specify/memory/constitution.md) with 26 p
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Language | TypeScript 5.x (strict mode) |
-| Runtime | Node.js 20 LTS |
-| Server | Fastify + GraphQL Yoga |
-| Schema | graphql-js type construction |
-| Validation | Zod |
-| EVE Data | @lgriffin/esi.ts 9.4.0 |
-| Frontend | React 18 + React Flow + Zustand |
-| Persistence | Drizzle ORM + SQLite |
-| Testing | Vitest + Cucumber.js + Stryker |
+| Layer         | Technology                                      |
+| ------------- | ----------------------------------------------- |
+| Language      | TypeScript 5.x (strict mode)                    |
+| Runtime       | Node.js 20 LTS                                  |
+| Server        | Fastify + GraphQL Yoga                          |
+| Schema        | graphql-js type construction                    |
+| Validation    | Zod                                             |
+| EVE Data      | @lgriffin/esi.ts 9.4.0                          |
+| Frontend      | React 18 + React Flow + Zustand                 |
+| Persistence   | Drizzle ORM + SQLite                            |
+| Testing       | Vitest + Cucumber.js + Stryker                  |
 | Observability | OpenTelemetry (instrumented, exporter-agnostic) |
 
 ## License

@@ -1,17 +1,9 @@
-interface ExecutionStep {
-  nodeId: string;
-  capabilityId: string;
-  parallelGroup: number;
-  estimatedLatencyMs: number;
-}
+import { usePipelineStore } from '../../stores/pipeline-store.js';
 
-interface ExecutionPlanPreviewProps {
-  steps?: ExecutionStep[];
-  totalCost?: { estimatedLatencyMs: number; esiCallCount: number };
-}
+export function ExecutionPlanPreview() {
+  const plan = usePipelineStore((s) => s.compiledPlan);
 
-export function ExecutionPlanPreview({ steps, totalCost }: ExecutionPlanPreviewProps) {
-  if (!steps) {
+  if (!plan) {
     return (
       <div style={{ color: '#555', fontSize: '12px', textAlign: 'center', padding: 20 }}>
         Validate your pipeline to see the execution plan.
@@ -19,73 +11,121 @@ export function ExecutionPlanPreview({ steps, totalCost }: ExecutionPlanPreviewP
     );
   }
 
-  const groups = new Map<number, ExecutionStep[]>();
-  for (const step of steps) {
-    const group = groups.get(step.parallelGroup) ?? [];
-    group.push(step);
-    groups.set(step.parallelGroup, group);
-  }
+  const { steps, parallelGroups, costEstimate } = plan;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {totalCost && (
-        <div
-          style={{
-            padding: '6px 10px',
-            borderBottom: '1px solid #333',
-            display: 'flex',
-            gap: 16,
-            fontSize: '11px',
-          }}
-        >
-          <span style={{ color: '#aaa' }}>
-            Est. latency: <span style={{ color: '#ffd54f' }}>{totalCost.estimatedLatencyMs}ms</span>
-          </span>
-          <span style={{ color: '#aaa' }}>
-            ESI calls: <span style={{ color: '#4fc3f7' }}>{totalCost.esiCallCount}</span>
-          </span>
-          <span style={{ color: '#aaa' }}>
-            Groups: <span style={{ color: '#81c784' }}>{groups.size}</span>
-          </span>
-        </div>
-      )}
+      <div
+        style={{
+          padding: '6px 10px',
+          borderBottom: '1px solid #333',
+          display: 'flex',
+          gap: 16,
+          fontSize: '11px',
+        }}
+      >
+        <span style={{ color: '#aaa' }}>
+          Total latency: <span style={{ color: '#ffd54f' }}>{costEstimate.totalLatencyMs}ms</span>
+        </span>
+        <span style={{ color: '#aaa' }}>
+          Parallel latency:{' '}
+          <span style={{ color: '#81c784' }}>{costEstimate.parallelLatencyMs}ms</span>
+        </span>
+        <span style={{ color: '#aaa' }}>
+          ESI calls: <span style={{ color: '#4fc3f7' }}>{costEstimate.esiCallCount}</span>
+        </span>
+        <span style={{ color: '#aaa' }}>
+          Groups: <span style={{ color: '#ba68c8' }}>{parallelGroups.length}</span>
+        </span>
+      </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
-        {[...groups.entries()]
-          .sort(([a], [b]) => a - b)
-          .map(([groupIndex, groupSteps]) => (
+        {parallelGroups.map((group, groupIndex) => {
+          const groupSteps = group.steps
+            .map((stepId) => steps.find((s) => s.id === stepId))
+            .filter(Boolean);
+
+          return (
             <div key={groupIndex} style={{ marginBottom: 12 }}>
               <div style={{ color: '#777', fontSize: '10px', fontWeight: 600, marginBottom: 4 }}>
-                GROUP {groupIndex + 1} (parallel)
+                GROUP {groupIndex + 1}
+                {group.canParallelize && (
+                  <span style={{ color: '#81c784', marginLeft: 6 }}>parallel</span>
+                )}
               </div>
               {groupSteps.map((step) => (
                 <div
-                  key={step.nodeId}
+                  key={step!.id}
                   style={{
                     background: '#252535',
                     border: '1px solid #333',
                     borderRadius: 4,
                     padding: '6px 10px',
                     marginBottom: 4,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
                     fontSize: '12px',
                   }}
                 >
-                  <div>
-                    <span style={{ color: '#e0e0e0' }}>{step.nodeId}</span>
-                    <span style={{ color: '#666', marginLeft: 8, fontSize: '10px' }}>
-                      {step.capabilityId}
-                    </span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: '#e0e0e0' }}>{step!.id}</span>
+                      <span style={{ color: '#666', marginLeft: 8, fontSize: '10px' }}>
+                        {step!.capability.id}
+                      </span>
+                    </div>
                   </div>
-                  <span style={{ color: '#ffd54f', fontSize: '10px' }}>
-                    ~{step.estimatedLatencyMs}ms
-                  </span>
+                  {step!.dependsOn.length > 0 && (
+                    <div style={{ color: '#888', fontSize: '10px', marginTop: 2 }}>
+                      depends on: {step!.dependsOn.join(', ')}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          ))}
+          );
+        })}
+
+        {parallelGroups.length === 0 && steps.length > 0 && (
+          <div>
+            <div style={{ color: '#777', fontSize: '10px', fontWeight: 600, marginBottom: 4 }}>
+              STEPS (sequential)
+            </div>
+            {steps.map((step) => (
+              <div
+                key={step.id}
+                style={{
+                  background: '#252535',
+                  border: '1px solid #333',
+                  borderRadius: 4,
+                  padding: '6px 10px',
+                  marginBottom: 4,
+                  fontSize: '12px',
+                }}
+              >
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <div>
+                    <span style={{ color: '#e0e0e0' }}>{step.id}</span>
+                    <span style={{ color: '#666', marginLeft: 8, fontSize: '10px' }}>
+                      {step.capability.id}
+                    </span>
+                  </div>
+                </div>
+                {step.dependsOn.length > 0 && (
+                  <div style={{ color: '#888', fontSize: '10px', marginTop: 2 }}>
+                    depends on: {step.dependsOn.join(', ')}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

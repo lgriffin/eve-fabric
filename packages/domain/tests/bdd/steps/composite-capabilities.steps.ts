@@ -20,23 +20,36 @@ interface CompositeWorld {
 function registerStandardCapabilities(catalog: CapabilityCatalog): void {
   const caps = [
     {
-      id: 'universe.resolve.type', version: 1, name: 'Resolve Type', description: 'Resolve EVE type',
+      id: 'universe.resolve.type',
+      version: 1,
+      name: 'Resolve Type',
+      description: 'Resolve EVE type',
       inputs: { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
       outputs: { type: { name: 'type', semanticType: 'eve.type.info', required: true } },
       source: 'ESI' as const,
     },
     {
-      id: 'market.orders', version: 1, name: 'Market Orders', description: 'Fetch market orders',
+      id: 'market.orders',
+      version: 1,
+      name: 'Market Orders',
+      description: 'Fetch market orders',
       inputs: {
         item: { name: 'item', semanticType: 'eve.type.reference', required: true },
         region: { name: 'region', semanticType: 'eve.region.reference', required: true },
       },
-      outputs: { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+      outputs: {
+        orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true },
+      },
       source: 'ESI' as const,
     },
     {
-      id: 'market.aggregate', version: 1, name: 'Market Aggregate', description: 'Aggregate orders',
-      inputs: { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+      id: 'market.aggregate',
+      version: 1,
+      name: 'Market Aggregate',
+      description: 'Aggregate orders',
+      inputs: {
+        orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true },
+      },
       outputs: {
         lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
         highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
@@ -44,9 +57,16 @@ function registerStandardCapabilities(catalog: CapabilityCatalog): void {
       source: 'DERIVED' as const,
     },
     {
-      id: 'collection.filter', version: 1, name: 'Collection Filter', description: 'Filter collection',
-      inputs: { items: { name: 'items', semanticType: 'eve.market.order.collection', required: true } },
-      outputs: { filtered: { name: 'filtered', semanticType: 'eve.market.order.collection', required: true } },
+      id: 'collection.filter',
+      version: 1,
+      name: 'Collection Filter',
+      description: 'Filter collection',
+      inputs: {
+        items: { name: 'items', semanticType: 'eve.market.order.collection', required: true },
+      },
+      outputs: {
+        filtered: { name: 'filtered', semanticType: 'eve.market.order.collection', required: true },
+      },
       source: 'DERIVED' as const,
     },
   ];
@@ -56,7 +76,12 @@ function registerStandardCapabilities(catalog: CapabilityCatalog): void {
       ...cap,
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 100, esiCallCount: cap.source === 'ESI' ? 1 : 0 },
     });
   }
@@ -181,7 +206,8 @@ Given('a composite capability {string} is published', function (this: CompositeW
   });
 });
 
-When('I publish the pipeline as composite capability {string} version {int}',
+When(
+  'I publish the pipeline as composite capability {string} version {int}',
   function (this: CompositeWorld, _id: string, _version: number) {
     assert.ok(this.currentPipeline, 'No pipeline defined');
     assert.ok(this.currentPipeline.outputs.length > 0, 'Pipeline has no outputs');
@@ -190,106 +216,144 @@ When('I publish the pipeline as composite capability {string} version {int}',
       version: capabilityVersion(_version),
       name: _id,
       description: `Published composite ${_id}`,
-      inputs: new Map(this.currentPipeline.inputs.map((i) => [i.name, {
-        name: i.name,
-        semanticType: i.semanticType,
-        required: i.required,
-      }])),
-      outputs: new Map(this.currentPipeline.outputs.map((o) => [o.name, {
-        name: o.name,
-        semanticType: semanticTypeId('eve.currency.isk'),
-        required: true,
-      }])),
+      inputs: new Map(
+        this.currentPipeline.inputs.map((i) => [
+          i.name,
+          {
+            name: i.name,
+            semanticType: i.semanticType,
+            required: i.required,
+          },
+        ]),
+      ),
+      outputs: new Map(
+        this.currentPipeline.outputs.map((o) => [
+          o.name,
+          {
+            name: o.name,
+            semanticType: semanticTypeId('eve.currency.isk'),
+            required: true,
+          },
+        ]),
+      ),
       source: 'COMPOSITE',
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
       pipelineRef: { id: this.currentPipeline.id, version: this.currentPipeline.version },
     };
   },
 );
 
-When('I attempt to publish the pipeline as a composite capability', function (this: CompositeWorld) {
-  assert.ok(this.currentPipeline, 'No pipeline defined');
-  if (this.currentPipeline.nodes.length === 0) {
-    this.publishError = 'Pipeline must contain at least one node';
-    this.publishedCapability = undefined;
-  }
-});
+When(
+  'I attempt to publish the pipeline as a composite capability',
+  function (this: CompositeWorld) {
+    assert.ok(this.currentPipeline, 'No pipeline defined');
+    if (this.currentPipeline.nodes.length === 0) {
+      this.publishError = 'Pipeline must contain at least one node';
+      this.publishedCapability = undefined;
+    }
+  },
+);
 
-Then('the composite capability should be registered in the catalog', function (this: CompositeWorld) {
-  assert.ok(this.publishedCapability, 'No capability was published');
-});
+Then(
+  'the composite capability should be registered in the catalog',
+  function (this: CompositeWorld) {
+    assert.ok(this.publishedCapability, 'No capability was published');
+  },
+);
 
-Then('the composite capability source should be {string}', function (this: CompositeWorld, source: string) {
-  assert.ok(this.publishedCapability, 'No capability was published');
-  assert.equal(this.publishedCapability.source, source);
-});
+Then(
+  'the composite capability source should be {string}',
+  function (this: CompositeWorld, source: string) {
+    assert.ok(this.publishedCapability, 'No capability was published');
+    assert.equal(this.publishedCapability.source, source);
+  },
+);
 
 Then('the composite capability should have a pipeline reference', function (this: CompositeWorld) {
   assert.ok(this.publishedCapability, 'No capability was published');
   assert.ok(this.publishedCapability.pipelineRef, 'No pipeline reference');
 });
 
-Then('the composite capability inputs should match the pipeline inputs', function (this: CompositeWorld) {
-  assert.ok(this.publishedCapability, 'No capability was published');
-  assert.ok(this.publishedCapability.inputs.size > 0, 'No inputs on composite');
-});
+Then(
+  'the composite capability inputs should match the pipeline inputs',
+  function (this: CompositeWorld) {
+    assert.ok(this.publishedCapability, 'No capability was published');
+    assert.ok(this.publishedCapability.inputs.size > 0, 'No inputs on composite');
+  },
+);
 
-Then('the composite capability outputs should have resolved semantic types', function (this: CompositeWorld) {
-  assert.ok(this.publishedCapability, 'No capability was published');
-  assert.ok(this.publishedCapability.outputs.size > 0, 'No outputs on composite');
-});
+Then(
+  'the composite capability outputs should have resolved semantic types',
+  function (this: CompositeWorld) {
+    assert.ok(this.publishedCapability, 'No capability was published');
+    assert.ok(this.publishedCapability.outputs.size > 0, 'No outputs on composite');
+  },
+);
 
 Then('publishing should fail with error {string}', function (this: CompositeWorld, error: string) {
   assert.ok(this.publishError, 'Expected publishing to fail');
-  assert.ok(this.publishError.includes(error), `Expected error containing "${error}" but got "${this.publishError}"`);
+  assert.ok(
+    this.publishError.includes(error),
+    `Expected error containing "${error}" but got "${this.publishError}"`,
+  );
 });
 
-Given('a composite capability {string} is published using {string}', function (this: CompositeWorld, id: string, _uses: string) {
-  const pipeline: PipelineDefinition = {
-    id: `${id}-pipeline`,
-    version: 1,
-    name: id,
-    inputs: [
-      { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
-    ],
-    nodes: [
-      { id: 'snapshot', capability: { id: capabilityId('market.snapshot') } },
-    ],
-    edges: [
-      { from: 'input.item', to: 'snapshot.item' },
-    ],
-    outputs: [
-      { name: 'result', source: 'snapshot.lowestSell' },
-    ],
-  };
-  this.pipelines.set(`${id}-pipeline@1`, pipeline);
-  this.catalog.register({
-    id,
-    version: 1,
-    name: id,
-    description: `Composite ${id}`,
-    inputs: { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
-    outputs: { result: { name: 'result', semanticType: 'eve.currency.isk', required: true } },
-    source: 'COMPOSITE',
-    dependencies: [],
-    auth: { required: false, scopes: [] },
-    cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
-    cost: { estimatedLatencyMs: 100, esiCallCount: 1 },
-    pipelineRef: { id: `${id}-pipeline`, version: 1 },
-  });
-});
+Given(
+  'a composite capability {string} is published using {string}',
+  function (this: CompositeWorld, id: string, _uses: string) {
+    const pipeline: PipelineDefinition = {
+      id: `${id}-pipeline`,
+      version: 1,
+      name: id,
+      inputs: [
+        { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
+      ],
+      nodes: [{ id: 'snapshot', capability: { id: capabilityId('market.snapshot') } }],
+      edges: [{ from: 'input.item', to: 'snapshot.item' }],
+      outputs: [{ name: 'result', source: 'snapshot.lowestSell' }],
+    };
+    this.pipelines.set(`${id}-pipeline@1`, pipeline);
+    this.catalog.register({
+      id,
+      version: 1,
+      name: id,
+      description: `Composite ${id}`,
+      inputs: { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
+      outputs: { result: { name: 'result', semanticType: 'eve.currency.isk', required: true } },
+      source: 'COMPOSITE',
+      dependencies: [],
+      auth: { required: false, scopes: [] },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 100, esiCallCount: 1 },
+      pipelineRef: { id: `${id}-pipeline`, version: 1 },
+    });
+  },
+);
 
 When('I resolve composites for {string}', function (this: CompositeWorld, _id: string) {
   assert.ok(this.catalog.has(capabilityId(_id)), `Capability "${_id}" should exist`);
   this.compileSuccess = true;
 });
 
-Then('the expanded pipeline should contain sub-steps prefixed with the parent node ID', function (this: CompositeWorld) {
-  assert.ok(this.compileSuccess, 'Expected resolution to succeed');
-});
+Then(
+  'the expanded pipeline should contain sub-steps prefixed with the parent node ID',
+  function (this: CompositeWorld) {
+    assert.ok(this.compileSuccess, 'Expected resolution to succeed');
+  },
+);
 
 When('I compile the pipeline', function (this: CompositeWorld) {
   assert.ok(this.currentPipeline, 'No pipeline defined');
@@ -305,95 +369,133 @@ Given('capabilities with auth requirements:', function (this: CompositeWorld, ta
   for (const row of rows) {
     const existing = this.catalog.get(capabilityId(row.capability));
     if (existing) {
-      (existing as any).auth = { required: true, scopes: row.scopes.split(',').map((s: string) => s.trim()) };
+      (existing as any).auth = {
+        required: true,
+        scopes: row.scopes.split(',').map((s: string) => s.trim()),
+      };
     }
   }
 });
 
-When('I publish a pipeline containing {string} as a composite', function (this: CompositeWorld, capId: string) {
-  const pipeline: PipelineDefinition = {
-    id: 'auth-composite',
-    version: 1,
-    name: 'Auth Composite',
-    inputs: [
-      { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
-      { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
-    ],
-    nodes: [
-      { id: 'n1', capability: { id: capabilityId(capId) } },
-    ],
-    edges: [
-      { from: 'input.item', to: 'n1.item' },
-      { from: 'input.region', to: 'n1.region' },
-    ],
-    outputs: [
-      { name: 'orders', source: 'n1.orders' },
-    ],
-  };
-  const cap = this.catalog.get(capabilityId(capId));
-  this.publishedCapability = {
-    id: capabilityId('composite.auth'),
-    version: capabilityVersion(1),
-    name: 'Auth Composite',
-    description: 'Composite with auth',
-    inputs: new Map(pipeline.inputs.map(i => [i.name, { name: i.name, semanticType: i.semanticType, required: i.required }])),
-    outputs: new Map([['orders', { name: 'orders', semanticType: semanticTypeId('eve.market.order.collection'), required: true }]]),
-    source: 'COMPOSITE',
-    dependencies: [],
-    auth: cap.auth,
-    cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
-    cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
-    pipelineRef: { id: pipeline.id, version: pipeline.version },
-  };
-});
+When(
+  'I publish a pipeline containing {string} as a composite',
+  function (this: CompositeWorld, capId: string) {
+    const pipeline: PipelineDefinition = {
+      id: 'auth-composite',
+      version: 1,
+      name: 'Auth Composite',
+      inputs: [
+        { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
+        { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
+      ],
+      nodes: [{ id: 'n1', capability: { id: capabilityId(capId) } }],
+      edges: [
+        { from: 'input.item', to: 'n1.item' },
+        { from: 'input.region', to: 'n1.region' },
+      ],
+      outputs: [{ name: 'orders', source: 'n1.orders' }],
+    };
+    const cap = this.catalog.get(capabilityId(capId));
+    this.publishedCapability = {
+      id: capabilityId('composite.auth'),
+      version: capabilityVersion(1),
+      name: 'Auth Composite',
+      description: 'Composite with auth',
+      inputs: new Map(
+        pipeline.inputs.map((i) => [
+          i.name,
+          { name: i.name, semanticType: i.semanticType, required: i.required },
+        ]),
+      ),
+      outputs: new Map([
+        [
+          'orders',
+          {
+            name: 'orders',
+            semanticType: semanticTypeId('eve.market.order.collection'),
+            required: true,
+          },
+        ],
+      ]),
+      source: 'COMPOSITE',
+      dependencies: [],
+      auth: cap.auth,
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
+      pipelineRef: { id: pipeline.id, version: pipeline.version },
+    };
+  },
+);
 
-Then('the composite capability auth should require scope {string}', function (this: CompositeWorld, scope: string) {
-  assert.ok(this.publishedCapability, 'No capability published');
-  assert.ok(this.publishedCapability.auth.required, 'Auth should be required');
-  assert.ok(
-    this.publishedCapability.auth.scopes.includes(scope),
-    `Expected scope "${scope}" in ${JSON.stringify(this.publishedCapability.auth.scopes)}`,
-  );
-});
+Then(
+  'the composite capability auth should require scope {string}',
+  function (this: CompositeWorld, scope: string) {
+    assert.ok(this.publishedCapability, 'No capability published');
+    assert.ok(this.publishedCapability.auth.required, 'Auth should be required');
+    assert.ok(
+      this.publishedCapability.auth.scopes.includes(scope),
+      `Expected scope "${scope}" in ${JSON.stringify(this.publishedCapability.auth.scopes)}`,
+    );
+  },
+);
 
-Given('a composite capability {string} version {int} is published', function (this: CompositeWorld, id: string, version: number) {
-  const pipeline: PipelineDefinition = {
-    id: `${id}-pipeline`,
-    version,
-    name: `${id} v${version}`,
-    inputs: [
-      { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
-    ],
-    nodes: [
-      { id: 'orders', capability: { id: capabilityId('market.orders') } },
-    ],
-    edges: [{ from: 'input.item', to: 'orders.item' }],
-    outputs: [{ name: 'orders', source: 'orders.orders' }],
-  };
-  this.pipelines.set(`${id}-pipeline@${version}`, pipeline);
-  this.catalog.register({
-    id,
-    version,
-    name: `${id} v${version}`,
-    description: `Composite ${id} version ${version}`,
-    inputs: { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
-    outputs: { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
-    source: 'COMPOSITE',
-    dependencies: [],
-    auth: { required: false, scopes: [] },
-    cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
-    cost: { estimatedLatencyMs: 100, esiCallCount: 1 },
-    pipelineRef: { id: `${id}-pipeline`, version },
-  });
-});
+Given(
+  'a composite capability {string} version {int} is published',
+  function (this: CompositeWorld, id: string, version: number) {
+    const pipeline: PipelineDefinition = {
+      id: `${id}-pipeline`,
+      version,
+      name: `${id} v${version}`,
+      inputs: [
+        { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
+      ],
+      nodes: [{ id: 'orders', capability: { id: capabilityId('market.orders') } }],
+      edges: [{ from: 'input.item', to: 'orders.item' }],
+      outputs: [{ name: 'orders', source: 'orders.orders' }],
+    };
+    this.pipelines.set(`${id}-pipeline@${version}`, pipeline);
+    this.catalog.register({
+      id,
+      version,
+      name: `${id} v${version}`,
+      description: `Composite ${id} version ${version}`,
+      inputs: { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
+      outputs: {
+        orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true },
+      },
+      source: 'COMPOSITE',
+      dependencies: [],
+      auth: { required: false, scopes: [] },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 100, esiCallCount: 1 },
+      pipelineRef: { id: `${id}-pipeline`, version },
+    });
+  },
+);
 
-When('I reference {string} version {int} in a pipeline', function (this: CompositeWorld, id: string, version: number) {
-  const cap = this.catalog.get(capabilityId(id), capabilityVersion(version));
-  assert.ok(cap, `Capability "${id}" version ${version} should be retrievable`);
-  this.publishedCapability = cap;
-});
+When(
+  'I reference {string} version {int} in a pipeline',
+  function (this: CompositeWorld, id: string, version: number) {
+    const cap = this.catalog.get(capabilityId(id), capabilityVersion(version));
+    assert.ok(cap, `Capability "${id}" version ${version} should be retrievable`);
+    this.publishedCapability = cap;
+  },
+);
 
-Then('version resolution should resolve to version {int}', function (this: CompositeWorld, version: number) {
-  assert.ok(this.publishedCapability, 'No capability resolved');
-  assert.equal(this.publishedCapability.version as number, version);
-});
+Then(
+  'version resolution should resolve to version {int}',
+  function (this: CompositeWorld, version: number) {
+    assert.ok(this.publishedCapability, 'No capability resolved');
+    assert.equal(this.publishedCapability.version as number, version);
+  },
+);

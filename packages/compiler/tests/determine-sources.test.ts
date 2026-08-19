@@ -38,7 +38,12 @@ function sdeCapDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -113,7 +118,11 @@ describe('determineSources', () => {
       name: 'Character Wallet',
       description: 'Fetch wallet data',
       inputs: {
-        characterId: { name: 'characterId', semanticType: 'eve.character.reference', required: true },
+        characterId: {
+          name: 'characterId',
+          semanticType: 'eve.character.reference',
+          required: true,
+        },
       },
       outputs: {
         balance: { name: 'balance', semanticType: 'eve.currency.isk', required: true },
@@ -121,7 +130,12 @@ describe('determineSources', () => {
       source: 'ESI' as const,
       dependencies: [],
       auth: { required: true, scopes: ['esi-wallet.read_character_wallet.v1'] },
-      cache: { cacheable: true, defaultTtlSeconds: 120, stalePermitted: false, identityInKey: true },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 120,
+        stalePermitted: false,
+        identityInKey: true,
+      },
       cost: { estimatedLatencyMs: 150, esiCallCount: 1 },
     });
 

@@ -37,37 +37,37 @@ reimplementation; single-user local deployment; 10 initial capabilities
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1
-design.*
+_GATE: Must pass before Phase 0 research. Re-check after Phase 1
+design._
 
-| # | Principle | Status | Notes |
-|---|-----------|--------|-------|
-| I | Purpose | PASS | Gateway composes ESI/SDE/derived into GraphQL; does not replace ESI.ts |
-| II | Core Architecture | PASS | GraphQL as public contract, not ESI reflection; 4 concerns separated |
-| III | TypeScript-First | PASS | All TypeScript strict; Zod validation; no `any` |
-| IV | Clean Architecture | PASS | domain/application/infrastructure/interfaces layers in monorepo |
-| V | Capability-First | PASS | Capability model is central; full metadata contract defined |
-| VI | Semantic Types | PASS | Branded types + Zod; compiler rejects structural-only matches |
-| VII | Pipeline Composition | PASS | DAG-based pipelines; publishable as capabilities; deterministic |
-| VIII | GraphQL Contract | PASS | Domain-oriented schemas; selection-set-aware planning |
-| IX | Custom Schema | PASS | Schema packages with full metadata; export/import |
-| X | Schema Compiler | PASS | 12-step compilation pipeline; fail-before-runtime |
-| XI | Execution Planner | PASS | Dependency ordering, parallelism, batching, caching, provenance |
-| XII | Source Authority | PASS | Source classification per capability; no silent substitution |
-| XIII | Provenance | PASS | Full provenance model on every result; survives composition |
-| XIV | Caching | PASS | Capability-aware; behind application port; policy per capability |
-| XV | Auth | PASS | Scopes per capability; separated from domain; no embedded secrets |
-| XVI | Designer Independence | PASS | Same compiler/catalog for visual and non-visual clients |
-| XVII | AI Assistance | PASS | Deferred; architecture accommodates it |
-| XVIII | Testing | PASS | TDD (Vitest), BDD (Cucumber.js), mutation (Stryker) |
-| XIX | Specification Style | PASS | EARS-style requirements in spec |
-| XX | Documentation | PASS | Self-describing capabilities; TypeDoc; GraphQL descriptions |
-| XXI | Backward Compat | PASS | Semantic versioning for packages and capabilities |
-| XXII | Observability | PASS | OpenTelemetry; trace correlation across full stack |
-| XXIII | Error Model | PASS | 9 error categories; no infrastructure leak |
-| XXIV | Performance | PASS | Correctness first; measurable before optimized |
-| XXV | Repo Boundary | PASS | ESI.ts dependency; no reimplementation |
-| XXVI | Definition of Done | PASS | All criteria addressable by plan |
+| #     | Principle             | Status | Notes                                                                  |
+| ----- | --------------------- | ------ | ---------------------------------------------------------------------- |
+| I     | Purpose               | PASS   | Gateway composes ESI/SDE/derived into GraphQL; does not replace ESI.ts |
+| II    | Core Architecture     | PASS   | GraphQL as public contract, not ESI reflection; 4 concerns separated   |
+| III   | TypeScript-First      | PASS   | All TypeScript strict; Zod validation; no `any`                        |
+| IV    | Clean Architecture    | PASS   | domain/application/infrastructure/interfaces layers in monorepo        |
+| V     | Capability-First      | PASS   | Capability model is central; full metadata contract defined            |
+| VI    | Semantic Types        | PASS   | Branded types + Zod; compiler rejects structural-only matches          |
+| VII   | Pipeline Composition  | PASS   | DAG-based pipelines; publishable as capabilities; deterministic        |
+| VIII  | GraphQL Contract      | PASS   | Domain-oriented schemas; selection-set-aware planning                  |
+| IX    | Custom Schema         | PASS   | Schema packages with full metadata; export/import                      |
+| X     | Schema Compiler       | PASS   | 12-step compilation pipeline; fail-before-runtime                      |
+| XI    | Execution Planner     | PASS   | Dependency ordering, parallelism, batching, caching, provenance        |
+| XII   | Source Authority      | PASS   | Source classification per capability; no silent substitution           |
+| XIII  | Provenance            | PASS   | Full provenance model on every result; survives composition            |
+| XIV   | Caching               | PASS   | Capability-aware; behind application port; policy per capability       |
+| XV    | Auth                  | PASS   | Scopes per capability; separated from domain; no embedded secrets      |
+| XVI   | Designer Independence | PASS   | Same compiler/catalog for visual and non-visual clients                |
+| XVII  | AI Assistance         | PASS   | Deferred; architecture accommodates it                                 |
+| XVIII | Testing               | PASS   | TDD (Vitest), BDD (Cucumber.js), mutation (Stryker)                    |
+| XIX   | Specification Style   | PASS   | EARS-style requirements in spec                                        |
+| XX    | Documentation         | PASS   | Self-describing capabilities; TypeDoc; GraphQL descriptions            |
+| XXI   | Backward Compat       | PASS   | Semantic versioning for packages and capabilities                      |
+| XXII  | Observability         | PASS   | OpenTelemetry; trace correlation across full stack                     |
+| XXIII | Error Model           | PASS   | 9 error categories; no infrastructure leak                             |
+| XXIV  | Performance           | PASS   | Correctness first; measurable before optimized                         |
+| XXV   | Repo Boundary         | PASS   | ESI.ts dependency; no reimplementation                                 |
+| XXVI  | Definition of Done    | PASS   | All criteria addressable by plan                                       |
 
 **Result**: All 26 gates pass. No violations to justify.
 

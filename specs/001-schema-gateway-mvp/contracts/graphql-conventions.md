@@ -9,15 +9,15 @@ to ensure domain-oriented, consistent, and predictable APIs.
 
 ## Naming Conventions
 
-| Concept | Convention | Example |
-|---------|------------|---------|
-| Query fields | camelCase, domain-oriented | `marketSnapshot`, `tradeOpportunity` |
-| Types | PascalCase, domain nouns | `MarketSnapshot`, `EveType` |
-| Input types | PascalCase + "Input" suffix | `TradeOpportunityInput` |
-| Enum types | PascalCase | `DataSource` |
-| Enum values | SCREAMING_SNAKE_CASE | `ESI`, `SDE`, `DERIVED` |
-| Scalar types | PascalCase, semantic names | `ISK`, `TypeReference` |
-| Field names | camelCase | `lowestSell`, `highestBuy` |
+| Concept      | Convention                  | Example                              |
+| ------------ | --------------------------- | ------------------------------------ |
+| Query fields | camelCase, domain-oriented  | `marketSnapshot`, `tradeOpportunity` |
+| Types        | PascalCase, domain nouns    | `MarketSnapshot`, `EveType`          |
+| Input types  | PascalCase + "Input" suffix | `TradeOpportunityInput`              |
+| Enum types   | PascalCase                  | `DataSource`                         |
+| Enum values  | SCREAMING_SNAKE_CASE        | `ESI`, `SDE`, `DERIVED`              |
+| Scalar types | PascalCase, semantic names  | `ISK`, `TypeReference`               |
+| Field names  | camelCase                   | `lowestSell`, `highestBuy`           |
 
 ## Schema Structure
 
@@ -108,11 +108,11 @@ provides market data will NOT invoke ESI market capabilities.
 
 ## Nullability Rules
 
-| Scenario | Convention |
-|----------|-----------|
-| Field always available from source | Non-null (`!`) |
-| Field requires specific auth scope | Nullable (may be null if scope unavailable) |
-| Field from optional pipeline output | Nullable |
-| List fields | Non-null list of non-null items (`[Type!]!`) |
-| Input fields from required pipeline inputs | Non-null (`!`) |
-| Input fields from optional pipeline inputs | Nullable |
+| Scenario                                   | Convention                                   |
+| ------------------------------------------ | -------------------------------------------- |
+| Field always available from source         | Non-null (`!`)                               |
+| Field requires specific auth scope         | Nullable (may be null if scope unavailable)  |
+| Field from optional pipeline output        | Nullable                                     |
+| List fields                                | Non-null list of non-null items (`[Type!]!`) |
+| Input fields from required pipeline inputs | Non-null (`!`)                               |
+| Input fields from optional pipeline inputs | Nullable                                     |

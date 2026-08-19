@@ -50,9 +50,9 @@ describe('EsiAdapter', () => {
   describe('execute', () => {
     it('throws "not yet connected" error', async () => {
       const cap = makeCapability('ESI');
-      await expect(
-        adapter.execute(cap, new Map()),
-      ).rejects.toThrow('ESI adapter not yet connected to ESI.ts');
+      await expect(adapter.execute(cap, new Map())).rejects.toThrow(
+        'ESI adapter not yet connected to ESI.ts',
+      );
     });
   });
 });

@@ -97,9 +97,7 @@ describe('determineCache', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any } },
-      ],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any } }],
       edges: [],
       outputs: [],
     };
@@ -118,9 +116,7 @@ describe('determineCache', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'agg', capability: { id: 'price.aggregator' as any } },
-      ],
+      nodes: [{ id: 'agg', capability: { id: 'price.aggregator' as any } }],
       edges: [],
       outputs: [],
     };
@@ -138,9 +134,7 @@ describe('determineCache', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'wallet', capability: { id: 'character.wallet' as any } },
-      ],
+      nodes: [{ id: 'wallet', capability: { id: 'character.wallet' as any } }],
       edges: [],
       outputs: [],
     };

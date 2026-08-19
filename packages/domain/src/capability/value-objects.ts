@@ -36,10 +36,4 @@ export const costModelSchema = z.object({
 
 export type CapabilitySource = 'ESI' | 'SDE' | 'DERIVED' | 'CACHE' | 'COMPOSITE';
 
-export const capabilitySourceSchema = z.enum([
-  'ESI',
-  'SDE',
-  'DERIVED',
-  'CACHE',
-  'COMPOSITE',
-]);
+export const capabilitySourceSchema = z.enum(['ESI', 'SDE', 'DERIVED', 'CACHE', 'COMPOSITE']);

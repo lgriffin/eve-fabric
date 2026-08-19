@@ -33,7 +33,7 @@ description: >
 gateway:
   minimumVersion: 0.1.0
 
-capabilities:                        # All capabilities required.
+capabilities: # All capabilities required.
   - id: market.orders
     version: 1
   - id: market.aggregate
@@ -51,9 +51,9 @@ capabilities:                        # All capabilities required.
   - id: collection.sort
     version: 1
 
-author: ""                           # Optional.
-createdAt: "2026-08-19T12:00:00Z"
-tags:                                # Optional.
+author: '' # Optional.
+createdAt: '2026-08-19T12:00:00Z'
+tags: # Optional.
   - market
   - trading
 ```

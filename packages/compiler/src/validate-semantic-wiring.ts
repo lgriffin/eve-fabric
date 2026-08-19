@@ -74,16 +74,17 @@ function resolvePortType(
 
   try {
     const capId = capabilityId(node.capability.id);
-    const capVer = node.capability.version !== undefined
-      ? capabilityVersion(node.capability.version)
-      : undefined;
+    const capVer =
+      node.capability.version !== undefined
+        ? capabilityVersion(node.capability.version)
+        : undefined;
     const def = catalog.get(capId, capVer);
 
     // For "from" side, look at capability outputs; for "to" side, look at inputs
     const ports = side === 'output' ? def.outputs : def.inputs;
     const port = ports.get(parsed.portName);
     if (port) {
-      return port.semanticType as string;
+      return port.semanticType;
     }
     return undefined;
   } catch {
@@ -114,23 +115,9 @@ export function validateSemanticWiring(
   }
 
   for (const edge of pipeline.edges) {
-    const fromType = resolvePortType(
-      edge.from,
-      'output',
-      pipeline,
-      catalog,
-      nodeMap,
-      diagnostics,
-    );
+    const fromType = resolvePortType(edge.from, 'output', pipeline, catalog, nodeMap, diagnostics);
 
-    const toType = resolvePortType(
-      edge.to,
-      'input',
-      pipeline,
-      catalog,
-      nodeMap,
-      diagnostics,
-    );
+    const toType = resolvePortType(edge.to, 'input', pipeline, catalog, nodeMap, diagnostics);
 
     // Only check mismatch when both types are resolved
     if (fromType !== undefined && toType !== undefined && fromType !== toType) {

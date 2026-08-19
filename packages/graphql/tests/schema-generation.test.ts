@@ -9,10 +9,7 @@ import {
   mapErrorToGraphQL,
   analyzeSelectionSet,
 } from '../src/index.js';
-import type {
-  PipelineDefinition,
-  SemanticPort,
-} from '@eve-fabric/domain';
+import type { PipelineDefinition, SemanticPort } from '@eve-fabric/domain';
 import {
   CapabilityCatalog,
   capabilityId,
@@ -114,7 +111,12 @@ describe('buildOutputType', () => {
     );
     const catalog = makeCatalog([cap]);
     const pipeline = makePipeline({
-      nodes: [{ id: 'agg', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } }],
+      nodes: [
+        {
+          id: 'agg',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
+      ],
       outputs: [
         { name: 'sellPrice', source: 'agg.lowestSell' },
         { name: 'buyPrice', source: 'agg.highestBuy' },
@@ -138,7 +140,12 @@ describe('buildOutputType', () => {
     const catalog = makeCatalog([cap]);
     const pipeline = makePipeline({
       name: 'Trade Opportunity',
-      nodes: [{ id: 'agg', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } }],
+      nodes: [
+        {
+          id: 'agg',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
+      ],
       outputs: [{ name: 'price', source: 'agg.result' }],
     });
 
@@ -195,7 +202,12 @@ describe('buildSchema', () => {
       inputs: [
         { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
       ],
-      nodes: [{ id: 'agg', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } }],
+      nodes: [
+        {
+          id: 'agg',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
+      ],
       outputs: [{ name: 'lowestSell', source: 'agg.lowestSell' }],
     });
 
@@ -217,7 +229,12 @@ describe('buildSchema', () => {
     const catalog = makeCatalog([cap]);
     const pipeline = makePipeline({
       name: 'Trade Opportunity',
-      nodes: [{ id: 'agg', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } }],
+      nodes: [
+        {
+          id: 'agg',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
+      ],
       outputs: [{ name: 'price', source: 'agg.result' }],
     });
 
@@ -285,7 +302,7 @@ describe('selection analyzer', () => {
 
   it('returns empty set when no selection set', () => {
     const mockInfo = {
-      fieldNodes: [{ }],
+      fieldNodes: [{}],
     };
 
     const fields = analyzeSelectionSet(mockInfo as never);
@@ -306,7 +323,12 @@ describe('schema with executor', () => {
       inputs: [
         { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
       ],
-      nodes: [{ id: 'agg', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } }],
+      nodes: [
+        {
+          id: 'agg',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
+      ],
       outputs: [{ name: 'lowestSell', source: 'agg.lowestSell' }],
     });
 
@@ -329,12 +351,14 @@ describe('schema with executor', () => {
       createdAt: new Date(),
     };
 
-    const schema = buildSchema([{
-      pipeline,
-      catalog,
-      plan: mockPlan,
-      executor: mockExecutor,
-    }]);
+    const schema = buildSchema([
+      {
+        pipeline,
+        catalog,
+        plan: mockPlan,
+        executor: mockExecutor,
+      },
+    ]);
 
     const result = await graphql({
       schema,

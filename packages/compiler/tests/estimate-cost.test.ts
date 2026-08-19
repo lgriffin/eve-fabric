@@ -39,7 +39,12 @@ function sdeCapDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -106,7 +111,11 @@ describe('estimateCost', () => {
       name: 'Character Wallet',
       description: 'Fetch wallet data',
       inputs: {
-        characterId: { name: 'characterId', semanticType: 'eve.character.reference', required: true },
+        characterId: {
+          name: 'characterId',
+          semanticType: 'eve.character.reference',
+          required: true,
+        },
       },
       outputs: {
         balance: { name: 'balance', semanticType: 'eve.currency.isk', required: true },
@@ -114,7 +123,12 @@ describe('estimateCost', () => {
       source: 'ESI' as const,
       dependencies: [],
       auth: { required: true, scopes: ['esi-wallet.read_character_wallet.v1'] },
-      cache: { cacheable: true, defaultTtlSeconds: 120, stalePermitted: false, identityInKey: true },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 120,
+        stalePermitted: false,
+        identityInKey: true,
+      },
       cost: { estimatedLatencyMs: 150, esiCallCount: 1 },
     });
 
@@ -131,9 +145,7 @@ describe('estimateCost', () => {
       outputs: [],
     };
 
-    const groups: StepGroup[] = [
-      { steps: ['fetch', 'wallet'], canParallelize: true },
-    ];
+    const groups: StepGroup[] = [{ steps: ['fetch', 'wallet'], canParallelize: true }];
 
     const cost = estimateCost(pipeline, catalog, groups);
     expect(cost.esiCallCount).toBe(2);
@@ -146,9 +158,9 @@ describe('estimateCost', () => {
       name: 'Test Pipeline',
       inputs: [],
       nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any } },    // 200ms
+        { id: 'fetch', capability: { id: 'market.orders' as any } }, // 200ms
         { id: 'lookup', capability: { id: 'sde.types.lookup' as any } }, // 5ms
-        { id: 'agg', capability: { id: 'price.aggregator' as any } },   // 50ms
+        { id: 'agg', capability: { id: 'price.aggregator' as any } }, // 50ms
       ],
       edges: [],
       outputs: [],
@@ -161,7 +173,7 @@ describe('estimateCost', () => {
     ];
 
     const cost = estimateCost(pipeline, catalog, groups);
-    expect(cost.totalLatencyMs).toBe(255);   // 200 + 5 + 50
+    expect(cost.totalLatencyMs).toBe(255); // 200 + 5 + 50
     expect(cost.parallelLatencyMs).toBe(250); // max(200,5) + 50
   });
 

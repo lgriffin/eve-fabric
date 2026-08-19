@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { useCatalogStore, enrichWithCategory, type CatalogCapability } from '../../src/stores/catalog-store.js';
+import {
+  useCatalogStore,
+  enrichWithCategory,
+  type CatalogCapability,
+} from '../../src/stores/catalog-store.js';
 
 function makeCap(overrides: Partial<CatalogCapability> = {}): Omit<CatalogCapability, 'category'> {
   return {
@@ -12,9 +16,7 @@ function makeCap(overrides: Partial<CatalogCapability> = {}): Omit<CatalogCapabi
       { name: 'item', semanticType: 'eve.type.reference', required: true },
       { name: 'region', semanticType: 'eve.region.reference', required: true },
     ],
-    outputs: [
-      { name: 'orders', semanticType: 'eve.market.orders' },
-    ],
+    outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
     ...overrides,
   };
 }
@@ -45,7 +47,11 @@ describe('CatalogStore', () => {
     const store = useCatalogStore.getState();
     store.setCapabilities([
       makeCap({ id: 'market.orders', name: 'Market Orders' }) as CatalogCapability,
-      makeCap({ id: 'universe.resolveType', name: 'Resolve Type', source: 'SDE' }) as CatalogCapability,
+      makeCap({
+        id: 'universe.resolveType',
+        name: 'Resolve Type',
+        source: 'SDE',
+      }) as CatalogCapability,
     ]);
 
     const all = useCatalogStore.getState().filteredCapabilities();
@@ -56,7 +62,11 @@ describe('CatalogStore', () => {
     const store = useCatalogStore.getState();
     store.setCapabilities([
       makeCap({ id: 'market.orders', name: 'Market Orders' }) as CatalogCapability,
-      makeCap({ id: 'universe.resolveType', name: 'Resolve Type', description: 'Resolve a type ID to its name' }) as CatalogCapability,
+      makeCap({
+        id: 'universe.resolveType',
+        name: 'Resolve Type',
+        description: 'Resolve a type ID to its name',
+      }) as CatalogCapability,
     ]);
     store.setSearchQuery('market');
 
@@ -82,8 +92,16 @@ describe('CatalogStore', () => {
     const store = useCatalogStore.getState();
     store.setCapabilities([
       makeCap({ id: 'market.orders', source: 'ESI', name: 'Market Orders' }) as CatalogCapability,
-      makeCap({ id: 'market.aggregate', source: 'DERIVED', name: 'Market Aggregate' }) as CatalogCapability,
-      makeCap({ id: 'universe.resolveType', source: 'SDE', name: 'Resolve Type' }) as CatalogCapability,
+      makeCap({
+        id: 'market.aggregate',
+        source: 'DERIVED',
+        name: 'Market Aggregate',
+      }) as CatalogCapability,
+      makeCap({
+        id: 'universe.resolveType',
+        source: 'SDE',
+        name: 'Resolve Type',
+      }) as CatalogCapability,
     ]);
     store.setSearchQuery('market');
     store.setSelectedSource('ESI');

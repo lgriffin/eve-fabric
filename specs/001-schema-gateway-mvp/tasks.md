@@ -27,7 +27,7 @@
 
 **Purpose**: Monorepo initialization and build tooling
 
-- [x] T001 Create monorepo root config: pnpm-workspace.yaml (apps/*, packages/*), root package.json with workspace scripts, .npmrc (strict-peer-dependencies), .gitignore
+- [x] T001 Create monorepo root config: pnpm-workspace.yaml (apps/_, packages/_), root package.json with workspace scripts, .npmrc (strict-peer-dependencies), .gitignore
 - [x] T002 [P] Create shared TypeScript base config: tsconfig.base.json with strict settings (strict: true, noUncheckedIndexedAccess, exactOptionalPropertyTypes)
 - [x] T003 [P] Configure shared ESLint + Prettier: .eslintrc.cjs and .prettierrc at root with TypeScript strict rules
 - [x] T004 [P] Initialize domain-layer packages with package.json and tsconfig.json extending base: packages/domain, packages/capability-sdk, packages/compiler, packages/planner, packages/executor, packages/schema-package

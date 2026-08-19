@@ -18,7 +18,12 @@ function noAuthCapDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -57,7 +62,10 @@ function assetsCapDef() {
     },
     source: 'ESI' as const,
     dependencies: [],
-    auth: { required: true, scopes: ['esi-assets.read_assets.v5', 'esi-wallet.read_character_wallet.v1'] },
+    auth: {
+      required: true,
+      scopes: ['esi-assets.read_assets.v5', 'esi-wallet.read_character_wallet.v1'],
+    },
     cache: { cacheable: true, defaultTtlSeconds: 3600, stalePermitted: false, identityInKey: true },
     cost: { estimatedLatencyMs: 300, esiCallCount: 2 },
   };
@@ -79,9 +87,7 @@ describe('determineAuth', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'lookup', capability: { id: 'sde.types.lookup' as any } },
-      ],
+      nodes: [{ id: 'lookup', capability: { id: 'sde.types.lookup' as any } }],
       edges: [],
       outputs: [],
     };

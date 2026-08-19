@@ -79,9 +79,7 @@ export function importSchemaPackage(
   }
 
   // 3. Check gateway version compatibility
-  if (
-    compareSemver(pkg.metadata.gatewayMinimumVersion, currentGatewayVersion) > 0
-  ) {
+  if (compareSemver(pkg.metadata.gatewayMinimumVersion, currentGatewayVersion) > 0) {
     diagnostics.push({
       code: 'VERSION_INCOMPATIBLE',
       message: `Package requires gateway ${pkg.metadata.gatewayMinimumVersion} but current is ${currentGatewayVersion}`,
@@ -91,10 +89,7 @@ export function importSchemaPackage(
 
   // 4. Check required capabilities against catalog
   for (const cap of pkg.metadata.requiredCapabilities) {
-    const hasCapability = catalog.has(
-      capabilityId(cap.id),
-      capabilityVersion(cap.version),
-    );
+    const hasCapability = catalog.has(capabilityId(cap.id), capabilityVersion(cap.version));
     if (!hasCapability) {
       diagnostics.push({
         code: 'MISSING_CAPABILITY',

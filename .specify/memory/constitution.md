@@ -32,6 +32,7 @@
     - .specify/templates/checklist-template.md     aligned
   Follow-up TODOs: None
 -->
+
 # EVE Schema Gateway Constitution
 
 ## Core Principles

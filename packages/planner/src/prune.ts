@@ -79,9 +79,7 @@ export function prunePlan(
     }
   }
 
-  const cacheStrategy: CacheStrategy[] = plan.cacheStrategy.filter((cs) =>
-    needed.has(cs.stepId),
-  );
+  const cacheStrategy: CacheStrategy[] = plan.cacheStrategy.filter((cs) => needed.has(cs.stepId));
 
   const totalSteps = plan.steps.length;
   const ratio = totalSteps > 0 ? steps.length / totalSteps : 0;

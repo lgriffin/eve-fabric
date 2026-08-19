@@ -15,8 +15,7 @@ function makeResolveInfo(query: string, fieldName: string): GraphQLResolveInfo {
   }
 
   const targetField = opDef.selectionSet.selections.find(
-    (sel): sel is FieldNode =>
-      sel.kind === Kind.FIELD && sel.name.value === fieldName,
+    (sel): sel is FieldNode => sel.kind === Kind.FIELD && sel.name.value === fieldName,
   );
 
   if (targetField === undefined) {
@@ -43,10 +42,7 @@ describe('analyzeSelectionSet', () => {
   });
 
   it('returns only requested fields, not all possible fields', () => {
-    const info = makeResolveInfo(
-      `{ tradeOpportunity { bestPrice } }`,
-      'tradeOpportunity',
-    );
+    const info = makeResolveInfo(`{ tradeOpportunity { bestPrice } }`, 'tradeOpportunity');
 
     const requested = analyzeSelectionSet(info);
 
@@ -70,10 +66,7 @@ describe('analyzeSelectionSet', () => {
   });
 
   it('handles multiple field nodes', () => {
-    const info = makeResolveInfo(
-      `{ tradeOpportunity { bestPrice profit } }`,
-      'tradeOpportunity',
-    );
+    const info = makeResolveInfo(`{ tradeOpportunity { bestPrice profit } }`, 'tradeOpportunity');
 
     // Simulate multiple field nodes by duplicating
     const doubled = {

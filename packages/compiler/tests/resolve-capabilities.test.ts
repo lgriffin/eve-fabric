@@ -139,9 +139,7 @@ describe('resolveCapabilities', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'missing', capability: { id: 'nonexistent.cap' as any } },
-      ],
+      nodes: [{ id: 'missing', capability: { id: 'nonexistent.cap' as any } }],
       edges: [],
       outputs: [],
     };
@@ -157,12 +155,8 @@ describe('resolveCapabilities', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any, version: 1 as any } },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any, version: 1 as any } }],
       edges: [
         { from: 'input.regionId', to: 'fetch.regionId' },
         // typeId is NOT wired
@@ -181,12 +175,8 @@ describe('resolveCapabilities', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'region', semanticType: 'eve.region.reference' as any, required: true },
-      ],
-      nodes: [
-        { id: 'opt', capability: { id: 'optional.cap' as any, version: 1 as any } },
-      ],
+      inputs: [{ name: 'region', semanticType: 'eve.region.reference' as any, required: true }],
+      nodes: [{ id: 'opt', capability: { id: 'optional.cap' as any, version: 1 as any } }],
       edges: [
         { from: 'input.region', to: 'opt.required' },
         // 'optional' port is NOT wired, but it's not required
@@ -204,9 +194,7 @@ describe('resolveCapabilities', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any, version: 1 as any } },
-      ],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any, version: 1 as any } }],
       edges: [],
       outputs: [],
     };

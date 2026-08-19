@@ -6,25 +6,21 @@ export class SemanticTypeRegistry {
   register(type: SemanticTypeDefinition): void {
     const key = type.id as string;
     if (this.types.has(key)) {
-      throw new Error(
-        `Semantic type "${key}" is already registered`,
-      );
+      throw new Error(`Semantic type "${key}" is already registered`);
     }
     this.types.set(key, type);
   }
 
   get(id: SemanticTypeId): SemanticTypeDefinition {
-    const type = this.types.get(id as string);
+    const type = this.types.get(id);
     if (!type) {
-      throw new Error(
-        `Semantic type "${id as string}" is not registered`,
-      );
+      throw new Error(`Semantic type "${id as string}" is not registered`);
     }
     return type;
   }
 
   has(id: SemanticTypeId): boolean {
-    return this.types.has(id as string);
+    return this.types.has(id);
   }
 
   listByCategory(category: string): ReadonlyArray<SemanticTypeDefinition> {

@@ -1,23 +1,26 @@
 import { z } from 'zod';
 
-export const dotNotationId = z.string().regex(
-  /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/,
-  'Must be dot-notation format (e.g., "market.orders")',
-);
+export const dotNotationId = z
+  .string()
+  .regex(
+    /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/,
+    'Must be dot-notation format (e.g., "market.orders")',
+  );
 
 export const positiveInt = z.number().int().positive();
 
 export const nonNegativeInt = z.number().int().nonnegative();
 
-export const semver = z.string().regex(
-  /^\d+\.\d+\.\d+$/,
-  'Must be semantic version format (e.g., "1.0.0")',
-);
+export const semver = z
+  .string()
+  .regex(/^\d+\.\d+\.\d+$/, 'Must be semantic version format (e.g., "1.0.0")');
 
-export const portReference = z.string().regex(
-  /^[a-zA-Z][a-zA-Z0-9-]*\.[a-zA-Z][a-zA-Z0-9]*$/,
-  'Must be port reference format (e.g., "nodeId.portName")',
-);
+export const portReference = z
+  .string()
+  .regex(
+    /^[a-zA-Z][a-zA-Z0-9-]*\.[a-zA-Z][a-zA-Z0-9]*$/,
+    'Must be port reference format (e.g., "nodeId.portName")',
+  );
 
 export function parsePortReference(ref: string): { source: string; port: string } {
   const dotIndex = ref.indexOf('.');
@@ -29,8 +32,7 @@ export function parsePortReference(ref: string): { source: string; port: string 
 }
 
 export type ValidationResult<T> =
-  | { success: true; data: T }
-  | { success: false; errors: ValidationError[] };
+  { success: true; data: T } | { success: false; errors: ValidationError[] };
 
 export interface ValidationError {
   path: string[];

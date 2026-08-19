@@ -2,18 +2,22 @@ import { usePipelineStore } from '../../stores/pipeline-store.js';
 
 interface ToolbarProps {
   onValidate: () => void;
+  onExecute: () => void;
   onSave: () => void;
   onExport: () => void;
   onImport: () => void;
 }
 
-export function Toolbar({ onValidate, onSave, onExport, onImport }: ToolbarProps) {
+export function Toolbar({ onValidate, onExecute, onSave, onExport, onImport }: ToolbarProps) {
   const pipelineName = usePipelineStore((s) => s.pipelineName);
   const isDirty = usePipelineStore((s) => s.isDirty);
   const nodeCount = usePipelineStore((s) => s.nodes.length);
   const edgeCount = usePipelineStore((s) => s.edges.length);
   const diagnostics = usePipelineStore((s) => s.diagnostics);
+  const executionSession = usePipelineStore((s) => s.executionSession);
   const errorCount = diagnostics.filter((d) => d.severity === 'error').length;
+  const isExecuting = executionSession?.status === 'running';
+  const canExecute = errorCount === 0 && nodeCount > 0 && !isExecuting;
 
   const buttonStyle: React.CSSProperties = {
     padding: '5px 12px',
@@ -52,28 +56,28 @@ export function Toolbar({ onValidate, onSave, onExport, onImport }: ToolbarProps
         )}
       </span>
 
-      <button
-        onClick={onValidate}
-        style={{ ...buttonStyle, background: '#7c4dff', color: '#fff' }}
-      >
+      <button onClick={onValidate} style={{ ...buttonStyle, background: '#7c4dff', color: '#fff' }}>
         Validate
       </button>
       <button
-        onClick={onSave}
-        style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}
+        onClick={onExecute}
+        disabled={!canExecute}
+        style={{
+          ...buttonStyle,
+          background: canExecute ? '#43a047' : '#2a2a3a',
+          color: canExecute ? '#fff' : '#555',
+          cursor: canExecute ? 'pointer' : 'not-allowed',
+        }}
       >
+        {isExecuting ? 'Executing...' : 'Execute'}
+      </button>
+      <button onClick={onSave} style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}>
         Save
       </button>
-      <button
-        onClick={onExport}
-        style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}
-      >
+      <button onClick={onExport} style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}>
         Export
       </button>
-      <button
-        onClick={onImport}
-        style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}
-      >
+      <button onClick={onImport} style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}>
         Import
       </button>
     </div>

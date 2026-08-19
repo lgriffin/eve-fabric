@@ -58,7 +58,12 @@ function sdeTypeLookupDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -91,7 +96,11 @@ function tradeOpportunityPipeline(): PipelineDefinition {
   };
 }
 
-function benchmark(name: string, fn: () => void, iterations: number): { avgMs: number; minMs: number; maxMs: number } {
+function benchmark(
+  name: string,
+  fn: () => void,
+  iterations: number,
+): { avgMs: number; minMs: number; maxMs: number } {
   const times: number[] = [];
   for (let i = 0; i < iterations; i++) {
     const start = performance.now();
@@ -101,7 +110,9 @@ function benchmark(name: string, fn: () => void, iterations: number): { avgMs: n
   const avg = times.reduce((a, b) => a + b, 0) / times.length;
   const min = Math.min(...times);
   const max = Math.max(...times);
-  console.log(`  ${name}: avg=${avg.toFixed(3)}ms  min=${min.toFixed(3)}ms  max=${max.toFixed(3)}ms  (${iterations} iterations)`);
+  console.log(
+    `  ${name}: avg=${avg.toFixed(3)}ms  min=${min.toFixed(3)}ms  max=${max.toFixed(3)}ms  (${iterations} iterations)`,
+  );
   return { avgMs: avg, minMs: min, maxMs: max };
 }
 
@@ -130,14 +141,20 @@ console.log('\nPlan optimization:');
 const planResult = benchmark('planExecution()', () => planExecution(result.plan!), ITERATIONS);
 
 console.log('\nEnd-to-end (compile + plan):');
-const e2eResult = benchmark('compile + plan', () => {
-  const r = compile(pipeline, catalog);
-  if (r.plan) planExecution(r.plan);
-}, ITERATIONS);
+const e2eResult = benchmark(
+  'compile + plan',
+  () => {
+    const r = compile(pipeline, catalog);
+    if (r.plan) planExecution(r.plan);
+  },
+  ITERATIONS,
+);
 
 console.log('\n' + '='.repeat(50));
 console.log('Summary:');
 console.log(`  Compile:   ${compileResult.avgMs.toFixed(3)}ms avg`);
 console.log(`  Plan:      ${planResult.avgMs.toFixed(3)}ms avg`);
 console.log(`  End-to-end: ${e2eResult.avgMs.toFixed(3)}ms avg`);
-console.log(`  Steps: ${result.plan.steps.length}, Parallel groups: ${result.plan.parallelGroups.length}`);
+console.log(
+  `  Steps: ${result.plan.steps.length}, Parallel groups: ${result.plan.parallelGroups.length}`,
+);

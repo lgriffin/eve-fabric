@@ -48,15 +48,20 @@ function pipelineToFieldName(name: string): string {
   const words = name.split(/[-_.\s]+/);
   if (words.length === 0) return 'query';
   const first = words[0]!.toLowerCase();
-  const rest = words
-    .slice(1)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  const rest = words.slice(1).map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
   return first + rest.join('');
 }
 
 function buildResolve(
   reg: PipelineRegistration,
-): ((_source: unknown, args: Record<string, unknown>, _ctx: unknown, info: unknown) => Promise<unknown>) | undefined {
+):
+  | ((
+      _source: unknown,
+      args: Record<string, unknown>,
+      _ctx: unknown,
+      info: unknown,
+    ) => Promise<unknown>)
+  | undefined {
   const { pipeline, plan, executor, pruner, includeProvenance } = reg;
   if (plan === undefined || executor === undefined) return undefined;
 
@@ -79,7 +84,8 @@ function buildResolve(
       const output: Record<string, unknown> = {};
       for (const pipelineOutput of pipeline.outputs) {
         const dotIndex = pipelineOutput.source.indexOf('.');
-        const nodeId = dotIndex >= 0 ? pipelineOutput.source.slice(0, dotIndex) : pipelineOutput.source;
+        const nodeId =
+          dotIndex >= 0 ? pipelineOutput.source.slice(0, dotIndex) : pipelineOutput.source;
         output[pipelineOutput.name] = result.outputs.get(nodeId);
       }
 
@@ -105,9 +111,7 @@ function buildResolve(
   };
 }
 
-export function buildQueryField(
-  reg: PipelineRegistration,
-): GraphQLFieldConfig<unknown, unknown> {
+export function buildQueryField(reg: PipelineRegistration): GraphQLFieldConfig<unknown, unknown> {
   const { pipeline, catalog, includeProvenance } = reg;
   const outputType = buildOutputType({ pipeline, catalog });
   const inputType = buildInputType({ pipeline, catalog });
@@ -132,9 +136,7 @@ export function buildQueryField(
   return {
     type: new GraphQLNonNull(outputType),
     description: pipeline.description,
-    args: hasRealInputs
-      ? { input: { type: new GraphQLNonNull(inputType) } }
-      : {},
+    args: hasRealInputs ? { input: { type: new GraphQLNonNull(inputType) } } : {},
     resolve: resolve ?? (() => ({})),
   };
 }

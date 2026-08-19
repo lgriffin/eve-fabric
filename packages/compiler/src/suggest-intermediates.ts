@@ -33,9 +33,7 @@ export function suggestIntermediates(
   for (const cap of acceptsSource) {
     for (const port of cap.outputs.values()) {
       if ((port.semanticType as string) === toType) {
-        diagnostics.push(
-          semanticSuggestion(fromType, toType, cap.id as string),
-        );
+        diagnostics.push(semanticSuggestion(fromType, toType, cap.id));
         break; // One suggestion per capability is sufficient
       }
     }

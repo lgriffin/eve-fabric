@@ -4,17 +4,18 @@ import { portReference } from '../validation/helpers.js';
 
 const PIPELINE_ID_PATTERN = /^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$/;
 
-export const pipelineIdSchema = z.string().regex(
-  PIPELINE_ID_PATTERN,
-  'Must be lowercase alphanumeric with hyphens (e.g., "market-analysis")',
-);
+export const pipelineIdSchema = z
+  .string()
+  .regex(
+    PIPELINE_ID_PATTERN,
+    'Must be lowercase alphanumeric with hyphens (e.g., "market-analysis")',
+  );
 
 export const pipelineInputSchema = z.object({
   name: z.string().min(1),
-  semanticType: z.string().regex(
-    /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/,
-    'Must be a valid semantic type ID',
-  ),
+  semanticType: z
+    .string()
+    .regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/, 'Must be a valid semantic type ID'),
   description: z.string().optional(),
   required: z.boolean().default(true),
 });
