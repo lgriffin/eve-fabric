@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { planExecution } from '../src/planner.js';
-import type { ExecutionPlan, ExecutionStep, StepGroup, SourceRequirement } from '@eve-fabric/domain';
+import type {
+  ExecutionPlan,
+  ExecutionStep,
+  StepGroup,
+  SourceRequirement,
+} from '@eve-fabric/domain';
 
 // Helper to build a minimal ExecutionPlan for testing
 function makePlan(overrides: {
@@ -83,10 +88,7 @@ describe('planExecution', () => {
 
     it('throws on cyclic dependencies', () => {
       const plan = makePlan({
-        steps: [
-          makeStep('a', { dependsOn: ['b'] }),
-          makeStep('b', { dependsOn: ['a'] }),
-        ],
+        steps: [makeStep('a', { dependsOn: ['b'] }), makeStep('b', { dependsOn: ['a'] })],
       });
       expect(() => planExecution(plan)).toThrow(/[Cc]ycle/);
     });
@@ -126,11 +128,7 @@ describe('planExecution', () => {
 
     it('excludes non-parallelizable steps from groups', () => {
       const plan = makePlan({
-        steps: [
-          makeStep('a', { canParallelize: false }),
-          makeStep('b'),
-          makeStep('c'),
-        ],
+        steps: [makeStep('a', { canParallelize: false }), makeStep('b'), makeStep('c')],
       });
       const result = planExecution(plan);
       for (const group of result.parallelGroups) {
@@ -148,8 +146,8 @@ describe('planExecution', () => {
         ],
       });
       const result = planExecution(plan);
-      const secondLevelGroup = result.parallelGroups.find((g) =>
-        g.stepIds.includes('a') && g.stepIds.includes('b'),
+      const secondLevelGroup = result.parallelGroups.find(
+        (g) => g.stepIds.includes('a') && g.stepIds.includes('b'),
       );
       expect(secondLevelGroup).toBeDefined();
       expect([...secondLevelGroup!.stepIds]).toContain('c');
@@ -167,10 +165,7 @@ describe('planExecution', () => {
         sourceRequirements: [
           {
             source: 'ESI' as never,
-            capabilities: [
-              { id: 'market.orders' as never },
-              { id: 'market.history' as never },
-            ],
+            capabilities: [{ id: 'market.orders' as never }, { id: 'market.history' as never }],
           },
           {
             source: 'SDE' as never,

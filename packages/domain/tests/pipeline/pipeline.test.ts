@@ -239,15 +239,11 @@ describe('pipelineDefinitionSchema', () => {
   });
 
   it('rejects missing nodes', () => {
-    expect(
-      pipelineDefinitionSchema.safeParse(validPipeline({ nodes: [] })).success,
-    ).toBe(false);
+    expect(pipelineDefinitionSchema.safeParse(validPipeline({ nodes: [] })).success).toBe(false);
   });
 
   it('rejects empty outputs', () => {
-    expect(
-      pipelineDefinitionSchema.safeParse(validPipeline({ outputs: [] })).success,
-    ).toBe(false);
+    expect(pipelineDefinitionSchema.safeParse(validPipeline({ outputs: [] })).success).toBe(false);
   });
 
   it('rejects invalid pipeline id with uppercase', () => {
@@ -263,15 +259,11 @@ describe('pipelineDefinitionSchema', () => {
   });
 
   it('rejects zero version', () => {
-    expect(
-      pipelineDefinitionSchema.safeParse(validPipeline({ version: 0 })).success,
-    ).toBe(false);
+    expect(pipelineDefinitionSchema.safeParse(validPipeline({ version: 0 })).success).toBe(false);
   });
 
   it('rejects non-integer version', () => {
-    expect(
-      pipelineDefinitionSchema.safeParse(validPipeline({ version: 1.5 })).success,
-    ).toBe(false);
+    expect(pipelineDefinitionSchema.safeParse(validPipeline({ version: 1.5 })).success).toBe(false);
   });
 
   it('accepts multi-node pipeline', () => {
@@ -285,9 +277,7 @@ describe('pipelineDefinitionSchema', () => {
           { from: 'input.regionId', to: 'fetchOrders.regionId' },
           { from: 'fetchOrders.orders', to: 'filterOrders.input' },
         ],
-        outputs: [
-          { name: 'filtered', source: 'filterOrders.result' },
-        ],
+        outputs: [{ name: 'filtered', source: 'filterOrders.result' }],
       }),
     );
     expect(result.success).toBe(true);

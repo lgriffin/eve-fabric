@@ -5,9 +5,7 @@ import {
   capabilityVersion,
   semanticTypeId,
 } from '@eve-fabric/domain';
-import type {
-  PipelineDefinition,
-} from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/domain';
 import { publishAsComposite } from '@eve-fabric/capability-sdk';
 import { compile } from '@eve-fabric/compiler';
 import { resolveComposites } from '@eve-fabric/compiler';
@@ -32,7 +30,12 @@ describe('Composite capability integration', () => {
       source: 'ESI',
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: true, defaultTtlSeconds: 300, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 300,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 200, esiCallCount: 1 },
     });
 
@@ -51,7 +54,12 @@ describe('Composite capability integration', () => {
       source: 'DERIVED',
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 50, esiCallCount: 0 },
     });
 
@@ -64,8 +72,14 @@ describe('Composite capability integration', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
-        { id: 'aggregate', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } },
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+        },
+        {
+          id: 'aggregate',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'orders.item' },
@@ -128,15 +142,16 @@ describe('Composite capability integration', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
       ],
-      outputs: [
-        { name: 'lowestSell', source: 'snapshot.lowestSell' },
-      ],
+      outputs: [{ name: 'lowestSell', source: 'snapshot.lowestSell' }],
     };
 
     const resolved = resolveComposites(tradePipeline, catalog, registry);
@@ -175,15 +190,16 @@ describe('Composite capability integration', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
       ],
-      outputs: [
-        { name: 'lowestSell', source: 'snapshot.lowestSell' },
-      ],
+      outputs: [{ name: 'lowestSell', source: 'snapshot.lowestSell' }],
     };
 
     const resolved = resolveComposites(tradePipeline, catalog, registry);

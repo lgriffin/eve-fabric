@@ -10,14 +10,14 @@ capability connections. It is the primary composition artifact.
 ## Format
 
 ```yaml
-id: trade-opportunity               # Required. Unique identifier.
-version: 1                          # Required. Positive integer.
-name: Trade Opportunity              # Required. Human-readable.
-description: >                      # Optional.
+id: trade-opportunity # Required. Unique identifier.
+version: 1 # Required. Positive integer.
+name: Trade Opportunity # Required. Human-readable.
+description: > # Optional.
   Find cheapest market orders within
   a specified jump range.
 
-inputs:                              # Required. Pipeline-level inputs.
+inputs: # Required. Pipeline-level inputs.
   item:
     type: eve.type.reference
     description: Item to search for
@@ -32,10 +32,10 @@ inputs:                              # Required. Pipeline-level inputs.
     type: eve.route.distance
     required: false
 
-nodes:                               # Required. At least one.
-  - id: resolve-item                 # Required. Unique within pipeline.
+nodes: # Required. At least one.
+  - id: resolve-item # Required. Unique within pipeline.
     capability: universe.resolveType # Required. Registered capability ID.
-    config: {}                       # Optional. Static configuration.
+    config: {} # Optional. Static configuration.
 
   - id: orders
     capability: market.orders
@@ -43,9 +43,9 @@ nodes:                               # Required. At least one.
   - id: aggregate
     capability: market.aggregate
 
-edges:                               # Required (may be empty for single-node).
-  - from: input.item                 # Format: "input.{name}" or "{nodeId}.{portName}"
-    to: resolve-item.item            # Format: "{nodeId}.{portName}"
+edges: # Required (may be empty for single-node).
+  - from: input.item # Format: "input.{name}" or "{nodeId}.{portName}"
+    to: resolve-item.item # Format: "{nodeId}.{portName}"
 
   - from: resolve-item.type
     to: orders.item
@@ -56,8 +56,8 @@ edges:                               # Required (may be empty for single-node).
   - from: orders.orders
     to: aggregate.orders
 
-outputs:                             # Required. At least one.
-  sellPrice: aggregate.lowestSell    # Format: "{nodeId}.{portName}"
+outputs: # Required. At least one.
+  sellPrice: aggregate.lowestSell # Format: "{nodeId}.{portName}"
   buyPrice: aggregate.highestBuy
 ```
 
@@ -65,10 +65,10 @@ outputs:                             # Required. At least one.
 
 Port references use dot-notation: `{source}.{port}`.
 
-| Source | Format | Example |
-|--------|--------|---------|
-| Pipeline input | `input.{name}` | `input.item` |
-| Node output | `{nodeId}.{portName}` | `resolve-item.type` |
+| Source         | Format                | Example             |
+| -------------- | --------------------- | ------------------- |
+| Pipeline input | `input.{name}`        | `input.item`        |
+| Node output    | `{nodeId}.{portName}` | `resolve-item.type` |
 
 ## Validation Rules
 

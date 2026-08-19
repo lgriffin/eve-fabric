@@ -1,10 +1,8 @@
 import { useState } from 'react';
+import { usePipelineStore } from '../../stores/pipeline-store.js';
 
-interface GraphQLPreviewProps {
-  sdl?: string;
-}
-
-export function GraphQLPreview({ sdl }: GraphQLPreviewProps) {
+export function GraphQLPreview() {
+  const sdl = usePipelineStore((s) => s.graphqlSdl);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -25,9 +23,7 @@ export function GraphQLPreview({ sdl }: GraphQLPreviewProps) {
           alignItems: 'center',
         }}
       >
-        <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 600 }}>
-          Generated SDL
-        </span>
+        <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 600 }}>Generated SDL</span>
         {sdl && (
           <button
             onClick={handleCopy}

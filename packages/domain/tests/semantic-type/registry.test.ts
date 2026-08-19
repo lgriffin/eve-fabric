@@ -30,15 +30,11 @@ describe('SemanticTypeRegistry', () => {
 
     it('throws on duplicate registration', () => {
       registry.register(makeType('test.alpha'));
-      expect(() => registry.register(makeType('test.alpha'))).toThrow(
-        'already registered',
-      );
+      expect(() => registry.register(makeType('test.alpha'))).toThrow('already registered');
     });
 
     it('throws when getting a nonexistent type', () => {
-      expect(() => registry.get(semanticTypeId('test.nonexistent'))).toThrow(
-        'not registered',
-      );
+      expect(() => registry.get(semanticTypeId('test.nonexistent'))).toThrow('not registered');
     });
   });
 

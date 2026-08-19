@@ -6,31 +6,55 @@
     "test": "vitest run",
     "test:bdd": "node node_modules/.pnpm/@cucumber+cucumber@11.3.0/node_modules/@cucumber/cucumber/bin/cucumber.js -c cucumber.cjs",
     "test:watch": "vitest",
-    "lint": "eslint . --ext .ts,.tsx",
+    "test:property": "vitest run --reporter=verbose property",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md,yaml,yml}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md,yaml,yml}\"",
     "typecheck": "pnpm -r run typecheck",
+    "knip": "knip",
     "docs": "typedoc",
     "mutate": "stryker run",
     "test:mutation": "stryker run",
     "scan:secrets": "tsx scripts/scan-secrets.ts",
     "benchmark": "tsx scripts/benchmark.ts",
+    "validate": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
     "prepare": "husky"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
     "@types/node": "^22.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0",
-    "eslint": "^8.57.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "@eslint/js": "^9.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-security": "^3.0.0",
+    "eslint-plugin-sonarjs": "^3.0.0",
+    "fast-check": "^3.0.0",
+    "globals": "^15.0.0",
     "husky": "^9.1.7",
+    "knip": "^5.0.0",
+    "lint-staged": "^15.0.0",
     "prettier": "^3.3.0",
     "tsx": "^4.0.0",
     "typedoc": "^0.28.20",
     "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
     "vitest": "^2.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "pnpm": {
     "overrides": {

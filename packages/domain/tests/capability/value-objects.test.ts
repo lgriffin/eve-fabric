@@ -82,12 +82,9 @@ describe('costModelSchema', () => {
 });
 
 describe('capabilitySourceSchema', () => {
-  it.each(['ESI', 'SDE', 'DERIVED', 'CACHE', 'COMPOSITE'] as const)(
-    'accepts %s',
-    (source) => {
-      expect(capabilitySourceSchema.safeParse(source).success).toBe(true);
-    },
-  );
+  it.each(['ESI', 'SDE', 'DERIVED', 'CACHE', 'COMPOSITE'] as const)('accepts %s', (source) => {
+    expect(capabilitySourceSchema.safeParse(source).success).toBe(true);
+  });
 
   it('rejects invalid source', () => {
     expect(capabilitySourceSchema.safeParse('UNKNOWN').success).toBe(false);

@@ -30,9 +30,7 @@ export class SemanticCompositionError extends GatewayError {
 
   constructor(readonly context: SemanticCompositionErrorContext) {
     const base = `Semantic type mismatch at node '${context.nodeId}': cannot connect ${context.fromType} to ${context.toType}`;
-    const suggestion = context.suggestion
-      ? `. Suggested intermediate: ${context.suggestion}`
-      : '';
+    const suggestion = context.suggestion ? `. Suggested intermediate: ${context.suggestion}` : '';
     super(base + suggestion);
   }
 }
@@ -51,9 +49,7 @@ export class MissingCapabilityError extends GatewayError {
       context.availableVersions && context.availableVersions.length > 0
         ? `. Available versions: ${context.availableVersions.join(', ')}`
         : '';
-    super(
-      `Capability '${context.capabilityId}' is not registered in the catalog${versions}`,
-    );
+    super(`Capability '${context.capabilityId}' is not registered in the catalog${versions}`);
   }
 }
 

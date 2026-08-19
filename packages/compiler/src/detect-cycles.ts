@@ -111,10 +111,7 @@ export function detectCycles(pipeline: PipelineDefinition): CompilerDiagnostic[]
 /**
  * Uses DFS to find a cycle path among the remaining (unresolved) nodes.
  */
-function findCyclePath(
-  remaining: Set<string>,
-  adjacency: Map<string, Set<string>>,
-): string[] {
+function findCyclePath(remaining: Set<string>, adjacency: Map<string, Set<string>>): string[] {
   const visited = new Set<string>();
   const stack: string[] = [];
 

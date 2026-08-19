@@ -8,7 +8,10 @@ interface Span {
 }
 
 interface Tracer {
-  startSpan(name: string, options?: { attributes?: Record<string, string | number | boolean> }): Span;
+  startSpan(
+    name: string,
+    options?: { attributes?: Record<string, string | number | boolean> },
+  ): Span;
 }
 
 interface TracerProvider {

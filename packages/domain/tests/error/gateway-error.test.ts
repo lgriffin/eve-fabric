@@ -186,11 +186,9 @@ describe('GatewayError hierarchy', () => {
     });
 
     it('isCompilerError identifies compiler errors', () => {
-      expect(
-        isCompilerError(
-          new SchemaError({ field: 'x', expected: 'y', actual: 'z' }),
-        ),
-      ).toBe(true);
+      expect(isCompilerError(new SchemaError({ field: 'x', expected: 'y', actual: 'z' }))).toBe(
+        true,
+      );
       expect(
         isCompilerError(
           new SemanticCompositionError({
@@ -200,11 +198,7 @@ describe('GatewayError hierarchy', () => {
           }),
         ),
       ).toBe(true);
-      expect(
-        isCompilerError(
-          new MissingCapabilityError({ capabilityId: 'x' }),
-        ),
-      ).toBe(true);
+      expect(isCompilerError(new MissingCapabilityError({ capabilityId: 'x' }))).toBe(true);
       expect(
         isCompilerError(
           new MissingAuthScopeError({
@@ -251,11 +245,7 @@ describe('GatewayError hierarchy', () => {
           }),
         ),
       ).toBe(true);
-      expect(
-        isRuntimeError(
-          new PolicyRejectionError({ policy: 'p', reason: 'r' }),
-        ),
-      ).toBe(true);
+      expect(isRuntimeError(new PolicyRejectionError({ policy: 'p', reason: 'r' }))).toBe(true);
     });
 
     it('compiler errors are not runtime errors and vice versa', () => {

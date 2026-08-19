@@ -58,7 +58,12 @@ function sdeLookupDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -113,9 +118,9 @@ describe('CapabilityCatalog', () => {
 
     it('throws for unknown version', () => {
       catalog.register(marketOrdersDef(1));
-      expect(() =>
-        catalog.get(capabilityId('market.orders'), capabilityVersion(99)),
-      ).toThrow('not found');
+      expect(() => catalog.get(capabilityId('market.orders'), capabilityVersion(99))).toThrow(
+        'not found',
+      );
     });
   });
 
@@ -140,7 +145,9 @@ describe('CapabilityCatalog', () => {
       catalog.register(marketOrdersDef());
       catalog.register(sdeLookupDef());
       const results = catalog.findBySemanticInput(
-        capabilityId('eve.region.reference') as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
+        capabilityId(
+          'eve.region.reference',
+        ) as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
       );
       expect(results).toHaveLength(1);
       expect(results[0]!.id as string).toBe('market.orders');
@@ -149,7 +156,9 @@ describe('CapabilityCatalog', () => {
     it('returns empty array when no match', () => {
       catalog.register(marketOrdersDef());
       const results = catalog.findBySemanticInput(
-        capabilityId('eve.currency.isk') as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
+        capabilityId(
+          'eve.currency.isk',
+        ) as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
       );
       expect(results).toHaveLength(0);
     });
@@ -159,7 +168,9 @@ describe('CapabilityCatalog', () => {
     it('finds capabilities by output semantic type', () => {
       catalog.register(marketOrdersDef());
       const results = catalog.findBySemanticOutput(
-        capabilityId('eve.market.order.collection') as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
+        capabilityId(
+          'eve.market.order.collection',
+        ) as unknown as import('../../src/semantic-type/semantic-type.js').SemanticTypeId,
       );
       expect(results).toHaveLength(1);
     });

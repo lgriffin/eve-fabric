@@ -24,6 +24,7 @@ model (capability metadata + pipeline). Pothos is used only in the
 into executable GraphQL schemas.
 
 **Alternatives considered**:
+
 - Raw GraphQL.js `GraphQLObjectType` construction: more verbose,
   weaker type inference, higher maintenance burden.
 - Nexus: similar builder pattern but less actively maintained; Pothos
@@ -50,6 +51,7 @@ registry to validate wiring. New semantic types can be registered
 without modifying the compiler (Constitution VI extensibility).
 
 **Pattern**:
+
 ```typescript
 const RegionReference = createSemanticType({
   id: 'eve.region.reference',
@@ -59,6 +61,7 @@ const RegionReference = createSemanticType({
 ```
 
 **Alternatives considered**:
+
 - Zod-only (no branded types): catches mismatches at runtime but
   permits compile-time errors. Insufficient for the "compiler rejects
   before execution" requirement.
@@ -85,6 +88,7 @@ responses back into domain types with provenance. The `sde-adapter`
 does the same for SDE lookups.
 
 **Integration surface**:
+
 - `ESI.ts` exposes typed ESI endpoint methods and SDE lookups.
 - The adapter maps capability IDs to specific ESI.ts method calls.
 - Authentication tokens are passed through the adapter; never stored
@@ -93,6 +97,7 @@ does the same for SDE lookups.
   domain's cache policy model (Constitution XIV).
 
 **Alternatives considered**:
+
 - Direct ESI.ts usage in domain: violates Clean Architecture.
 - Abstract HTTP client: too generic; loses ESI.ts type safety.
 
@@ -108,6 +113,7 @@ content-addressed storage, and built-in workspace protocol for
 inter-package references.
 
 **Configuration pattern**:
+
 - `pnpm-workspace.yaml`: lists `apps/*` and `packages/*`
 - `tsconfig.base.json`: shared strict TypeScript settings
 - Per-package `tsconfig.json` extends base; adds path mappings
@@ -115,6 +121,7 @@ inter-package references.
 - Turborepo or pnpm's built-in `--filter` for build orchestration
 
 **Package dependency graph** (simplified):
+
 ```text
 domain (no deps)
   ← compiler ← planner ← executor
@@ -132,6 +139,7 @@ apps/designer ← domain, compiler (via API)
 ```
 
 **Alternatives considered**:
+
 - npm workspaces: weaker isolation, no content-addressed store.
 - Nx: heavier; pnpm workspaces sufficient for this scale.
 - Yarn Berry: comparable but pnpm has better Windows support and
@@ -156,6 +164,7 @@ and calling its validation functions directly from the React app (or
 via API if the compiler runs server-side).
 
 **Visual pattern**:
+
 - Handles are color-coded by semantic type category (universe types,
   market types, routing types).
 - Compatible handles glow when a drag starts.
@@ -163,6 +172,7 @@ via API if the compiler runs server-side).
   intermediate capabilities.
 
 **Alternatives considered**:
+
 - Custom graph library: unnecessary; React Flow is mature and
   well-maintained for this exact use case.
 - Rete.js: similar capability but smaller community and weaker
@@ -182,6 +192,7 @@ so the storage implementation can be swapped to PostgreSQL later
 without affecting domain or application code (Constitution IV).
 
 **What is persisted**:
+
 - Capability registrations (including composite)
 - Pipeline definitions
 - Schema packages (metadata + references)
@@ -192,6 +203,7 @@ Source data (ESI responses, SDE lookups) is NOT persisted in the
 gateway database — it belongs to ESI.ts and cache (Constitution XXV).
 
 **Alternatives considered**:
+
 - Prisma: heavier, schema-first approach conflicts with domain-first
   design.
 - Kysely: excellent query builder but less ORM convenience for

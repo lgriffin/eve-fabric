@@ -24,10 +24,10 @@ export function determineSources(
 
   for (const node of pipeline.nodes) {
     try {
-      const capId = capabilityId(node.capability.id as string);
+      const capId = capabilityId(node.capability.id);
       const capVer =
         node.capability.version !== undefined
-          ? capabilityVersion(node.capability.version as number)
+          ? capabilityVersion(node.capability.version)
           : undefined;
       const def = catalog.get(capId, capVer);
 
@@ -38,8 +38,8 @@ export function determineSources(
         sourceMap.set(source, caps);
       }
       caps.push({
-        id: node.capability.id as string,
-        version: node.capability.version as number | undefined,
+        id: node.capability.id,
+        version: node.capability.version,
       });
     } catch {
       // Capability not found; skip (resolve-capabilities handles this diagnostic)

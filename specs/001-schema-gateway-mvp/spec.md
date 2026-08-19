@@ -5,7 +5,7 @@
 **Status**: Draft
 **Input**: User description: "EVE Schema Gateway initial product and architecture specification"
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Define and Register Capabilities (Priority: P1)
 
@@ -307,7 +307,7 @@ resolves nested dependencies correctly.
   live data? The provenance MUST distinguish which parts of the
   result came from cache versus live source.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -413,7 +413,7 @@ resolves nested dependencies correctly.
   (primitive and composite). Supports registration, discovery by
   identifier, and discovery by semantic type.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

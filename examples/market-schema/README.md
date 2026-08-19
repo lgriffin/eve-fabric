@@ -10,14 +10,14 @@ A simple pipeline that looks up current market prices for an item in a region.
 
 ## Inputs
 
-| Name   | Type                  | Description       |
-|--------|-----------------------|-------------------|
-| item   | eve.type.reference    | Item type to look up |
-| region | eve.region.reference  | Market region     |
+| Name   | Type                 | Description          |
+| ------ | -------------------- | -------------------- |
+| item   | eve.type.reference   | Item type to look up |
+| region | eve.region.reference | Market region        |
 
 ## Outputs
 
-| Name       | Type             | Description        |
-|------------|------------------|--------------------|
-| lowestSell | eve.currency.isk | Lowest sell price  |
-| highestBuy | eve.currency.isk | Highest buy price  |
+| Name       | Type             | Description       |
+| ---------- | ---------------- | ----------------- |
+| lowestSell | eve.currency.isk | Lowest sell price |
+| highestBuy | eve.currency.isk | Highest buy price |

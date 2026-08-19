@@ -76,12 +76,8 @@ describe('detectCycles', () => {
 
   it('detects a self-referencing node', () => {
     const pipeline = makePipeline(
-      [
-        { id: 'A', capability: { id: 'cap.one' } },
-      ],
-      [
-        { from: 'A.output', to: 'A.input' },
-      ],
+      [{ id: 'A', capability: { id: 'cap.one' } }],
+      [{ from: 'A.output', to: 'A.input' }],
     );
 
     const diagnostics = detectCycles(pipeline);

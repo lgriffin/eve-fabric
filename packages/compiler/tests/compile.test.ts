@@ -58,7 +58,12 @@ function sdeTypeLookupDef() {
     source: 'SDE' as const,
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 5, esiCallCount: 0 },
   };
 }
@@ -99,9 +104,7 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
       nodes: [
         { id: 'fetch', capability: { id: 'market.orders' as any, version: 1 as any } },
         { id: 'agg', capability: { id: 'price.aggregator' as any, version: 1 as any } },
@@ -145,9 +148,7 @@ describe('compile', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any } },
-      ],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any } }],
       edges: [],
       outputs: [],
     };
@@ -164,9 +165,7 @@ describe('compile', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'missing', capability: { id: 'nonexistent.cap' as any } },
-      ],
+      nodes: [{ id: 'missing', capability: { id: 'nonexistent.cap' as any } }],
       edges: [],
       outputs: [{ name: 'result', source: 'missing.output' }],
     };
@@ -192,7 +191,12 @@ describe('compile', () => {
       source: 'DERIVED' as const,
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 10, esiCallCount: 0 },
     });
 
@@ -222,9 +226,7 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
       nodes: [
         { id: 'fetch', capability: { id: 'market.orders' as any } },
         { id: 'agg', capability: { id: 'price.aggregator' as any } },
@@ -251,12 +253,8 @@ describe('compile', () => {
       inputs: [
         { name: 'characterId', semanticType: 'eve.character.reference' as any, required: true },
       ],
-      nodes: [
-        { id: 'wallet', capability: { id: 'character.wallet' as any } },
-      ],
-      edges: [
-        { from: 'input.characterId', to: 'wallet.characterId' },
-      ],
+      nodes: [{ id: 'wallet', capability: { id: 'character.wallet' as any } }],
+      edges: [{ from: 'input.characterId', to: 'wallet.characterId' }],
       outputs: [{ name: 'balance', source: 'wallet.balance' }],
     };
 
@@ -271,15 +269,9 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any } },
-      ],
-      edges: [
-        { from: 'input.regionId', to: 'fetch.regionId' },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any } }],
+      edges: [{ from: 'input.regionId', to: 'fetch.regionId' }],
       outputs: [{ name: 'orders', source: 'fetch.orders' }],
     };
 
@@ -296,9 +288,7 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
       nodes: [
         { id: 'fetch', capability: { id: 'market.orders' as any } },
         { id: 'agg', capability: { id: 'price.aggregator' as any } },
@@ -365,7 +355,12 @@ describe('compile', () => {
       source: 'DERIVED' as const,
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 50, esiCallCount: 0 },
     });
 
@@ -374,15 +369,9 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
-      nodes: [
-        { id: 'agg', capability: { id: 'price.aggregator' as any } },
-      ],
-      edges: [
-        { from: 'input.regionId', to: 'agg.orders' },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
+      nodes: [{ id: 'agg', capability: { id: 'price.aggregator' as any } }],
+      edges: [{ from: 'input.regionId', to: 'agg.orders' }],
       outputs: [{ name: 'price', source: 'agg.price' }],
     };
 
@@ -399,15 +388,9 @@ describe('compile', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference' as any, required: true },
-      ],
-      nodes: [
-        { id: 'fetch', capability: { id: 'market.orders' as any } },
-      ],
-      edges: [
-        { from: 'input.regionId', to: 'fetch.regionId' },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference' as any, required: true }],
+      nodes: [{ id: 'fetch', capability: { id: 'market.orders' as any } }],
+      edges: [{ from: 'input.regionId', to: 'fetch.regionId' }],
       outputs: [{ name: 'orders', source: 'fetch.orders' }],
     };
 

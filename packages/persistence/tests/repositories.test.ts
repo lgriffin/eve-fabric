@@ -34,7 +34,12 @@ describe('InMemoryCapabilityRepository', () => {
       source: 'ESI' as const,
       dependencies: [],
       auth: { required: false, scopes: [] as readonly string[] },
-      cache: { cacheable: true, defaultTtlSeconds: 300, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 300,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 200, esiCallCount: 1 },
     };
 
@@ -60,7 +65,12 @@ describe('InMemoryCapabilityRepository', () => {
       source: 'ESI' as const,
       dependencies: [],
       auth: { required: false, scopes: [] as readonly string[] },
-      cache: { cacheable: true, defaultTtlSeconds: 300, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 300,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 200, esiCallCount: 1 },
     };
 
@@ -91,7 +101,12 @@ describe('InMemoryPipelineRepository', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [{ id: 'node1', capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId } }],
+      nodes: [
+        {
+          id: 'node1',
+          capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+        },
+      ],
       edges: [],
       outputs: [{ name: 'result', source: 'node1.output' }],
     };
@@ -131,7 +146,12 @@ describe('InMemorySchemaPackageRepository', () => {
         version: 1,
         name: 'Test Pipeline',
         inputs: [],
-        nodes: [{ id: 'node1', capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId } }],
+        nodes: [
+          {
+            id: 'node1',
+            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+          },
+        ],
         edges: [],
         outputs: [{ name: 'result', source: 'node1.output' }],
       },
@@ -167,7 +187,12 @@ describe('InMemorySchemaPackageRepository', () => {
         version: 1,
         name: 'Pipeline 1',
         inputs: [],
-        nodes: [{ id: 'n1', capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId } }],
+        nodes: [
+          {
+            id: 'n1',
+            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+          },
+        ],
         edges: [],
         outputs: [{ name: 'out', source: 'n1.output' }],
       },
@@ -206,7 +231,12 @@ describe('InMemorySchemaPackageRepository', () => {
         version: 1,
         name: 'Pipeline',
         inputs: [],
-        nodes: [{ id: 'n1', capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId } }],
+        nodes: [
+          {
+            id: 'n1',
+            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+          },
+        ],
         edges: [],
         outputs: [{ name: 'out', source: 'n1.output' }],
       },

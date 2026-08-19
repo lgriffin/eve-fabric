@@ -141,14 +141,13 @@ pnpm --filter gateway dev
 
 ```graphql
 query {
-  tradeOpportunity(
-    item: "Tritanium"
-    region: "The Forge"
-    origin: "Jita"
-    maxJumps: 5
-  ) {
-    item { name }
-    location { name }
+  tradeOpportunity(item: "Tritanium", region: "The Forge", origin: "Jita", maxJumps: 5) {
+    item {
+      name
+    }
+    location {
+      name
+    }
     price
     jumps
   }
@@ -164,6 +163,7 @@ pnpm --filter designer dev
 ```
 
 The designer provides:
+
 - Searchable capability palette (left panel)
 - Drag-and-drop canvas with typed ports
 - Real-time semantic validation
@@ -193,6 +193,7 @@ pnpm --filter gateway schema:export --name trade-opportunity --output ./exports/
 ```
 
 Produces a directory:
+
 ```text
 exports/trade-opportunity/
 ├── schema.graphql

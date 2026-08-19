@@ -14,6 +14,9 @@
   "dependencies": {
     "@eve-fabric/domain": "workspace:*",
     "@eve-fabric/compiler": "workspace:*",
+    "@eve-fabric/planner": "workspace:*",
+    "@eve-fabric/executor": "workspace:*",
+    "@eve-fabric/graphql": "workspace:*",
     "@xyflow/react": "^12.0.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",

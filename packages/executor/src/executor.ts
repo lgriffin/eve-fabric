@@ -101,14 +101,6 @@ export class Executor {
     let cacheHits = 0;
     let cacheMisses = 0;
 
-    // Build a set of step IDs that belong to each parallel group
-    const parallelGroupSteps = new Set<string>();
-    for (const group of planned.parallelGroups) {
-      for (const id of group.stepIds) {
-        parallelGroupSteps.add(id);
-      }
-    }
-
     // Process steps in order, batching parallel groups
     const processed = new Set<string>();
     let i = 0;
@@ -153,10 +145,7 @@ export class Executor {
         }
 
         // Skip past all steps in this group that appear in orderedSteps
-        while (
-          i < planned.orderedSteps.length &&
-          processed.has(planned.orderedSteps[i]!)
-        ) {
+        while (i < planned.orderedSteps.length && processed.has(planned.orderedSteps[i]!)) {
           i++;
         }
       } else {
@@ -283,8 +272,6 @@ export class Executor {
 
     // Fall back to checking supports() on each adapter
     // (requires CapabilityDefinition, so may not work with CapabilityRef)
-    throw new Error(
-      `No adapter found for source "${source ?? 'unknown'}"`,
-    );
+    throw new Error(`No adapter found for source "${source ?? 'unknown'}"`);
   }
 }

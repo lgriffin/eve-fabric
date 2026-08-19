@@ -49,9 +49,7 @@ export class InvalidSourceResponseError extends GatewayError {
   readonly category = 'runtime' as const;
 
   constructor(readonly context: InvalidSourceResponseErrorContext) {
-    const body = context.responseBody
-      ? `: ${context.responseBody.slice(0, 200)}`
-      : '';
+    const body = context.responseBody ? `: ${context.responseBody.slice(0, 200)}` : '';
     super(
       `Invalid response from ${context.source} for capability '${context.capabilityId}' (status ${context.statusCode})${body}`,
     );

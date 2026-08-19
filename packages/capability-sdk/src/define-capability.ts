@@ -7,11 +7,7 @@ import type {
   CostModel,
   CapabilityRef,
 } from '@eve-fabric/domain';
-import {
-  capabilityId,
-  capabilityVersion,
-  semanticTypeId,
-} from '@eve-fabric/domain';
+import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
 
 export interface DefineCapabilityConfig {
   id: string;

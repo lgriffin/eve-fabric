@@ -79,9 +79,7 @@ describe('validateSemanticWiring', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference', required: true },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference', required: true }],
       nodes: [
         { id: 'fetchOrders', capability: { id: 'market.orders', version: 1 } },
         { id: 'aggregate', capability: { id: 'price.aggregator', version: 1 } },
@@ -102,9 +100,7 @@ describe('validateSemanticWiring', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference', required: true },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference', required: true }],
       nodes: [
         { id: 'fetchOrders', capability: { id: 'market.orders', version: 1 } },
         { id: 'aggregate', capability: { id: 'price.aggregator', version: 1 } },
@@ -128,15 +124,9 @@ describe('validateSemanticWiring', () => {
       id: 'test.pipeline',
       version: 1,
       name: 'Test Pipeline',
-      inputs: [
-        { name: 'regionId', semanticType: 'eve.region.reference', required: true },
-      ],
-      nodes: [
-        { id: 'unknown', capability: { id: 'nonexistent.capability', version: 1 } },
-      ],
-      edges: [
-        { from: 'input.regionId', to: 'unknown.somePort' },
-      ],
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference', required: true }],
+      nodes: [{ id: 'unknown', capability: { id: 'nonexistent.capability', version: 1 } }],
+      edges: [{ from: 'input.regionId', to: 'unknown.somePort' }],
       outputs: [],
     };
 
@@ -152,9 +142,7 @@ describe('validateSemanticWiring', () => {
       version: 1,
       name: 'Test Pipeline',
       inputs: [],
-      nodes: [
-        { id: 'fetchOrders', capability: { id: 'market.orders', version: 1 } },
-      ],
+      nodes: [{ id: 'fetchOrders', capability: { id: 'market.orders', version: 1 } }],
       edges: [
         // Reference to a non-existent pipeline input
         { from: 'input.nonExistent', to: 'fetchOrders.regionId' },

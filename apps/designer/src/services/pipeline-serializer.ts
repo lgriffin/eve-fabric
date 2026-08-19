@@ -1,4 +1,10 @@
-import type { PipelineDefinition, PipelineNode, PipelineEdge, PipelineInput, PipelineOutput } from '@eve-fabric/domain';
+import type {
+  PipelineDefinition,
+  PipelineNode,
+  PipelineEdge,
+  PipelineInput,
+  PipelineOutput,
+} from '@eve-fabric/domain';
 import type { Edge } from '@xyflow/react';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
 
@@ -7,9 +13,10 @@ const NODE_HEIGHT = 120;
 const HORIZONTAL_GAP = 80;
 const VERTICAL_GAP = 60;
 
-export function pipelineToFlow(
-  definition: PipelineDefinition,
-): { nodes: CapabilityFlowNode[]; edges: Edge[] } {
+export function pipelineToFlow(definition: PipelineDefinition): {
+  nodes: CapabilityFlowNode[];
+  edges: Edge[];
+} {
   const nodes: CapabilityFlowNode[] = definition.nodes.map((node, index) => ({
     id: node.id,
     type: 'capability',
@@ -18,8 +25,8 @@ export function pipelineToFlow(
       y: Math.floor(index / 4) * (NODE_HEIGHT + VERTICAL_GAP) + 50,
     },
     data: {
-      capabilityId: node.capability.id as string,
-      capabilityVersion: node.capability.version as number ?? 1,
+      capabilityId: node.capability.id,
+      capabilityVersion: (node.capability.version as number) ?? 1,
       label: node.id,
       source: '',
       inputs: [],
@@ -78,7 +85,15 @@ export function flowToPipeline(
 
 export function enrichNodesWithCatalog(
   nodes: CapabilityFlowNode[],
-  catalog: Map<string, { name: string; source: string; inputs: CapabilityNodeData['inputs']; outputs: CapabilityNodeData['outputs'] }>,
+  catalog: Map<
+    string,
+    {
+      name: string;
+      source: string;
+      inputs: CapabilityNodeData['inputs'];
+      outputs: CapabilityNodeData['outputs'];
+    }
+  >,
 ): CapabilityFlowNode[] {
   return nodes.map((node) => {
     const cap = catalog.get(node.data.capabilityId);
@@ -103,6 +118,121 @@ function parsePortRef(ref: string): { nodeId: string; portName: string } {
     nodeId: ref.substring(0, dotIndex),
     portName: ref.substring(dotIndex + 1),
   };
+}
+
+export function yamlToPipeline(yaml: string): PipelineDefinition {
+  const lines = yaml.split('\n');
+  let id = '';
+  let version = 1;
+  let name = '';
+  let description: string | undefined;
+  const inputs: PipelineInput[] = [];
+  const nodes: PipelineNode[] = [];
+  const edges: PipelineEdge[] = [];
+  const outputs: PipelineOutput[] = [];
+
+  let section = '';
+  let currentInputName = '';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+
+    if (trimmed.startsWith('id:')) {
+      id = trimmed.substring(3).trim();
+      continue;
+    }
+    if (trimmed.startsWith('version:')) {
+      version = parseInt(trimmed.substring(8).trim(), 10) || 1;
+      continue;
+    }
+    if (trimmed.startsWith('name:') && section === '') {
+      name = trimmed.substring(5).trim();
+      continue;
+    }
+    if (trimmed.startsWith('description:') && section === '') {
+      description = trimmed.substring(12).trim();
+      continue;
+    }
+
+    if (trimmed === 'inputs:' && section === '') {
+      section = 'inputs';
+      continue;
+    }
+    if (trimmed === 'nodes:') {
+      section = 'nodes';
+      continue;
+    }
+    if (trimmed === 'edges:') {
+      section = 'edges';
+      continue;
+    }
+    if (trimmed === 'outputs:') {
+      section = 'outputs';
+      continue;
+    }
+
+    if (section === 'inputs') {
+      if (
+        !trimmed.startsWith('-') &&
+        trimmed.endsWith(':') &&
+        !trimmed.startsWith('type:') &&
+        !trimmed.startsWith('description:') &&
+        !trimmed.startsWith('required:')
+      ) {
+        currentInputName = trimmed.slice(0, -1).trim();
+      } else if (trimmed.startsWith('type:')) {
+        const semanticType = trimmed.substring(5).trim();
+        inputs.push({
+          name: currentInputName,
+          semanticType: semanticType as PipelineInput['semanticType'],
+          required: true,
+        });
+      } else if (trimmed.startsWith('required:')) {
+        const lastInput = inputs[inputs.length - 1];
+        if (lastInput) {
+          (lastInput as { required: boolean }).required = trimmed.substring(9).trim() === 'true';
+        }
+      }
+    }
+
+    if (section === 'nodes' && trimmed.startsWith('- id:')) {
+      const nodeId = trimmed.substring(5).trim();
+      nodes.push({
+        id: nodeId,
+        capability: {
+          id: '' as PipelineNode['capability']['id'],
+          version: 1 as PipelineNode['capability']['version'],
+        },
+      });
+    }
+    if (section === 'nodes' && trimmed.startsWith('capability:')) {
+      const lastNode = nodes[nodes.length - 1];
+      if (lastNode) {
+        (lastNode as { capability: { id: string } }).capability.id = trimmed.substring(11).trim();
+      }
+    }
+
+    if (section === 'edges' && trimmed.startsWith('- from:')) {
+      edges.push({ from: trimmed.substring(7).trim(), to: '' });
+    }
+    if (section === 'edges' && trimmed.startsWith('to:')) {
+      const lastEdge = edges[edges.length - 1];
+      if (lastEdge) {
+        (lastEdge as { to: string }).to = trimmed.substring(3).trim();
+      }
+    }
+
+    if (section === 'outputs' && trimmed.includes(':') && !trimmed.startsWith('-')) {
+      const colonIdx = trimmed.indexOf(':');
+      outputs.push({
+        name: trimmed.substring(0, colonIdx).trim(),
+        source: trimmed.substring(colonIdx + 1).trim(),
+      });
+    }
+  }
+
+  return { id, version, name, description, inputs, nodes, edges, outputs };
 }
 
 export function pipelineToYaml(definition: PipelineDefinition): string {

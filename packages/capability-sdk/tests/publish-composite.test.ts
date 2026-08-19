@@ -1,6 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { publishAsComposite } from '../src/publish-composite.js';
-import { CapabilityCatalog, capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
+import {
+  CapabilityCatalog,
+  capabilityId,
+  capabilityVersion,
+  semanticTypeId,
+} from '@eve-fabric/domain';
 import type { PipelineDefinition } from '@eve-fabric/domain';
 
 describe('publishAsComposite', () => {
@@ -23,7 +28,12 @@ describe('publishAsComposite', () => {
       source: 'ESI',
       dependencies: [],
       auth: { required: true, scopes: ['esi-markets.structure_markets.v1'] },
-      cache: { cacheable: true, defaultTtlSeconds: 300, stalePermitted: true, identityInKey: false },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 300,
+        stalePermitted: true,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 200, esiCallCount: 1 },
     });
 
@@ -42,7 +52,12 @@ describe('publishAsComposite', () => {
       source: 'DERIVED',
       dependencies: [],
       auth: { required: false, scopes: [] },
-      cache: { cacheable: false, defaultTtlSeconds: 0, stalePermitted: false, identityInKey: false },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
       cost: { estimatedLatencyMs: 50, esiCallCount: 0 },
     });
   });
@@ -57,8 +72,14 @@ describe('publishAsComposite', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
-        { id: 'aggregate', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } },
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+        },
+        {
+          id: 'aggregate',
+          capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'orders.item' },
@@ -114,7 +135,7 @@ describe('publishAsComposite', () => {
     expect(inputs.size).toBe(2);
     expect(inputs.has('item')).toBe(true);
     expect(inputs.has('region')).toBe(true);
-    expect((inputs.get('item')!.semanticType as string)).toBe('eve.type.reference');
+    expect(inputs.get('item')!.semanticType as string).toBe('eve.type.reference');
   });
 
   it('resolves output semantic types from capability definitions', () => {
@@ -130,7 +151,7 @@ describe('publishAsComposite', () => {
     expect(outputs.size).toBe(2);
     expect(outputs.has('lowestSell')).toBe(true);
     expect(outputs.has('highestBuy')).toBe(true);
-    expect((outputs.get('lowestSell')!.semanticType as string)).toBe('eve.currency.isk');
+    expect(outputs.get('lowestSell')!.semanticType as string).toBe('eve.currency.isk');
   });
 
   it('aggregates auth requirements from all nodes', () => {
@@ -212,7 +233,10 @@ describe('publishAsComposite', () => {
       name: 'Partial',
       inputs: [],
       nodes: [
-        { id: 'good', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
+        {
+          id: 'good',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+        },
         { id: 'missing', capability: { id: capabilityId('nonexistent.cap') } },
       ],
       edges: [],
@@ -245,7 +269,12 @@ describe('publishAsComposite', () => {
       source: 'ESI',
       dependencies: [],
       auth: { required: true, scopes: ['esi-wallet.read_character_wallet.v1'] },
-      cache: { cacheable: true, defaultTtlSeconds: 120, stalePermitted: false, identityInKey: true },
+      cache: {
+        cacheable: true,
+        defaultTtlSeconds: 120,
+        stalePermitted: false,
+        identityInKey: true,
+      },
       cost: { estimatedLatencyMs: 100, esiCallCount: 1 },
     });
 
@@ -253,18 +282,15 @@ describe('publishAsComposite', () => {
       id: 'identity-pipeline',
       version: 1,
       name: 'Identity Pipeline',
-      inputs: [
-        { name: 'token', semanticType: semanticTypeId('eve.auth.token'), required: true },
-      ],
+      inputs: [{ name: 'token', semanticType: semanticTypeId('eve.auth.token'), required: true }],
       nodes: [
-        { id: 'idcap', capability: { id: capabilityId('identity.cap'), version: capabilityVersion(1) } },
+        {
+          id: 'idcap',
+          capability: { id: capabilityId('identity.cap'), version: capabilityVersion(1) },
+        },
       ],
-      edges: [
-        { from: 'input.token', to: 'idcap.token' },
-      ],
-      outputs: [
-        { name: 'result', source: 'idcap.result' },
-      ],
+      edges: [{ from: 'input.token', to: 'idcap.token' }],
+      outputs: [{ name: 'result', source: 'idcap.result' }],
     };
 
     const result = publishAsComposite(pipeline, catalog, {

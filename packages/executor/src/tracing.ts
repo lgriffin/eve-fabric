@@ -1,7 +1,4 @@
-import type {
-  ExecutionPlan,
-  ProvenanceRecord,
-} from '@eve-fabric/domain';
+import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/domain';
 import type { Executor, ExecutionResult } from './executor.js';
 
 interface Span {
@@ -11,7 +8,10 @@ interface Span {
 }
 
 interface Tracer {
-  startSpan(name: string, options?: { attributes?: Record<string, string | number | boolean> }): Span;
+  startSpan(
+    name: string,
+    options?: { attributes?: Record<string, string | number | boolean> },
+  ): Span;
 }
 
 interface TracerProvider {

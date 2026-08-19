@@ -50,9 +50,9 @@ describe('SdeAdapter', () => {
   describe('execute', () => {
     it('throws "not yet connected" error', async () => {
       const cap = makeCapability('SDE');
-      await expect(
-        adapter.execute(cap, new Map()),
-      ).rejects.toThrow('SDE adapter not yet connected to data provider');
+      await expect(adapter.execute(cap, new Map())).rejects.toThrow(
+        'SDE adapter not yet connected to data provider',
+      );
     });
   });
 });

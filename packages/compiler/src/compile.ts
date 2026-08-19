@@ -49,10 +49,7 @@ function hasErrors(diagnostics: CompilerDiagnostic[]): boolean {
  * 10. suggestIntermediates for any semantic mismatches (append as info diagnostics)
  * 11. Return { success: true, plan, diagnostics }
  */
-export function compile(
-  pipeline: PipelineDefinition,
-  catalog: CapabilityCatalog,
-): CompileResult {
+export function compile(pipeline: PipelineDefinition, catalog: CapabilityCatalog): CompileResult {
   const allDiagnostics: CompilerDiagnostic[] = [];
 
   // Step 1: Validate structure
@@ -130,10 +127,7 @@ export function compile(
 /**
  * Appends intermediate suggestions for any SEMANTIC_TYPE_MISMATCH diagnostics.
  */
-function appendSuggestions(
-  diagnostics: CompilerDiagnostic[],
-  catalog: CapabilityCatalog,
-): void {
+function appendSuggestions(diagnostics: CompilerDiagnostic[], catalog: CapabilityCatalog): void {
   const mismatchDiags = diagnostics.filter(
     (d) =>
       d.code === SEMANTIC_TYPE_MISMATCH &&

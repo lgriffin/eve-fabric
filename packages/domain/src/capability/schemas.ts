@@ -24,10 +24,11 @@ export const capabilityDefinitionSchema = z.object({
   name: z.string().min(1),
   description: z.string().min(1),
   inputs: z.record(z.string(), semanticPortSchema).default({}),
-  outputs: z.record(z.string(), semanticPortSchema).refine(
-    (outputs) => Object.keys(outputs).length > 0,
-    { message: 'At least one output is required' },
-  ),
+  outputs: z
+    .record(z.string(), semanticPortSchema)
+    .refine((outputs) => Object.keys(outputs).length > 0, {
+      message: 'At least one output is required',
+    }),
   source: capabilitySourceSchema,
   dependencies: z.array(capabilityRefSchema).default([]),
   auth: authRequirementSchema,

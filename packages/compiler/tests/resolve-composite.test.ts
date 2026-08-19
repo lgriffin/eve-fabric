@@ -50,8 +50,14 @@ describe('resolveComposites', () => {
       { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
     ],
     nodes: [
-      { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
-      { id: 'aggregate', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } },
+      {
+        id: 'orders',
+        capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+      },
+      {
+        id: 'aggregate',
+        capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+      },
     ],
     edges: [
       { from: 'input.item', to: 'orders.item' },
@@ -66,39 +72,55 @@ describe('resolveComposites', () => {
 
   beforeEach(() => {
     catalog = new CapabilityCatalog();
-    catalog.register(makeRawCap(
-      'universe.resolvetype', 1, 'ESI',
-      { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
-      { type: { name: 'type', semanticType: 'eve.type.info', required: true } },
-    ));
-    catalog.register(makeRawCap(
-      'market.orders', 1, 'ESI',
-      {
-        item: { name: 'item', semanticType: 'eve.type.reference', required: true },
-        region: { name: 'region', semanticType: 'eve.region.reference', required: true },
-      },
-      { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
-    ));
-    catalog.register(makeRawCap(
-      'market.aggregate', 1, 'DERIVED',
-      { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
-      {
-        lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
-        highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
-      },
-    ));
-    catalog.register(makeRawCap(
-      'market.snapshot', 1, 'COMPOSITE',
-      {
-        item: { name: 'item', semanticType: 'eve.type.reference', required: true },
-        region: { name: 'region', semanticType: 'eve.region.reference', required: true },
-      },
-      {
-        lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
-        highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
-      },
-      { id: 'market-snapshot', version: 1 },
-    ));
+    catalog.register(
+      makeRawCap(
+        'universe.resolvetype',
+        1,
+        'ESI',
+        { item: { name: 'item', semanticType: 'eve.type.reference', required: true } },
+        { type: { name: 'type', semanticType: 'eve.type.info', required: true } },
+      ),
+    );
+    catalog.register(
+      makeRawCap(
+        'market.orders',
+        1,
+        'ESI',
+        {
+          item: { name: 'item', semanticType: 'eve.type.reference', required: true },
+          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
+        },
+        { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+      ),
+    );
+    catalog.register(
+      makeRawCap(
+        'market.aggregate',
+        1,
+        'DERIVED',
+        { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+        {
+          lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
+          highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
+        },
+      ),
+    );
+    catalog.register(
+      makeRawCap(
+        'market.snapshot',
+        1,
+        'COMPOSITE',
+        {
+          item: { name: 'item', semanticType: 'eve.type.reference', required: true },
+          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
+        },
+        {
+          lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
+          highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
+        },
+        { id: 'market-snapshot', version: 1 },
+      ),
+    );
 
     const pipelines = new Map<string, PipelineDefinition>();
     pipelines.set('market-snapshot@1', snapshotPipeline);
@@ -115,15 +137,16 @@ describe('resolveComposites', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
       ],
-      outputs: [
-        { name: 'lowestSell', source: 'snapshot.lowestSell' },
-      ],
+      outputs: [{ name: 'lowestSell', source: 'snapshot.lowestSell' }],
     };
 
     const result = resolveComposites(pipeline, catalog, registry);
@@ -145,8 +168,14 @@ describe('resolveComposites', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'resolve', capability: { id: capabilityId('universe.resolvetype'), version: capabilityVersion(1) } },
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'resolve',
+          capability: { id: capabilityId('universe.resolvetype'), version: capabilityVersion(1) },
+        },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'resolve.item' },
@@ -180,15 +209,16 @@ describe('resolveComposites', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
       ],
-      outputs: [
-        { name: 'lowestSell', source: 'snapshot.lowestSell' },
-      ],
+      outputs: [{ name: 'lowestSell', source: 'snapshot.lowestSell' }],
     };
 
     const result = resolveComposites(pipeline, catalog, emptyRegistry);
@@ -206,36 +236,51 @@ describe('resolveComposites', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
       ],
-      outputs: [
-        { name: 'lowestSell', source: 'snapshot.lowestSell' },
-      ],
+      outputs: [{ name: 'lowestSell', source: 'snapshot.lowestSell' }],
     };
 
     const result = resolveComposites(pipeline, catalog, registry);
     const edges = result.expandedPipeline.edges;
 
     // input.item should be rewired to snapshot/orders.item (sub-pipeline's internal target)
-    expect(edges.some((e) => e.from === 'input.item' && e.to === 'snapshot/orders.item')).toBe(true);
+    expect(edges.some((e) => e.from === 'input.item' && e.to === 'snapshot/orders.item')).toBe(
+      true,
+    );
     // input.region should be rewired to snapshot/orders.region
-    expect(edges.some((e) => e.from === 'input.region' && e.to === 'snapshot/orders.region')).toBe(true);
+    expect(edges.some((e) => e.from === 'input.region' && e.to === 'snapshot/orders.region')).toBe(
+      true,
+    );
     // Internal edge: snapshot/orders.orders -> snapshot/aggregate.orders
-    expect(edges.some((e) => e.from === 'snapshot/orders.orders' && e.to === 'snapshot/aggregate.orders')).toBe(true);
+    expect(
+      edges.some(
+        (e) => e.from === 'snapshot/orders.orders' && e.to === 'snapshot/aggregate.orders',
+      ),
+    ).toBe(true);
     // No edges should reference the original composite node ID directly
-    expect(edges.every((e) => !e.from.startsWith('snapshot.') && !e.to.startsWith('snapshot.'))).toBe(true);
+    expect(
+      edges.every((e) => !e.from.startsWith('snapshot.') && !e.to.startsWith('snapshot.')),
+    ).toBe(true);
   });
 
   it('rewires edges from composite outputs to downstream nodes', () => {
-    catalog.register(makeRawCap(
-      'collection.filter', 1, 'DERIVED',
-      { data: { name: 'data', semanticType: 'eve.currency.isk', required: true } },
-      { filtered: { name: 'filtered', semanticType: 'eve.currency.isk', required: true } },
-    ));
+    catalog.register(
+      makeRawCap(
+        'collection.filter',
+        1,
+        'DERIVED',
+        { data: { name: 'data', semanticType: 'eve.currency.isk', required: true } },
+        { filtered: { name: 'filtered', semanticType: 'eve.currency.isk', required: true } },
+      ),
+    );
 
     const pipeline: PipelineDefinition = {
       id: 'filtered-snapshot',
@@ -246,26 +291,30 @@ describe('resolveComposites', () => {
         { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
       ],
       nodes: [
-        { id: 'snapshot', capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) } },
-        { id: 'filter', capability: { id: capabilityId('collection.filter'), version: capabilityVersion(1) } },
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
+        {
+          id: 'filter',
+          capability: { id: capabilityId('collection.filter'), version: capabilityVersion(1) },
+        },
       ],
       edges: [
         { from: 'input.item', to: 'snapshot.item' },
         { from: 'input.region', to: 'snapshot.region' },
         { from: 'snapshot.lowestSell', to: 'filter.data' },
       ],
-      outputs: [
-        { name: 'filtered', source: 'filter.filtered' },
-      ],
+      outputs: [{ name: 'filtered', source: 'filter.filtered' }],
     };
 
     const result = resolveComposites(pipeline, catalog, registry);
     const edges = result.expandedPipeline.edges;
 
     // snapshot.lowestSell -> filter.data should be rewired to snapshot/aggregate.lowestSell -> filter.data
-    expect(edges.some((e) =>
-      e.from === 'snapshot/aggregate.lowestSell' && e.to === 'filter.data',
-    )).toBe(true);
+    expect(
+      edges.some((e) => e.from === 'snapshot/aggregate.lowestSell' && e.to === 'filter.data'),
+    ).toBe(true);
   });
 });
 
@@ -282,8 +331,14 @@ describe('expandCompositeNode', () => {
       { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
     ],
     nodes: [
-      { id: 'orders', capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) } },
-      { id: 'aggregate', capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) } },
+      {
+        id: 'orders',
+        capability: { id: capabilityId('market.orders'), version: capabilityVersion(1) },
+      },
+      {
+        id: 'aggregate',
+        capability: { id: capabilityId('market.aggregate'), version: capabilityVersion(1) },
+      },
     ],
     edges: [
       { from: 'input.item', to: 'orders.item' },
@@ -298,34 +353,46 @@ describe('expandCompositeNode', () => {
 
   beforeEach(() => {
     catalog = new CapabilityCatalog();
-    catalog.register(makeRawCap(
-      'market.orders', 1, 'ESI',
-      {
-        item: { name: 'item', semanticType: 'eve.type.reference', required: true },
-        region: { name: 'region', semanticType: 'eve.region.reference', required: true },
-      },
-      { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
-    ));
-    catalog.register(makeRawCap(
-      'market.aggregate', 1, 'DERIVED',
-      { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
-      {
-        lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
-        highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
-      },
-    ));
-    catalog.register(makeRawCap(
-      'market.snapshot', 1, 'COMPOSITE',
-      {
-        item: { name: 'item', semanticType: 'eve.type.reference', required: true },
-        region: { name: 'region', semanticType: 'eve.region.reference', required: true },
-      },
-      {
-        lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
-        highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
-      },
-      { id: 'market-snapshot', version: 1 },
-    ));
+    catalog.register(
+      makeRawCap(
+        'market.orders',
+        1,
+        'ESI',
+        {
+          item: { name: 'item', semanticType: 'eve.type.reference', required: true },
+          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
+        },
+        { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+      ),
+    );
+    catalog.register(
+      makeRawCap(
+        'market.aggregate',
+        1,
+        'DERIVED',
+        { orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true } },
+        {
+          lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
+          highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
+        },
+      ),
+    );
+    catalog.register(
+      makeRawCap(
+        'market.snapshot',
+        1,
+        'COMPOSITE',
+        {
+          item: { name: 'item', semanticType: 'eve.type.reference', required: true },
+          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
+        },
+        {
+          lowestSell: { name: 'lowestSell', semanticType: 'eve.currency.isk', required: true },
+          highestBuy: { name: 'highestBuy', semanticType: 'eve.currency.isk', required: true },
+        },
+        { id: 'market-snapshot', version: 1 },
+      ),
+    );
 
     const pipelines = new Map<string, PipelineDefinition>();
     pipelines.set('market-snapshot@1', snapshotPipeline);
@@ -370,8 +437,12 @@ describe('expandCompositeNode', () => {
 
     const ordersStep = result.expandedSteps.find((s) => s.id === 'snapshot/orders');
     expect(ordersStep).toBeDefined();
-    expect(ordersStep!.inputs.some((i) => i.portName === 'item' && i.source === 'pipeline-input')).toBe(true);
-    expect(ordersStep!.inputs.some((i) => i.portName === 'region' && i.source === 'pipeline-input')).toBe(true);
+    expect(
+      ordersStep!.inputs.some((i) => i.portName === 'item' && i.source === 'pipeline-input'),
+    ).toBe(true);
+    expect(
+      ordersStep!.inputs.some((i) => i.portName === 'region' && i.source === 'pipeline-input'),
+    ).toBe(true);
   });
 
   it('wires internal edges between sub-steps', () => {
@@ -390,35 +461,22 @@ describe('expandCompositeNode', () => {
 
     const aggregateStep = result.expandedSteps.find((s) => s.id === 'snapshot/aggregate');
     expect(aggregateStep).toBeDefined();
-    expect(aggregateStep!.inputs.some(
-      (i) => i.portName === 'orders' && i.source === 'step-output' && i.stepId === 'snapshot/orders',
-    )).toBe(true);
+    expect(
+      aggregateStep!.inputs.some(
+        (i) =>
+          i.portName === 'orders' && i.source === 'step-output' && i.stepId === 'snapshot/orders',
+      ),
+    ).toBe(true);
   });
 
   it('rejects nesting beyond max depth', () => {
-    const result = expandCompositeNode(
-      'deep',
-      'market.snapshot',
-      1,
-      [],
-      catalog,
-      registry,
-      11,
-    );
+    const result = expandCompositeNode('deep', 'market.snapshot', 1, [], catalog, registry, 11);
 
     expect(result.diagnostics.some((d) => d.code === 'COMPOSITE_MAX_DEPTH')).toBe(true);
   });
 
   it('reports error for non-composite capability', () => {
-    const result = expandCompositeNode(
-      'orders',
-      'market.orders',
-      1,
-      [],
-      catalog,
-      registry,
-      1,
-    );
+    const result = expandCompositeNode('orders', 'market.orders', 1, [], catalog, registry, 1);
 
     expect(result.diagnostics.some((d) => d.code === 'COMPOSITE_NOT_COMPOSITE')).toBe(true);
   });

@@ -34,7 +34,12 @@ function registerDefaults(catalog: CapabilityCatalog) {
     source: 'SDE',
     dependencies: [],
     auth: { required: false, scopes: [] },
-    cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true, identityInKey: false },
+    cache: {
+      cacheable: true,
+      defaultTtlSeconds: 86400,
+      stalePermitted: true,
+      identityInKey: false,
+    },
     cost: { estimatedLatencyMs: 10, esiCallCount: 0 },
   });
 
@@ -87,13 +92,19 @@ Given('a pipeline with nodes:', function (this: PipelineWorld, table: DataTable)
   }
 });
 
-Given('a pipeline with input {string} of type {string}', function (this: PipelineWorld, name: string, type: string) {
-  this.pipeline.inputs.push({ name, semanticType: type, required: true });
-});
+Given(
+  'a pipeline with input {string} of type {string}',
+  function (this: PipelineWorld, name: string, type: string) {
+    this.pipeline.inputs.push({ name, semanticType: type, required: true });
+  },
+);
 
-Given('an edge from {string} to {string}', function (this: PipelineWorld, from: string, to: string) {
-  this.pipeline.edges.push({ from, to });
-});
+Given(
+  'an edge from {string} to {string}',
+  function (this: PipelineWorld, from: string, to: string) {
+    this.pipeline.edges.push({ from, to });
+  },
+);
 
 When('I validate the pipeline wiring', function (this: PipelineWorld) {
   this.diagnostics = validateSemanticWiring(this.pipeline, this.catalog);
@@ -103,9 +114,12 @@ When('I check for cycles', function (this: PipelineWorld) {
   this.diagnostics = detectCycles(this.pipeline);
 });
 
-When('I request suggestions to bridge {string} to {string}', function (this: PipelineWorld, fromType: string, toType: string) {
-  this.suggestions = suggestIntermediates(fromType, toType, this.catalog);
-});
+When(
+  'I request suggestions to bridge {string} to {string}',
+  function (this: PipelineWorld, fromType: string, toType: string) {
+    this.suggestions = suggestIntermediates(fromType, toType, this.catalog);
+  },
+);
 
 Then('there should be {int} diagnostic(s)', function (this: PipelineWorld, count: number) {
   assert.equal(

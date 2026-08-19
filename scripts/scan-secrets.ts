@@ -13,10 +13,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { scanForSecrets, type SecretFinding } from '@eve-fabric/schema-package';
 
-const DEFAULT_SCAN_DIRS = [
-  'examples',
-  'packages/schema-package',
-];
+const DEFAULT_SCAN_DIRS = ['examples', 'packages/schema-package'];
 
 interface FileFinding {
   readonly filePath: string;
@@ -36,7 +33,12 @@ function collectJsonFiles(dir: string): string[] {
 
     if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
       results.push(...collectJsonFiles(fullPath));
-    } else if (entry.isFile() && entry.name.endsWith('.json') && entry.name !== 'package.json' && entry.name !== 'tsconfig.json') {
+    } else if (
+      entry.isFile() &&
+      entry.name.endsWith('.json') &&
+      entry.name !== 'package.json' &&
+      entry.name !== 'tsconfig.json'
+    ) {
       results.push(fullPath);
     }
   }
@@ -67,9 +69,10 @@ function main(): void {
   const args = process.argv.slice(2);
   const rootDir = process.cwd();
 
-  const dirsToScan = args.length > 0
-    ? args.map((d) => path.resolve(rootDir, d))
-    : DEFAULT_SCAN_DIRS.map((d) => path.resolve(rootDir, d));
+  const dirsToScan =
+    args.length > 0
+      ? args.map((d) => path.resolve(rootDir, d))
+      : DEFAULT_SCAN_DIRS.map((d) => path.resolve(rootDir, d));
 
   const jsonFiles: string[] = [];
   for (const dir of dirsToScan) {

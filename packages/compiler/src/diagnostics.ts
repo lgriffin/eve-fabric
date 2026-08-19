@@ -9,18 +9,22 @@ export interface CompilerDiagnostic {
   readonly code: string;
   readonly severity: 'error' | 'warning' | 'info';
   readonly message: string;
-  readonly location?: {
-    readonly nodeId?: string | undefined;
-    readonly edgeFrom?: string | undefined;
-    readonly edgeTo?: string | undefined;
-    readonly field?: string | undefined;
-  } | undefined;
-  readonly context?: {
-    readonly expectedType?: string | undefined;
-    readonly actualType?: string | undefined;
-    readonly capability?: string | undefined;
-    readonly suggestion?: string | undefined;
-  } | undefined;
+  readonly location?:
+    | {
+        readonly nodeId?: string | undefined;
+        readonly edgeFrom?: string | undefined;
+        readonly edgeTo?: string | undefined;
+        readonly field?: string | undefined;
+      }
+    | undefined;
+  readonly context?:
+    | {
+        readonly expectedType?: string | undefined;
+        readonly actualType?: string | undefined;
+        readonly capability?: string | undefined;
+        readonly suggestion?: string | undefined;
+      }
+    | undefined;
 }
 
 // Diagnostic codes

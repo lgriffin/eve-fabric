@@ -15,9 +15,7 @@ function makeNode(overrides: Partial<CapabilityFlowNode> = {}): CapabilityFlowNo
         { name: 'item', semanticType: 'eve.type.reference', required: true },
         { name: 'region', semanticType: 'eve.region.reference', required: true },
       ],
-      outputs: [
-        { name: 'orders', semanticType: 'eve.market.orders' },
-      ],
+      outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
     },
     ...overrides,
   };
@@ -137,28 +135,32 @@ describe('Connection Validation', () => {
 
   it('accepts compatible semantic type connections', () => {
     const store = usePipelineStore.getState();
-    store.addNode(makeNode({
-      id: 'resolver',
-      data: {
-        capabilityId: 'universe.resolveType',
-        capabilityVersion: 1,
-        label: 'Resolve Type',
-        source: 'SDE',
-        inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-        outputs: [{ name: 'type', semanticType: 'eve.type.reference' }],
-      },
-    }));
-    store.addNode(makeNode({
-      id: 'orders',
-      data: {
-        capabilityId: 'market.orders',
-        capabilityVersion: 1,
-        label: 'Market Orders',
-        source: 'ESI',
-        inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-        outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
-      },
-    }));
+    store.addNode(
+      makeNode({
+        id: 'resolver',
+        data: {
+          capabilityId: 'universe.resolveType',
+          capabilityVersion: 1,
+          label: 'Resolve Type',
+          source: 'SDE',
+          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
+          outputs: [{ name: 'type', semanticType: 'eve.type.reference' }],
+        },
+      }),
+    );
+    store.addNode(
+      makeNode({
+        id: 'orders',
+        data: {
+          capabilityId: 'market.orders',
+          capabilityVersion: 1,
+          label: 'Market Orders',
+          source: 'ESI',
+          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
+          outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
+        },
+      }),
+    );
 
     const nodes = usePipelineStore.getState().nodes;
     const sourceNode = nodes.find((n) => n.id === 'resolver')!;
@@ -172,28 +174,32 @@ describe('Connection Validation', () => {
 
   it('rejects incompatible semantic type connections', () => {
     const store = usePipelineStore.getState();
-    store.addNode(makeNode({
-      id: 'resolver',
-      data: {
-        capabilityId: 'universe.resolveRegion',
-        capabilityVersion: 1,
-        label: 'Resolve Region',
-        source: 'SDE',
-        inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
-        outputs: [{ name: 'region', semanticType: 'eve.region.reference' }],
-      },
-    }));
-    store.addNode(makeNode({
-      id: 'orders',
-      data: {
-        capabilityId: 'market.orders',
-        capabilityVersion: 1,
-        label: 'Market Orders',
-        source: 'ESI',
-        inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-        outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
-      },
-    }));
+    store.addNode(
+      makeNode({
+        id: 'resolver',
+        data: {
+          capabilityId: 'universe.resolveRegion',
+          capabilityVersion: 1,
+          label: 'Resolve Region',
+          source: 'SDE',
+          inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
+          outputs: [{ name: 'region', semanticType: 'eve.region.reference' }],
+        },
+      }),
+    );
+    store.addNode(
+      makeNode({
+        id: 'orders',
+        data: {
+          capabilityId: 'market.orders',
+          capabilityVersion: 1,
+          label: 'Market Orders',
+          source: 'ESI',
+          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
+          outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
+        },
+      }),
+    );
 
     const nodes = usePipelineStore.getState().nodes;
     const sourceNode = nodes.find((n) => n.id === 'resolver')!;

@@ -61,9 +61,7 @@ describe('capabilityDefinitionSchema', () => {
   });
 
   it('requires at least one output', () => {
-    const result = capabilityDefinitionSchema.safeParse(
-      validDefinition({ outputs: {} }),
-    );
+    const result = capabilityDefinitionSchema.safeParse(validDefinition({ outputs: {} }));
     expect(result.success).toBe(false);
   });
 

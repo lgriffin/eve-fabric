@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { flowToPipeline, pipelineToYaml, pipelineToFlow } from '../../src/services/pipeline-serializer.js';
+import {
+  flowToPipeline,
+  pipelineToYaml,
+  pipelineToFlow,
+} from '../../src/services/pipeline-serializer.js';
 import type { CapabilityFlowNode } from '../../src/stores/pipeline-store.js';
 import type { PipelineDefinition } from '@eve-fabric/domain';
 
@@ -37,11 +41,17 @@ describe('Pipeline Serializer', () => {
         },
       ];
 
-      const result = flowToPipeline(nodes, edges, {
-        id: 'test-pipeline',
-        name: 'Test Pipeline',
-        version: 1,
-      }, [], []);
+      const result = flowToPipeline(
+        nodes,
+        edges,
+        {
+          id: 'test-pipeline',
+          name: 'Test Pipeline',
+          version: 1,
+        },
+        [],
+        [],
+      );
 
       expect(result.id).toBe('test-pipeline');
       expect(result.version).toBe(1);
@@ -55,11 +65,17 @@ describe('Pipeline Serializer', () => {
       const nodes = [makeFlowNode('a', 'test.cap')];
       const edges = [{ id: 'e-0', source: 'a', target: 'b' }];
 
-      const result = flowToPipeline(nodes, edges, {
-        id: 'test',
-        name: 'Test',
-        version: 1,
-      }, [], []);
+      const result = flowToPipeline(
+        nodes,
+        edges,
+        {
+          id: 'test',
+          name: 'Test',
+          version: 1,
+        },
+        [],
+        [],
+      );
 
       expect(result.edges[0]!.from).toBe('a');
       expect(result.edges[0]!.to).toBe('b');
@@ -78,9 +94,7 @@ describe('Pipeline Serializer', () => {
           { id: 'a', capability: { id: 'market.orders' as any } },
           { id: 'b', capability: { id: 'market.aggregate' as any } },
         ],
-        edges: [
-          { from: 'a.orders', to: 'b.orders' },
-        ],
+        edges: [{ from: 'a.orders', to: 'b.orders' }],
       };
 
       const { nodes, edges } = pipelineToFlow(definition);
@@ -100,18 +114,10 @@ describe('Pipeline Serializer', () => {
         version: 1,
         name: 'Trade Opportunity',
         description: 'Find cheapest market orders',
-        inputs: [
-          { name: 'item', semanticType: 'eve.type.reference' as any, required: true },
-        ],
-        outputs: [
-          { name: 'sellPrice', source: 'aggregate.lowestSell' },
-        ],
-        nodes: [
-          { id: 'orders', capability: { id: 'market.orders' as any } },
-        ],
-        edges: [
-          { from: 'input.item', to: 'orders.item' },
-        ],
+        inputs: [{ name: 'item', semanticType: 'eve.type.reference' as any, required: true }],
+        outputs: [{ name: 'sellPrice', source: 'aggregate.lowestSell' }],
+        nodes: [{ id: 'orders', capability: { id: 'market.orders' as any } }],
+        edges: [{ from: 'input.item', to: 'orders.item' }],
       };
 
       const yaml = pipelineToYaml(definition);

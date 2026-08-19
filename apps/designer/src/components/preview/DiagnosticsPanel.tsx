@@ -24,11 +24,21 @@ function DiagnosticItem({ diagnostic }: { diagnostic: CompilerDiagnostic }) {
       <span style={{ color: style.color, flexShrink: 0 }}>{style.icon}</span>
       <div style={{ flex: 1 }}>
         <div style={{ color: '#e0e0e0' }}>{diagnostic.message}</div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
           <span style={{ color: '#666', fontSize: '10px' }}>{diagnostic.code}</span>
           {diagnostic.location?.nodeId && (
-            <span style={{ color: '#777', fontSize: '10px' }}>
+            <span style={{ color: '#7c4dff', fontSize: '10px', cursor: 'pointer' }}>
               node: {diagnostic.location.nodeId}
+            </span>
+          )}
+          {diagnostic.location?.edgeFrom && diagnostic.location?.edgeTo && (
+            <span style={{ color: '#ba68c8', fontSize: '10px', cursor: 'pointer' }}>
+              edge: {diagnostic.location.edgeFrom} → {diagnostic.location.edgeTo}
+            </span>
+          )}
+          {diagnostic.context?.expectedType && diagnostic.context?.actualType && (
+            <span style={{ color: '#888', fontSize: '10px' }}>
+              expected {diagnostic.context.expectedType}, got {diagnostic.context.actualType}
             </span>
           )}
         </div>
@@ -47,6 +57,7 @@ export function DiagnosticsPanel() {
 
   const errorCount = diagnostics.filter((d) => d.severity === 'error').length;
   const warningCount = diagnostics.filter((d) => d.severity === 'warning').length;
+  const suggestionCount = diagnostics.filter((d) => d.context?.suggestion).length;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -59,15 +70,14 @@ export function DiagnosticsPanel() {
           fontSize: '11px',
         }}
       >
-        <span style={{ color: errorCount > 0 ? '#ef5350' : '#666' }}>
-          {errorCount} errors
-        </span>
+        <span style={{ color: errorCount > 0 ? '#ef5350' : '#666' }}>{errorCount} errors</span>
         <span style={{ color: warningCount > 0 ? '#ffa726' : '#666' }}>
           {warningCount} warnings
         </span>
-        <span style={{ color: '#666' }}>
-          {diagnostics.length} total
-        </span>
+        {suggestionCount > 0 && (
+          <span style={{ color: '#81c784' }}>{suggestionCount} suggestions</span>
+        )}
+        <span style={{ color: '#666' }}>{diagnostics.length} total</span>
       </div>
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {diagnostics.length === 0 && (

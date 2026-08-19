@@ -37,8 +37,14 @@ export const ISKScalar = new GraphQLScalarType({
 
 export const TypeReferenceScalar = intScalar('TypeReference', 'Reference to an EVE item type');
 export const RegionReferenceScalar = intScalar('RegionReference', 'Reference to an EVE region');
-export const SystemReferenceScalar = intScalar('SystemReference', 'Reference to an EVE solar system');
-export const LocationReferenceScalar = intScalar('LocationReference', 'Reference to an EVE location');
+export const SystemReferenceScalar = intScalar(
+  'SystemReference',
+  'Reference to an EVE solar system',
+);
+export const LocationReferenceScalar = intScalar(
+  'LocationReference',
+  'Reference to an EVE location',
+);
 export const RouteDistanceScalar = intScalar('RouteDistance', 'Distance in jumps between systems');
 
 export const SecurityStatusScalar = new GraphQLScalarType({

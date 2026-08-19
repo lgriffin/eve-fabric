@@ -65,9 +65,7 @@ function makeValidExportOptions(): ExportOptions {
       ],
     },
     graphqlSdl: `type Query { orders(regionId: Int!): [Order!]! }`,
-    mappings: [
-      { graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' },
-    ],
+    mappings: [{ graphqlField: 'orders', pipelineOutput: 'fetch-orders.orders' }],
     policies: {
       cache: {
         cacheable: true,
@@ -151,7 +149,8 @@ describe('Schema Package Export/Import', () => {
     it('rejects export when pipeline config contains a Bearer token', () => {
       const options = makeValidExportOptions();
       (options.pipelineDefinition.nodes[0] as { config?: Record<string, unknown> }).config = {
-        authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
+        authorization:
+          'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U',
       };
       const result = exportSchemaPackage(options);
       expect(result.success).toBe(false);
@@ -256,7 +255,9 @@ describe('Schema Package Export/Import', () => {
       const importResult = importSchemaPackage(exportResult.package, catalog, '1.0.0');
       expect(importResult.success).toBe(false);
       if (!importResult.success) {
-        const missingDiags = importResult.diagnostics.filter((d) => d.code === 'MISSING_CAPABILITY');
+        const missingDiags = importResult.diagnostics.filter(
+          (d) => d.code === 'MISSING_CAPABILITY',
+        );
         expect(missingDiags.length).toBeGreaterThanOrEqual(1);
         expect(missingDiags.some((d) => d.message.includes('sde.types.lookup'))).toBe(true);
       }
@@ -272,7 +273,8 @@ describe('Secret Scanner', () => {
   });
 
   it('detects JWT tokens', () => {
-    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
+    const jwt =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U';
     const findings = scanForSecrets({ token: jwt });
     expect(findings.length).toBeGreaterThan(0);
     expect(findings.some((f) => f.patternName === 'JWT')).toBe(true);

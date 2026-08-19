@@ -15,7 +15,7 @@ export class InMemoryCapabilityRepository implements CapabilityRepository {
   }
 
   async save(def: CapabilityDefinition): Promise<void> {
-    this.store.set(this.key(def.id as string, def.version as number), def);
+    this.store.set(this.key(def.id, def.version), def);
   }
 
   async getById(id: string, version?: number): Promise<CapabilityDefinition | undefined> {

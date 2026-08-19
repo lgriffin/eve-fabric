@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { defineCapability, allCapabilities, parseCapabilityManifest, parseCapabilityManifests } from '../src/index.js';
+import {
+  defineCapability,
+  allCapabilities,
+  parseCapabilityManifest,
+  parseCapabilityManifests,
+} from '../src/index.js';
 
 describe('defineCapability', () => {
   it('creates a capability with required fields', () => {

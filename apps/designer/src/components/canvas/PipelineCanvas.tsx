@@ -1,4 +1,4 @@
-import { useCallback, useRef, type DragEvent } from 'react';
+import { useCallback, useMemo, useRef, type DragEvent } from 'react';
 import {
   ReactFlow,
   Background,
@@ -11,6 +11,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline-store.js';
 import { useCatalogStore } from '../../stores/catalog-store.js';
+import { useConnectionValidator } from '../../hooks/useConnectionValidator.js';
 import { CapabilityNode } from './CapabilityNode.js';
 
 const nodeTypes = { capability: CapabilityNode };
@@ -25,32 +26,75 @@ export function PipelineCanvas() {
   const onConnect = usePipelineStore((s) => s.onConnect);
   const addNode = usePipelineStore((s) => s.addNode);
   const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
+  const setBridgingSuggestions = usePipelineStore((s) => s.setBridgingSuggestions);
+  const executionSession = usePipelineStore((s) => s.executionSession);
   const capabilities = useCatalogStore((s) => s.capabilities);
+
+  const styledEdges = useMemo(() => {
+    const portCounts = new Map<string, number>();
+    for (const edge of edges) {
+      const key = `${edge.source}::${edge.sourceHandle ?? ''}`;
+      portCounts.set(key, (portCounts.get(key) ?? 0) + 1);
+    }
+
+    return edges.map((edge) => {
+      const key = `${edge.source}::${edge.sourceHandle ?? ''}`;
+      const isFanOut = (portCounts.get(key) ?? 0) > 1;
+
+      if (executionSession?.status === 'running') {
+        const statuses = executionSession.stepStatuses;
+        const sourceState = statuses[edge.source];
+        const targetState = statuses[edge.target];
+        const isActive =
+          sourceState === 'executing' || sourceState === 'completed' || targetState === 'executing';
+        if (isActive) {
+          return {
+            ...edge,
+            animated: true,
+            style: { stroke: '#42a5f5', strokeWidth: isFanOut ? 3 : 2 },
+          };
+        }
+      }
+
+      if (isFanOut) {
+        return { ...edge, style: { stroke: '#ba68c8', strokeWidth: 2.5 } };
+      }
+
+      return edge;
+    });
+  }, [edges, executionSession]);
+
+  const { validate, getBridgingSuggestions } = useConnectionValidator();
 
   const reactFlowRef = useRef<ReactFlowInstance<CapabilityFlowNode, Edge> | null>(null);
 
   const isValidConnection = useCallback(
     (connection: Edge | Connection): boolean => {
-      const source = 'source' in connection ? connection.source : undefined;
-      const target = 'target' in connection ? connection.target : undefined;
-      if (!source || !target) return false;
-      if (source === target) return false;
-
-      const sourceHandle = connection.sourceHandle ?? null;
-      const targetHandle = connection.targetHandle ?? null;
-
-      const sourceNode = nodes.find((n) => n.id === source);
-      const targetNode = nodes.find((n) => n.id === target);
-      if (!sourceNode || !targetNode) return false;
-      if (!sourceHandle || !targetHandle) return true;
-
-      const sourcePort = sourceNode.data.outputs.find((o) => o.name === sourceHandle);
-      const targetPort = targetNode.data.inputs.find((i) => i.name === targetHandle);
-      if (!sourcePort || !targetPort) return false;
-
-      return sourcePort.semanticType === targetPort.semanticType;
+      const conn: Connection = {
+        source: connection.source,
+        target: connection.target,
+        sourceHandle: connection.sourceHandle ?? null,
+        targetHandle: connection.targetHandle ?? null,
+      };
+      return validate(conn);
     },
-    [nodes],
+    [validate],
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      // Self-loop rejection (T009)
+      if (connection.source === connection.target) return;
+
+      if (validate(connection)) {
+        onConnect(connection);
+        setBridgingSuggestions([]);
+      } else {
+        const suggestions = getBridgingSuggestions(connection);
+        setBridgingSuggestions(suggestions);
+      }
+    },
+    [validate, getBridgingSuggestions, onConnect, setBridgingSuggestions],
   );
 
   const onDrop = useCallback(
@@ -95,13 +139,15 @@ export function PipelineCanvas() {
     <div style={{ flex: 1, height: '100%' }}>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={styledEdges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
+        onConnect={handleConnect}
         onDrop={onDrop}
         onDragOver={onDragOver}
-        onInit={(instance) => { reactFlowRef.current = instance; }}
+        onInit={(instance) => {
+          reactFlowRef.current = instance;
+        }}
         onNodeClick={(_event, node) => setSelectedNode(node.id)}
         onPaneClick={() => setSelectedNode(null)}
         isValidConnection={isValidConnection}

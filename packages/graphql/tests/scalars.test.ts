@@ -28,18 +28,12 @@ describe('ISKScalar', () => {
   });
 
   it('parses FLOAT literals', () => {
-    const result = ISKScalar.parseLiteral(
-      { kind: Kind.FLOAT, value: '3.14' },
-      {},
-    );
+    const result = ISKScalar.parseLiteral({ kind: Kind.FLOAT, value: '3.14' }, {});
     expect(result).toBeCloseTo(3.14);
   });
 
   it('parses INT literals', () => {
-    const result = ISKScalar.parseLiteral(
-      { kind: Kind.INT, value: '42' },
-      {},
-    );
+    const result = ISKScalar.parseLiteral({ kind: Kind.INT, value: '42' }, {});
     expect(result).toBe(42);
   });
 });
@@ -54,18 +48,12 @@ describe('TypeReferenceScalar', () => {
   });
 
   it('parses INT literals', () => {
-    const result = TypeReferenceScalar.parseLiteral(
-      { kind: Kind.INT, value: '12345' },
-      {},
-    );
+    const result = TypeReferenceScalar.parseLiteral({ kind: Kind.INT, value: '12345' }, {});
     expect(result).toBe(12345);
   });
 
   it('returns null for non-INT literals', () => {
-    const result = TypeReferenceScalar.parseLiteral(
-      { kind: Kind.STRING, value: 'nope' },
-      {},
-    );
+    const result = TypeReferenceScalar.parseLiteral({ kind: Kind.STRING, value: 'nope' }, {});
     expect(result).toBeNull();
   });
 });

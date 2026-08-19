@@ -1,8 +1,4 @@
-import type {
-  CapabilityDefinition,
-  SourceAdapter,
-  SourceAdapterResult,
-} from '@eve-fabric/domain';
+import type { CapabilityDefinition, SourceAdapter, SourceAdapterResult } from '@eve-fabric/domain';
 
 /**
  * Skeleton ESI (EVE Swagger Interface) adapter.

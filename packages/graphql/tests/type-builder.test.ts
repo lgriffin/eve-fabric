@@ -176,11 +176,7 @@ describe('buildOutputType', () => {
   it('adds _empty field when no outputs can be resolved', () => {
     const catalog = new CapabilityCatalog();
 
-    const pipeline = makePipeline(
-      'Empty Pipeline',
-      [{ name: 'out', source: 'missing.field' }],
-      [],
-    );
+    const pipeline = makePipeline('Empty Pipeline', [{ name: 'out', source: 'missing.field' }], []);
 
     const type = buildOutputType({ pipeline, catalog });
     const fields = type.getFields();
