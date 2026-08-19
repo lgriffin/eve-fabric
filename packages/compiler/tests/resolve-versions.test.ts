@@ -51,7 +51,7 @@ describe('resolveVersions', () => {
     const result = resolveVersions(pipeline, catalog);
     expect(result.diagnostics).toHaveLength(0);
     expect(result.resolved).toHaveLength(1);
-    expect(result.resolved[0]!.resolvedVersion).toBe(1);
+    expect(result.resolved[0]!.resolvedVersion).toBe('1.0.0');
   });
 
   it('resolves to latest version when no version is pinned', () => {
@@ -68,7 +68,7 @@ describe('resolveVersions', () => {
     const result = resolveVersions(pipeline, catalog);
     expect(result.diagnostics).toHaveLength(0);
     expect(result.resolved).toHaveLength(1);
-    expect(result.resolved[0]!.resolvedVersion).toBe(2);
+    expect(result.resolved[0]!.resolvedVersion).toBe('2.0.0');
   });
 
   it('reports VERSION_MISMATCH when pinned version does not exist', () => {
@@ -134,9 +134,9 @@ describe('resolveVersions', () => {
     expect(result.resolved).toHaveLength(2);
 
     const ordersResolution = result.resolved.find((r) => r.nodeId === 'orders');
-    expect(ordersResolution!.resolvedVersion).toBe(1);
+    expect(ordersResolution!.resolvedVersion).toBe('1.0.0');
 
     const aggResolution = result.resolved.find((r) => r.nodeId === 'agg');
-    expect(aggResolution!.resolvedVersion).toBe(1);
+    expect(aggResolution!.resolvedVersion).toBe('1.0.0');
   });
 });

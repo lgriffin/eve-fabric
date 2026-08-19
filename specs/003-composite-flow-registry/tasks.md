@@ -15,9 +15,9 @@
 
 **Purpose**: Create directory structure and barrel exports for new modules
 
-- [ ] T001 Create packages/domain/src/registry/ directory with index.ts barrel export
-- [ ] T002 [P] Create apps/designer/src/components/publish/ directory with index.ts
-- [ ] T003 [P] Create apps/designer/src/components/drilldown/ directory with index.ts
+- [x] T001 Create packages/domain/src/registry/ directory with index.ts barrel export
+- [x] T002 [P] Create apps/designer/src/components/publish/ directory with index.ts
+- [x] T003 [P] Create apps/designer/src/components/drilldown/ directory with index.ts
 
 ---
 
@@ -29,21 +29,21 @@
 
 ### SemVer Migration
 
-- [ ] T004 Migrate CapabilityVersion from branded integer to branded semver string with Zod validation, createCapabilityVersion() factory, compareVersions(), isCompatibleUpgrade(), and isBreakingUpgrade() utilities in packages/domain/src/capability/value-objects.ts
-- [ ] T005 [P] Update CapabilityDefinition and CapabilityRef to use semver CapabilityVersion (version field becomes string-branded) in packages/domain/src/capability/capability-definition.ts
-- [ ] T006 [P] Update Zod schemas for semver version validation in packages/domain/src/capability/schemas.ts
-- [ ] T007 [P] Update all pre-built capability definitions (universe, market, routing, collection) to use semver version strings in packages/capability-sdk/src/capabilities/universe.ts, packages/capability-sdk/src/capabilities/market.ts, packages/capability-sdk/src/capabilities/routing.ts, packages/capability-sdk/src/capabilities/collection.ts
-- [ ] T008 Update CapabilityCatalog for semver-keyed lookups (key format id@major.minor.patch) and latest-version tracking in packages/domain/src/capability/catalog.ts
-- [ ] T009 [P] Update persistence schema capabilities table version column for semver strings in packages/persistence/src/schema.ts
-- [ ] T010 Update CapabilityRepository for semver-aware queries (get by version, get latest) in packages/persistence/src/repositories/capability-repository.ts
+- [x] T004 Migrate CapabilityVersion from branded integer to branded semver string with Zod validation, createCapabilityVersion() factory, compareVersions(), isCompatibleUpgrade(), and isBreakingUpgrade() utilities in packages/domain/src/capability/value-objects.ts
+- [x] T005 [P] Update CapabilityDefinition and CapabilityRef to use semver CapabilityVersion (version field becomes string-branded) in packages/domain/src/capability/capability-definition.ts
+- [x] T006 [P] Update Zod schemas for semver version validation in packages/domain/src/capability/schemas.ts
+- [x] T007 [P] Update all pre-built capability definitions (universe, market, routing, collection) to use semver version strings in packages/capability-sdk/src/capabilities/universe.ts, packages/capability-sdk/src/capabilities/market.ts, packages/capability-sdk/src/capabilities/routing.ts, packages/capability-sdk/src/capabilities/collection.ts
+- [x] T008 Update CapabilityCatalog for semver-keyed lookups (key format id@major.minor.patch) and latest-version tracking in packages/domain/src/capability/catalog.ts
+- [x] T009 [P] Update persistence schema capabilities table version column for semver strings in packages/persistence/src/schema.ts
+- [x] T010 Update CapabilityRepository for semver-aware queries (get by version, get latest) in packages/persistence/src/repositories/capability-repository.ts
 
 ### Registry Domain Types
 
-- [ ] T011 [P] Create registry types: RegistryEntry, PublishRequest, PublishResult, UpgradeInfo, DependencyNode in packages/domain/src/registry/registry-types.ts
-- [ ] T012 [P] Create DependencyGraph data structure with addDependency(), hasCycle() (DFS), getDependencies() (transitive closure), getDependents() (reverse lookup), getImpact() in packages/domain/src/registry/dependency-graph.ts
-- [ ] T013 Create FabricRegistry domain port (interface) with register(), publish(), get(), list(), getVersions(), findUpgrades(), getDependencyGraph(), getDependents() in packages/domain/src/registry/fabric-registry.ts
-- [ ] T014 Update publishAsComposite() with cycle detection via DependencyGraph and semver version validation in packages/capability-sdk/src/publish-composite.ts
-- [ ] T015 Update packages/domain/src/registry/index.ts barrel export and packages/domain/src/capability/index.ts for new/modified exports
+- [x] T011 [P] Create registry types: RegistryEntry, PublishRequest, PublishResult, UpgradeInfo, DependencyNode in packages/domain/src/registry/registry-types.ts
+- [x] T012 [P] Create DependencyGraph data structure with addDependency(), hasCycle() (DFS), getDependencies() (transitive closure), getDependents() (reverse lookup), getImpact() in packages/domain/src/registry/dependency-graph.ts
+- [x] T013 Create FabricRegistry domain port (interface) with register(), publish(), get(), list(), getVersions(), findUpgrades(), getDependencyGraph(), getDependents() in packages/domain/src/registry/fabric-registry.ts
+- [x] T014 Update publishAsComposite() with cycle detection via DependencyGraph and semver version validation in packages/capability-sdk/src/publish-composite.ts
+- [x] T015 Update packages/domain/src/registry/index.ts barrel export and packages/domain/src/capability/index.ts for new/modified exports
 
 **Checkpoint**: Foundation ready — all domain types, semver migration, and interfaces in place. User story implementation can now begin.
 
@@ -57,12 +57,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T016 [US1] Implement InMemoryFabricRegistry (domain service implementing FabricRegistry port) with CapabilityCatalog composition, dependency graph maintenance, and publish validation in packages/domain/src/registry/in-memory-fabric-registry.ts
-- [ ] T017 [P] [US1] Create RegistryRepository persistence port and InMemoryRegistryRepository adapter in packages/persistence/src/repositories/registry-repository.ts
-- [ ] T018 [US1] Create registry API routes: GET /api/registry (list with source filter and search), GET /api/registry/:id (get with optional version query param) in apps/gateway/src/routes/registry-routes.ts
-- [ ] T019 [US1] Register registry routes in gateway server, initialise FabricRegistry with pre-built capabilities (universe, market, routing, collection) on startup in apps/gateway/src/server.ts
-- [ ] T020 [US1] Update catalog-store to fetch capabilities from GET /api/registry endpoint instead of GET /api/capabilities, add version display and COMPOSITE source support in apps/designer/src/stores/catalog-store.ts
-- [ ] T021 [US1] Update CapabilityPalette to show version badge on each capability and ensure COMPOSITE classification renders with existing colour scheme in apps/designer/src/components/palette/CapabilityPalette.tsx
+- [x] T016 [US1] Implement InMemoryFabricRegistry (domain service implementing FabricRegistry port) with CapabilityCatalog composition, dependency graph maintenance, and publish validation in packages/domain/src/registry/in-memory-fabric-registry.ts
+- [x] T017 [P] [US1] Create RegistryRepository persistence port and InMemoryRegistryRepository adapter in packages/persistence/src/repositories/registry-repository.ts
+- [x] T018 [US1] Create registry API routes: GET /api/registry (list with source filter and search), GET /api/registry/:id (get with optional version query param) in apps/gateway/src/routes/registry-routes.ts
+- [x] T019 [US1] Register registry routes in gateway server, initialise FabricRegistry with pre-built capabilities (universe, market, routing, collection) on startup in apps/gateway/src/server.ts
+- [x] T020 [US1] Update catalog-store to fetch capabilities from GET /api/registry endpoint instead of GET /api/capabilities, add version display and COMPOSITE source support in apps/designer/src/stores/catalog-store.ts
+- [x] T021 [US1] Update CapabilityPalette to show version badge on each capability and ensure COMPOSITE classification renders with existing colour scheme in apps/designer/src/components/palette/CapabilityPalette.tsx
 
 **Checkpoint**: User Story 1 complete — Fabric Studio palette is registry-driven with all capability classifications visible and filterable.
 
@@ -76,12 +76,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Create publish API route: POST /api/registry/publish with request validation (Zod), pipeline lookup, compiler validation, version immutability enforcement (409 on duplicate), cycle detection, and error responses per contracts/registry-api.md in apps/gateway/src/routes/publish-routes.ts
-- [ ] T023 [US2] Register publish routes in gateway server in apps/gateway/src/server.ts
-- [ ] T024 [P] [US2] Create ContractEditor component: displays all pipeline inputs and outputs as checkboxes, allows user to select which form the public contract, validates at least one input and one output selected in apps/designer/src/components/publish/ContractEditor.tsx
-- [ ] T025 [US2] Create PublishDialog component: modal with capability name, ID (auto-generated from name), semver version input, description textarea, ContractEditor for I/O selection, and publish button that calls pipeline-store publish action in apps/designer/src/components/publish/PublishDialog.tsx
-- [ ] T026 [US2] Add publishAsCapability action to pipeline-store: validates current flow via compiler, opens PublishDialog, calls POST /api/registry/publish, refreshes catalog-store on success in apps/designer/src/stores/pipeline-store.ts
-- [ ] T027 [US2] Add "Publish as Capability" button to Toolbar (enabled only when pipeline is valid) and render PublishDialog in app layout in apps/designer/src/components/shared/Toolbar.tsx and apps/designer/src/App.tsx
+- [x] T022 [US2] Create publish API route: POST /api/registry/publish with request validation (Zod), pipeline lookup, compiler validation, version immutability enforcement (409 on duplicate), cycle detection, and error responses per contracts/registry-api.md in apps/gateway/src/routes/publish-routes.ts
+- [x] T023 [US2] Register publish routes in gateway server in apps/gateway/src/server.ts
+- [x] T024 [P] [US2] Create ContractEditor component: displays all pipeline inputs and outputs as checkboxes, allows user to select which form the public contract, validates at least one input and one output selected in apps/designer/src/components/publish/ContractEditor.tsx
+- [x] T025 [US2] Create PublishDialog component: modal with capability name, ID (auto-generated from name), semver version input, description textarea, ContractEditor for I/O selection, and publish button that calls pipeline-store publish action in apps/designer/src/components/publish/PublishDialog.tsx
+- [x] T026 [US2] Add publishAsCapability action to pipeline-store: validates current flow via compiler, opens PublishDialog, calls POST /api/registry/publish, refreshes catalog-store on success in apps/designer/src/stores/pipeline-store.ts
+- [x] T027 [US2] Add "Publish as Capability" button to Toolbar (enabled only when pipeline is valid) and render PublishDialog in app layout in apps/designer/src/components/shared/Toolbar.tsx and apps/designer/src/App.tsx
 
 **Checkpoint**: User Story 2 complete — users can build a flow, publish it as a composite capability, and see it appear in the palette.
 
@@ -95,9 +95,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Verify COMPOSITE capabilities from registry appear in palette with correct inputs/outputs, can be dragged to canvas via application/capability-id data transfer, and create CapabilityNode with semantic ports in apps/designer/src/components/palette/CapabilityPalette.tsx and apps/designer/src/components/canvas/PipelineCanvas.tsx
-- [ ] T029 [US3] Verify semantic wiring validation works for composite node ports: compiler validates connections to/from composite nodes identically to primitive nodes in packages/compiler/src/stages/ (existing resolve-composite.ts and validate-semantic-wiring.ts)
-- [ ] T030 [US3] Verify recursive publish flow: publish composite A, use A in a new flow alongside primitives, publish as composite B, verify B registers in registry with correct dependencies including A in packages/capability-sdk/src/publish-composite.ts
+- [x] T028 [US3] Verify COMPOSITE capabilities from registry appear in palette with correct inputs/outputs, can be dragged to canvas via application/capability-id data transfer, and create CapabilityNode with semantic ports in apps/designer/src/components/palette/CapabilityPalette.tsx and apps/designer/src/components/canvas/PipelineCanvas.tsx
+- [x] T029 [US3] Verify semantic wiring validation works for composite node ports: compiler validates connections to/from composite nodes identically to primitive nodes in packages/compiler/src/stages/ (existing resolve-composite.ts and validate-semantic-wiring.ts)
+- [x] T030 [US3] Verify recursive publish flow: publish composite A, use A in a new flow alongside primitives, publish as composite B, verify B registers in registry with correct dependencies including A in packages/capability-sdk/src/publish-composite.ts
 
 **Checkpoint**: User Story 3 complete — recursive composition works with no artificial distinction between primitive and composite capabilities.
 
@@ -111,11 +111,11 @@
 
 ### Implementation for User Story 4
 
-- [ ] T031 [P] [US4] Create BreadcrumbNav component: renders navigation breadcrumb trail (e.g., "Parent Flow > Nearby Market Search > Resolve Type"), click any breadcrumb to navigate to that level in apps/designer/src/components/drilldown/BreadcrumbNav.tsx
-- [ ] T032 [US4] Create CompositeOverlay component: modal overlay with secondary React Flow canvas, loads composite's pipelineRef from registry API, renders internal pipeline as read-only, supports nested drill-down by clicking COMPOSITE nodes within the overlay in apps/designer/src/components/drilldown/CompositeOverlay.tsx
-- [ ] T033 [US4] Add drill-down state to pipeline-store: overlay navigation stack (array of {capabilityId, version, pipelineDef}), openComposite() and closeComposite() actions, current drill-down depth in apps/designer/src/stores/pipeline-store.ts
-- [ ] T034 [US4] Add "Open" button to CapabilityNode component for COMPOSITE source type nodes, triggering pipeline-store openComposite() action in apps/designer/src/components/canvas/CapabilityNode.tsx
-- [ ] T035 [US4] Wire CompositeOverlay and BreadcrumbNav into designer App layout, rendered when drill-down stack is non-empty in apps/designer/src/App.tsx
+- [x] T031 [P] [US4] Create BreadcrumbNav component: renders navigation breadcrumb trail (e.g., "Parent Flow > Nearby Market Search > Resolve Type"), click any breadcrumb to navigate to that level in apps/designer/src/components/drilldown/BreadcrumbNav.tsx
+- [x] T032 [US4] Create CompositeOverlay component: modal overlay with secondary React Flow canvas, loads composite's pipelineRef from registry API, renders internal pipeline as read-only, supports nested drill-down by clicking COMPOSITE nodes within the overlay in apps/designer/src/components/drilldown/CompositeOverlay.tsx
+- [x] T033 [US4] Add drill-down state to pipeline-store: overlay navigation stack (array of {capabilityId, version, pipelineDef}), openComposite() and closeComposite() actions, current drill-down depth in apps/designer/src/stores/pipeline-store.ts
+- [x] T034 [US4] Add "Open" button to CapabilityNode component for COMPOSITE source type nodes, triggering pipeline-store openComposite() action in apps/designer/src/components/canvas/CapabilityNode.tsx
+- [x] T035 [US4] Wire CompositeOverlay and BreadcrumbNav into designer App layout, rendered when drill-down stack is non-empty in apps/designer/src/App.tsx
 
 **Checkpoint**: User Story 4 complete — composite nodes can be drilled into at any depth, with navigation back preserving parent state.
 
@@ -129,10 +129,10 @@
 
 ### Implementation for User Story 5
 
-- [ ] T036 [US5] Add version listing endpoint GET /api/registry/:id/versions (returns all published versions with timestamps) and upgrade detection endpoint GET /api/registry/:id/upgrades?from=version to registry routes in apps/gateway/src/routes/registry-routes.ts
-- [ ] T037 [US5] Implement findUpgrades() in InMemoryFabricRegistry: for a given CapabilityRef, find newer versions where isCompatibleUpgrade() returns true in packages/domain/src/registry/in-memory-fabric-registry.ts
-- [ ] T038 [US5] Add upgrade notification indicator to CapabilityNode: on mount/update, check for available upgrades via catalog-store, display subtle badge when upgrade available in apps/designer/src/components/canvas/CapabilityNode.tsx
-- [ ] T039 [US5] Implement upgradeCapabilityVersion action in pipeline-store: updates node's capabilityVersion, refreshes node inputs/outputs from registry, revalidates pipeline in apps/designer/src/stores/pipeline-store.ts
+- [x] T036 [US5] Add version listing endpoint GET /api/registry/:id/versions (returns all published versions with timestamps) and upgrade detection endpoint GET /api/registry/:id/upgrades?from=version to registry routes in apps/gateway/src/routes/registry-routes.ts
+- [x] T037 [US5] Implement findUpgrades() in InMemoryFabricRegistry: for a given CapabilityRef, find newer versions where isCompatibleUpgrade() returns true in packages/domain/src/registry/in-memory-fabric-registry.ts
+- [x] T038 [US5] Add upgrade notification indicator to CapabilityNode: on mount/update, check for available upgrades via catalog-store, display subtle badge when upgrade available in apps/designer/src/components/canvas/CapabilityNode.tsx
+- [x] T039 [US5] Implement upgradeCapabilityVersion action in pipeline-store: updates node's capabilityVersion, refreshes node inputs/outputs from registry, revalidates pipeline in apps/designer/src/stores/pipeline-store.ts
 
 **Checkpoint**: User Story 5 complete — versioning is immutable, upgrades are detected and offered in the designer.
 
@@ -146,9 +146,9 @@
 
 ### Implementation for User Story 6
 
-- [ ] T040 [US6] Add dependency graph endpoint GET /api/registry/:id/dependencies (returns DependencyNode tree) to registry routes in apps/gateway/src/routes/registry-routes.ts
-- [ ] T041 [US6] Verify cycle detection in publish route returns CIRCULAR_DEPENDENCY error with clear cycle path description (e.g., "A -> B -> C -> A") in apps/gateway/src/routes/publish-routes.ts
-- [ ] T042 [US6] Display dependency tree in NodeDetailPanel for COMPOSITE capabilities: fetch from dependencies endpoint, render as collapsible tree with version annotations in apps/designer/src/components/detail/NodeDetailPanel.tsx
+- [x] T040 [US6] Add dependency graph endpoint GET /api/registry/:id/dependencies (returns DependencyNode tree) to registry routes in apps/gateway/src/routes/registry-routes.ts
+- [x] T041 [US6] Verify cycle detection in publish route returns CIRCULAR_DEPENDENCY error with clear cycle path description (e.g., "A -> B -> C -> A") in apps/gateway/src/routes/publish-routes.ts
+- [x] T042 [US6] Display dependency tree in NodeDetailPanel for COMPOSITE capabilities: fetch from dependencies endpoint, render as collapsible tree with version annotations in apps/designer/src/components/detail/NodeDetailPanel.tsx
 
 **Checkpoint**: User Story 6 complete — dependency graph is visible and circular composition is rejected with clear messaging.
 
@@ -162,10 +162,10 @@
 
 ### Implementation for User Story 7
 
-- [ ] T043 [P] [US7] Create deduplicate module: scan expanded execution steps for identical (capabilityId, capabilityVersion, inputSources) tuples, merge duplicates by retaining one step and rewiring consumer edges in packages/planner/src/deduplicate.ts
-- [ ] T044 [US7] Integrate deduplication into planExecution(): call deduplicate() after composite expansion, before topological sort and parallel grouping in packages/planner/src/planner.ts
-- [ ] T045 [P] [US7] Create aggregate-provenance module: given a list of child step ProvenanceRecords from an expanded composite, aggregate them into the upstream[] array of the composite output's provenance, recursively for nested composites in packages/executor/src/aggregate-provenance.ts
-- [ ] T046 [US7] Update executor to populate ProvenanceRecord.upstream[] during composite execution: after child steps complete, call aggregate-provenance to build lineage chain in packages/executor/src/executor.ts
+- [x] T043 [P] [US7] Create deduplicate module: scan expanded execution steps for identical (capabilityId, capabilityVersion, inputSources) tuples, merge duplicates by retaining one step and rewiring consumer edges in packages/planner/src/deduplicate.ts
+- [x] T044 [US7] Integrate deduplication into planExecution(): call deduplicate() after composite expansion, before topological sort and parallel grouping in packages/planner/src/planner.ts
+- [x] T045 [P] [US7] Create aggregate-provenance module: given a list of child step ProvenanceRecords from an expanded composite, aggregate them into the upstream[] array of the composite output's provenance, recursively for nested composites in packages/executor/src/aggregate-provenance.ts
+- [x] T046 [US7] Update executor to populate ProvenanceRecord.upstream[] during composite execution: after child steps complete, call aggregate-provenance to build lineage chain in packages/executor/src/executor.ts
 
 **Checkpoint**: User Story 7 complete — composite execution is optimised and provenance traces through to original sources.
 

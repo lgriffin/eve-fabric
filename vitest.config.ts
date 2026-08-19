@@ -6,6 +6,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov', 'json-summary'],
       reportsDirectory: 'coverage',
+      clean: true,
       thresholds: {
         branches: 80,
         functions: 75,

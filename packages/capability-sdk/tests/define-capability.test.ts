@@ -23,7 +23,7 @@ describe('defineCapability', () => {
     });
 
     expect(cap.id).toBe('test.capability');
-    expect(cap.version).toBe(1);
+    expect(cap.version as string).toBe('1.0.0');
     expect(cap.name).toBe('Test Capability');
     expect(cap.source).toBe('ESI');
     expect(cap.inputs.get('item')).toBeDefined();
@@ -111,7 +111,7 @@ outputs:
 `;
     const cap = parseCapabilityManifest(yaml);
     expect(cap.id).toBe('test.parse');
-    expect(cap.version).toBe(1);
+    expect(cap.version as string).toBe('1.0.0');
     expect(cap.inputs.get('item')?.semanticType).toBe('eve.type.reference');
     expect(cap.outputs.get('result')?.semanticType).toBe('eve.market.order');
   });

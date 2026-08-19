@@ -226,7 +226,7 @@ describe('publishAsComposite', () => {
     expect(result.capability.cache.stalePermitted).toBe(false);
   });
 
-  it('returns diagnostics for unresolvable capabilities without failing', () => {
+  it('throws for unresolvable capabilities', () => {
     const pipeline: PipelineDefinition = {
       id: 'partial',
       version: 1,
@@ -243,15 +243,14 @@ describe('publishAsComposite', () => {
       outputs: [{ name: 'orders', source: 'good.orders' }],
     };
 
-    const result = publishAsComposite(pipeline, catalog, {
-      id: 'market.partial',
-      version: 1,
-      name: 'Partial',
-      description: 'Pipeline with missing capability',
-    });
-
-    expect(result.capability.source).toBe('COMPOSITE');
-    expect(result.diagnostics.some((d) => d.includes('nonexistent.cap'))).toBe(true);
+    expect(() =>
+      publishAsComposite(pipeline, catalog, {
+        id: 'market.partial',
+        version: 1,
+        name: 'Partial',
+        description: 'Pipeline with missing capability',
+      }),
+    ).toThrow('nonexistent.cap');
   });
 
   it('propagates identityInKey when any component requires it', () => {

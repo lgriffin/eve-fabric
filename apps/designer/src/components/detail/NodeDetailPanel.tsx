@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
 
 const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
@@ -26,11 +27,79 @@ const portRowStyle: React.CSSProperties = {
   fontSize: '12px',
 };
 
+interface DependencyTreeNode {
+  id: string;
+  version: string;
+  source: string;
+  children: DependencyTreeNode[];
+}
+
+function DependencyTree({ node, depth = 0 }: { node: DependencyTreeNode; depth?: number }) {
+  const [expanded, setExpanded] = useState(depth < 2);
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <div style={{ marginLeft: depth * 12 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '2px 0',
+          fontSize: '11px',
+        }}
+      >
+        {hasChildren && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+              padding: 0,
+              fontSize: '10px',
+              width: 12,
+            }}
+          >
+            {expanded ? '▼' : '▶'}
+          </button>
+        )}
+        {!hasChildren && <span style={{ width: 12 }} />}
+        <span style={{ color: '#e0e0e0' }}>{node.id as string}</span>
+        <span style={{ color: '#666', fontSize: '9px' }}>v{node.version as string}</span>
+      </div>
+      {expanded &&
+        node.children.map((child, i) => (
+          <DependencyTree
+            key={`${child.id as string}-${String(i)}`}
+            node={child}
+            depth={depth + 1}
+          />
+        ))}
+    </div>
+  );
+}
+
 export function NodeDetailPanel() {
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const nodes = usePipelineStore((s) => s.nodes);
 
   const node = nodes.find((n) => n.id === selectedNodeId);
+
+  const [depTree, setDepTree] = useState<DependencyTreeNode | null>(null);
+
+  useEffect(() => {
+    if (!node || node.data.source !== 'COMPOSITE') {
+      setDepTree(null);
+      return;
+    }
+    fetch(`/api/registry/${node.data.capabilityId}/dependencies`)
+      .then((res) => (res.ok ? (res.json() as Promise<DependencyTreeNode>) : null))
+      .then((data) => setDepTree(data))
+      .catch(() => setDepTree(null));
+  }, [node?.data.capabilityId, node?.data.source, node]);
+
   if (!node) return null;
 
   const { data } = node;
@@ -109,6 +178,17 @@ export function NodeDetailPanel() {
 
         <div style={sectionHeaderStyle}>COST ESTIMATE</div>
         <div style={{ color: '#555', fontSize: '11px' }}>~100ms estimated latency</div>
+
+        {data.source === 'COMPOSITE' && (
+          <>
+            <div style={sectionHeaderStyle}>DEPENDENCIES</div>
+            {depTree ? (
+              <DependencyTree node={depTree} />
+            ) : (
+              <div style={{ color: '#555', fontSize: '11px' }}>Loading...</div>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

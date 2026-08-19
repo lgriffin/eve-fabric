@@ -109,7 +109,7 @@ describe('CapabilityCatalog', () => {
       catalog.register(marketOrdersDef(1));
       catalog.register(marketOrdersDef(2));
       const def = catalog.get(capabilityId('market.orders'));
-      expect(def.version as number).toBe(2);
+      expect(def.version as string).toBe('2.0.0');
     });
 
     it('throws for unknown capability', () => {

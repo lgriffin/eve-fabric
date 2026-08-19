@@ -174,7 +174,7 @@ function createMockAdapter(name: string): SourceAdapter {
         provenance: {
           source: name,
           capability: { id: capabilityId('mock.capability') },
-          capabilityVersion: 1,
+          capabilityVersion: '1.0.0',
           cached: false,
           upstream: [],
         } as ProvenanceRecord,

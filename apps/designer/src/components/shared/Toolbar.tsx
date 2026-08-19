@@ -6,9 +6,17 @@ interface ToolbarProps {
   onSave: () => void;
   onExport: () => void;
   onImport: () => void;
+  onPublish: () => void;
 }
 
-export function Toolbar({ onValidate, onExecute, onSave, onExport, onImport }: ToolbarProps) {
+export function Toolbar({
+  onValidate,
+  onExecute,
+  onSave,
+  onExport,
+  onImport,
+  onPublish,
+}: ToolbarProps) {
   const pipelineName = usePipelineStore((s) => s.pipelineName);
   const isDirty = usePipelineStore((s) => s.isDirty);
   const nodeCount = usePipelineStore((s) => s.nodes.length);
@@ -79,6 +87,18 @@ export function Toolbar({ onValidate, onExecute, onSave, onExport, onImport }: T
       </button>
       <button onClick={onImport} style={{ ...buttonStyle, background: '#333', color: '#e0e0e0' }}>
         Import
+      </button>
+      <button
+        onClick={onPublish}
+        disabled={errorCount > 0 || nodeCount === 0}
+        style={{
+          ...buttonStyle,
+          background: errorCount === 0 && nodeCount > 0 ? '#ff8a65' : '#2a2a3a',
+          color: errorCount === 0 && nodeCount > 0 ? '#1e1e2e' : '#555',
+          cursor: errorCount === 0 && nodeCount > 0 ? 'pointer' : 'not-allowed',
+        }}
+      >
+        Publish as Capability
       </button>
     </div>
   );

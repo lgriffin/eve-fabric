@@ -7,3 +7,4 @@ export * from './execution-plan/index.js';
 export * from './provenance/index.js';
 export * from './ports/index.js';
 export * from './schema-package/index.js';
+export * from './registry/index.js';

@@ -48,8 +48,8 @@ export function capabilityVersion(version: string | number): CapabilityVersion {
 }
 
 function parseSemver(v: CapabilityVersion): [number, number, number] {
-  const parts = (v as string).split('.').map(Number);
-  return [parts[0], parts[1], parts[2]];
+  const parts = (v as string).split('.').map(Number) as [number, number, number];
+  return parts;
 }
 
 export function compareVersions(a: CapabilityVersion, b: CapabilityVersion): number {

@@ -59,7 +59,17 @@ function CapabilityCard({
           {capability.source}
         </span>
       </div>
-      <div style={{ color: '#888', fontSize: '10px', marginTop: 3 }}>{capability.id}</div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 3,
+        }}
+      >
+        <span style={{ color: '#888', fontSize: '10px' }}>{capability.id}</span>
+        <span style={{ color: '#666', fontSize: '9px' }}>v{capability.version}</span>
+      </div>
       <div style={{ color: '#666', fontSize: '10px', marginTop: 2 }}>
         {capability.description.length > 60
           ? capability.description.substring(0, 60) + '...'

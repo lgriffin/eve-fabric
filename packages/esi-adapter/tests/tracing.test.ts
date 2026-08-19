@@ -29,8 +29,8 @@ function createMockAdapter(
         data: { price: 100 },
         provenance: {
           source: 'ESI',
-          capability: { id: 'market.orders', version: 1 },
-          capabilityVersion: 1,
+          capability: { id: 'market.orders', version: '1.0.0' },
+          capabilityVersion: '1.0.0',
           cached: false,
           upstream: [],
         },

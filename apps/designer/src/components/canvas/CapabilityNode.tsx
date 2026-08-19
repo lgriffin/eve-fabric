@@ -52,9 +52,11 @@ export const CapabilityNode = memo(function CapabilityNode({
 
   const edges = usePipelineStore((s) => s.edges);
   const executionSession = usePipelineStore((s) => s.executionSession);
+  const openComposite = usePipelineStore((s) => s.openComposite);
   const executionState = executionSession?.stepStatuses[id];
   const execStyle = executionState ? EXECUTION_STYLES[executionState] : undefined;
   const stepError = executionSession?.stepMetrics[id]?.error;
+  const isComposite = data.source === 'COMPOSITE';
 
   const unconnectedRequiredInputs = useMemo(() => {
     const set = new Set<string>();
@@ -153,12 +155,47 @@ export const CapabilityNode = memo(function CapabilityNode({
           borderTop: '1px solid #333',
           fontSize: '10px',
           color: '#777',
-          textOverflow: 'ellipsis',
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
         }}
       >
-        {data.capabilityId}@{data.capabilityVersion}
+        <span
+          style={{
+            textOverflow: 'ellipsis',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            flex: 1,
+          }}
+        >
+          {data.capabilityId}@{data.capabilityVersion}
+        </span>
+        {isComposite && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openComposite({
+                capabilityId: data.capabilityId,
+                version: data.capabilityVersion,
+                pipelineDef: null,
+              });
+            }}
+            style={{
+              background: '#ff8a65',
+              color: '#1e1e2e',
+              border: 'none',
+              borderRadius: 3,
+              padding: '1px 6px',
+              fontSize: '9px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              marginLeft: 4,
+              flexShrink: 0,
+            }}
+          >
+            Open
+          </button>
+        )}
       </div>
 
       {stepError && (

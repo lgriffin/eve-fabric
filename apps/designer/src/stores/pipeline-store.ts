@@ -57,6 +57,12 @@ export interface CapabilityNodeData {
 
 export type CapabilityFlowNode = Node<CapabilityNodeData, 'capability'>;
 
+export interface DrilldownEntry {
+  capabilityId: string;
+  version: string;
+  pipelineDef: PipelineDefinition | null;
+}
+
 interface PipelineState {
   nodes: CapabilityFlowNode[];
   edges: Edge[];
@@ -70,6 +76,8 @@ interface PipelineState {
   graphqlSdl: string | null;
   executionSession: ExecutionSession | null;
   bridgingSuggestions: BridgingSuggestion[];
+  drilldownStack: DrilldownEntry[];
+  isPublishing: boolean;
 }
 
 interface PipelineActions {
@@ -97,6 +105,16 @@ interface PipelineActions {
     edges: Edge[],
     meta: { id: string; name: string; version: number },
   ) => void;
+  openComposite: (entry: DrilldownEntry) => void;
+  closeComposite: () => void;
+  publishAsCapability: (options: {
+    capabilityId: string;
+    version: string;
+    name: string;
+    description: string;
+    selectedInputs: string[];
+    selectedOutputs: string[];
+  }) => Promise<{ success: boolean; diagnostics: Array<{ message: string }> }>;
   reset: () => void;
 }
 
@@ -113,6 +131,8 @@ const initialState: PipelineState = {
   graphqlSdl: null,
   executionSession: null,
   bridgingSuggestions: [],
+  drilldownStack: [],
+  isPublishing: false,
 };
 
 export const usePipelineStore = create<PipelineState & PipelineActions>()((set, get) => ({
@@ -229,6 +249,48 @@ export const usePipelineStore = create<PipelineState & PipelineActions>()((set, 
       executionSession: null,
       bridgingSuggestions: [],
     });
+  },
+
+  openComposite: (entry) => {
+    set({ drilldownStack: [...get().drilldownStack, entry] });
+  },
+
+  closeComposite: () => {
+    const stack = get().drilldownStack;
+    set({ drilldownStack: stack.slice(0, -1) });
+  },
+
+  publishAsCapability: async (options) => {
+    const state = get();
+    set({ isPublishing: true });
+    try {
+      const response = await fetch('/api/registry/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId: options.capabilityId,
+          version: options.version,
+          name: options.name,
+          description: options.description,
+          pipelineId: state.pipelineId,
+          pipelineVersion: state.pipelineVersion,
+          selectedInputs: options.selectedInputs,
+          selectedOutputs: options.selectedOutputs,
+        }),
+      });
+      const result = (await response.json()) as {
+        success: boolean;
+        diagnostics: Array<{ message: string }>;
+      };
+      set({ isPublishing: false });
+      return result;
+    } catch (err) {
+      set({ isPublishing: false });
+      return {
+        success: false,
+        diagnostics: [{ message: err instanceof Error ? err.message : 'Failed to publish' }],
+      };
+    }
   },
 
   reset: () => {

@@ -135,6 +135,9 @@ importers:
       '@eve-fabric/cache':
         specifier: workspace:*
         version: link:../../packages/cache
+      '@eve-fabric/capability-sdk':
+        specifier: workspace:*
+        version: link:../../packages/capability-sdk
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
@@ -174,6 +177,9 @@ importers:
       graphql-yoga:
         specifier: ^5.7.0
         version: 5.22.0(graphql@16.14.2)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
       tsx:
         specifier: ^4.0.0

@@ -4,7 +4,7 @@ import { defineCapability, type DefineCapabilityConfig } from './define-capabili
 
 interface RawManifest {
   id: string;
-  version: number;
+  version: string | number;
   name?: string;
   description?: string;
   inputs?: Record<string, { type: string; description?: string; required?: boolean }>;

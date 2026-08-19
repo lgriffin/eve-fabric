@@ -496,6 +496,6 @@ Then(
   'version resolution should resolve to version {int}',
   function (this: CompositeWorld, version: number) {
     assert.ok(this.publishedCapability, 'No capability resolved');
-    assert.equal(this.publishedCapability.version as number, version);
+    assert.equal(this.publishedCapability.version as string, `${version}.0.0`);
   },
 );

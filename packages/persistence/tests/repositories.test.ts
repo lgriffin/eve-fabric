@@ -26,7 +26,7 @@ describe('InMemoryCapabilityRepository', () => {
   it('saves and retrieves a capability', async () => {
     const def = {
       id: 'market.orders' as import('@eve-fabric/domain').CapabilityId,
-      version: 1 as import('@eve-fabric/domain').CapabilityVersion,
+      version: '1.0.0' as import('@eve-fabric/domain').CapabilityVersion,
       name: 'Market Orders',
       description: 'Fetch market orders',
       inputs: new Map(),
@@ -44,7 +44,7 @@ describe('InMemoryCapabilityRepository', () => {
     };
 
     await repo.save(def);
-    const retrieved = await repo.getById('market.orders', 1);
+    const retrieved = await repo.getById('market.orders', '1.0.0');
     expect(retrieved).toBeDefined();
     expect(retrieved?.name).toBe('Market Orders');
   });
@@ -57,7 +57,7 @@ describe('InMemoryCapabilityRepository', () => {
   it('deletes a capability', async () => {
     const def = {
       id: 'market.orders' as import('@eve-fabric/domain').CapabilityId,
-      version: 1 as import('@eve-fabric/domain').CapabilityVersion,
+      version: '1.0.0' as import('@eve-fabric/domain').CapabilityVersion,
       name: 'Market Orders',
       description: 'Fetch market orders',
       inputs: new Map(),

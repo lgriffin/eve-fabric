@@ -179,7 +179,7 @@ describe('executor tracing', () => {
       const provenance: ProvenanceRecord = {
         source: 'ESI',
         capability: { id: 'market.orders' },
-        capabilityVersion: 1,
+        capabilityVersion: '1.0.0',
         cached: true,
         upstream: [],
       } as unknown as ProvenanceRecord;
