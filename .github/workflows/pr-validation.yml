@@ -20,6 +20,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
 
       - name: Lint & Format
         run: |
@@ -43,6 +44,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
 
       - name: Unit Tests
         run: pnpm run test
@@ -64,6 +66,7 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
       - run: pnpm run coverage
       - name: Coverage Summary
         if: github.event_name == 'pull_request'
