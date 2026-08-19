@@ -11,10 +11,7 @@ import type {
 
 // ── Test helpers ──────────────────────────────────────────────
 
-function makeStep(
-  id: string,
-  overrides?: Partial<ExecutionStep>,
-): ExecutionStep {
+function makeStep(id: string, overrides?: Partial<ExecutionStep>): ExecutionStep {
   return {
     id,
     capability: { id: `test.${id}` as never, version: undefined },
@@ -28,7 +25,12 @@ function makeStep(
 function makePlan(overrides: {
   steps: readonly ExecutionStep[];
   sourceRequirements?: readonly { source: string; capabilities: readonly { id: string }[] }[];
-  cacheStrategy?: readonly { stepId: string; cacheable: boolean; ttlSeconds: number; identityInKey: boolean }[];
+  cacheStrategy?: readonly {
+    stepId: string;
+    cacheable: boolean;
+    ttlSeconds: number;
+    identityInKey: boolean;
+  }[];
 }): ExecutionPlan {
   return {
     id: 'test-plan',
@@ -52,16 +54,21 @@ function makeTestAdapter(name: string, data: unknown = { result: 'ok' }): Source
   return {
     name,
     supports: (_cap: unknown) => true,
-    execute: vi.fn(async (_cap: unknown, _inputs: ReadonlyMap<string, unknown>): Promise<SourceAdapterResult> => ({
-      data,
-      provenance: {
-        source: name as never,
-        capability: { id: 'test.step' as never },
-        capabilityVersion: 1,
-        cached: false,
-        upstream: [],
-      },
-    })),
+    execute: vi.fn(
+      async (
+        _cap: unknown,
+        _inputs: ReadonlyMap<string, unknown>,
+      ): Promise<SourceAdapterResult> => ({
+        data,
+        provenance: {
+          source: name as never,
+          capability: { id: 'test.step' as never },
+          capabilityVersion: 1,
+          cached: false,
+          upstream: [],
+        },
+      }),
+    ),
   } as unknown as SourceAdapter;
 }
 
@@ -84,8 +91,12 @@ function makeTestCache(): CachePort & {
       store.set(key, { data, ttlSeconds });
     }),
     has: vi.fn(async (key: string): Promise<boolean> => store.has(key)),
-    delete: vi.fn(async (key: string): Promise<void> => { store.delete(key); }),
-    clear: vi.fn(async (): Promise<void> => { store.clear(); }),
+    delete: vi.fn(async (key: string): Promise<void> => {
+      store.delete(key);
+    }),
+    clear: vi.fn(async (): Promise<void> => {
+      store.clear();
+    }),
   };
 }
 
@@ -126,8 +137,6 @@ describe('Executor', () => {
     });
 
     it('executes steps with dependencies in correct order', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const executionOrder: string[] = [];
       const orderedAdapter: SourceAdapter = {
         name: 'TEST',
         supports: () => true,
@@ -306,9 +315,7 @@ describe('Executor', () => {
     it('throws when no adapter matches', async () => {
       const plan = makePlan({
         steps: [makeStep('step1')],
-        sourceRequirements: [
-          { source: 'UNKNOWN', capabilities: [{ id: 'test.step1' }] },
-        ],
+        sourceRequirements: [{ source: 'UNKNOWN', capabilities: [{ id: 'test.step1' }] }],
       });
 
       const executor = new Executor({ adapters: [] });
@@ -343,12 +350,7 @@ describe('Executor', () => {
       } as unknown as SourceAdapter;
 
       const plan = makePlan({
-        steps: [
-          makeStep('a'),
-          makeStep('b'),
-          makeStep('c'),
-          makeStep('d'),
-        ],
+        steps: [makeStep('a'), makeStep('b'), makeStep('c'), makeStep('d')],
       });
 
       const executor = new Executor({

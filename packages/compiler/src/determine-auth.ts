@@ -24,10 +24,10 @@ export function determineAuth(
 
   for (const node of pipeline.nodes) {
     try {
-      const capId = capabilityId(node.capability.id as string);
+      const capId = capabilityId(node.capability.id);
       const capVer =
         node.capability.version !== undefined
-          ? capabilityVersion(node.capability.version as number)
+          ? capabilityVersion(node.capability.version)
           : undefined;
       const def = catalog.get(capId, capVer);
 

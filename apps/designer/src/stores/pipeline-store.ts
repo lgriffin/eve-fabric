@@ -65,7 +65,7 @@ export const usePipelineStore = create<PipelineState & PipelineActions>()((set, 
 
   onNodesChange: (changes) => {
     set({
-      nodes: applyNodeChanges(changes, get().nodes) as CapabilityFlowNode[],
+      nodes: applyNodeChanges(changes, get().nodes),
       isDirty: true,
     });
   },

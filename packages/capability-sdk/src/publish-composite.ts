@@ -5,11 +5,7 @@ import type {
   CachePolicy,
   CostModel,
 } from '@eve-fabric/domain';
-import {
-  CapabilityCatalog,
-  capabilityId,
-  capabilityVersion,
-} from '@eve-fabric/domain';
+import { CapabilityCatalog, capabilityId, capabilityVersion } from '@eve-fabric/domain';
 
 export interface PublishResult {
   readonly capability: CapabilityDefinition;
@@ -44,10 +40,10 @@ export function publishAsComposite(
   const resolvedCapabilities = new Map<string, CapabilityDefinition>();
   for (const node of pipeline.nodes) {
     try {
-      const capId = capabilityId(node.capability.id as string);
+      const capId = capabilityId(node.capability.id);
       const capVer =
         node.capability.version !== undefined
-          ? capabilityVersion(node.capability.version as number)
+          ? capabilityVersion(node.capability.version)
           : undefined;
       const def = catalog.get(capId, capVer);
       resolvedCapabilities.set(node.id, def);
@@ -66,23 +62,18 @@ export function publishAsComposite(
   for (const input of pipeline.inputs) {
     inputs[input.name] = {
       name: input.name,
-      semanticType: input.semanticType as string,
+      semanticType: input.semanticType,
       description: input.description,
       required: input.required,
     };
   }
 
   // 3. Extract pipeline outputs by resolving through catalog
-  const outputs: Record<
-    string,
-    { name: string; semanticType: string; required: boolean }
-  > = {};
+  const outputs: Record<string, { name: string; semanticType: string; required: boolean }> = {};
   for (const output of pipeline.outputs) {
     const dotIdx = output.source.indexOf('.');
     if (dotIdx === -1) {
-      diagnostics.push(
-        `Output "${output.name}" has invalid source reference "${output.source}"`,
-      );
+      diagnostics.push(`Output "${output.name}" has invalid source reference "${output.source}"`);
       continue;
     }
     const nodeId = output.source.substring(0, dotIdx);
@@ -90,9 +81,7 @@ export function publishAsComposite(
 
     const nodeDef = resolvedCapabilities.get(nodeId);
     if (!nodeDef) {
-      diagnostics.push(
-        `Output "${output.name}" references unresolved node "${nodeId}"`,
-      );
+      diagnostics.push(`Output "${output.name}" references unresolved node "${nodeId}"`);
       continue;
     }
 
@@ -106,7 +95,7 @@ export function publishAsComposite(
 
     outputs[output.name] = {
       name: output.name,
-      semanticType: outputPort.semanticType as string,
+      semanticType: outputPort.semanticType,
       required: true,
     };
   }
@@ -126,11 +115,11 @@ export function publishAsComposite(
     .map((node) => {
       if (node.capability.version !== undefined) {
         return {
-          id: node.capability.id as string,
-          version: node.capability.version as number,
+          id: node.capability.id,
+          version: node.capability.version,
         };
       }
-      return { id: node.capability.id as string };
+      return { id: node.capability.id };
     });
 
   // 4. Build raw definition for catalog registration
@@ -153,17 +142,12 @@ export function publishAsComposite(
   catalog.register(rawDef);
 
   // Retrieve the normalized capability from the catalog
-  const capability = catalog.get(
-    capabilityId(options.id),
-    capabilityVersion(options.version),
-  );
+  const capability = catalog.get(capabilityId(options.id), capabilityVersion(options.version));
 
   return { capability, diagnostics };
 }
 
-function aggregateAuth(
-  capabilities: ReadonlyMap<string, CapabilityDefinition>,
-): AuthRequirement {
+function aggregateAuth(capabilities: ReadonlyMap<string, CapabilityDefinition>): AuthRequirement {
   let required = false;
   const scopes = new Set<string>();
 
@@ -179,9 +163,7 @@ function aggregateAuth(
   return { required, scopes: [...scopes] };
 }
 
-function aggregateCache(
-  capabilities: ReadonlyMap<string, CapabilityDefinition>,
-): CachePolicy {
+function aggregateCache(capabilities: ReadonlyMap<string, CapabilityDefinition>): CachePolicy {
   if (capabilities.size === 0) {
     return {
       cacheable: false,
@@ -213,9 +195,7 @@ function aggregateCache(
   };
 }
 
-function aggregateCost(
-  capabilities: ReadonlyMap<string, CapabilityDefinition>,
-): CostModel {
+function aggregateCost(capabilities: ReadonlyMap<string, CapabilityDefinition>): CostModel {
   let totalLatencyMs = 0;
   let totalEsiCalls = 0;
 

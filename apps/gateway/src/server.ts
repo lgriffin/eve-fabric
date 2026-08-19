@@ -95,7 +95,8 @@ async function start(): Promise<void> {
   await app.listen({ port, host });
 }
 
-const isDirectRun = process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.js');
+const isDirectRun =
+  process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.js');
 if (isDirectRun) {
   start().catch((err) => {
     console.error(err);
