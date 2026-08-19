@@ -8,8 +8,8 @@ export const VERSION_MISMATCH = 'CAPABILITY_VERSION_MISMATCH';
 export interface ResolvedVersion {
   readonly nodeId: string;
   readonly capabilityId: string;
-  readonly requestedVersion: number | undefined;
-  readonly resolvedVersion: number;
+  readonly requestedVersion: string | undefined;
+  readonly resolvedVersion: string;
 }
 
 export interface VersionResolutionResult {
@@ -26,7 +26,7 @@ export function resolveVersions(
 
   for (const node of pipeline.nodes) {
     const capIdStr = node.capability.id as string;
-    const requestedVersion = node.capability.version as number | undefined;
+    const requestedVersion = node.capability.version as string | undefined;
 
     try {
       const capId = capabilityId(capIdStr);
@@ -44,7 +44,7 @@ export function resolveVersions(
           const available = catalog
             .list()
             .filter((d) => (d.id as string) === capIdStr)
-            .map((d) => d.version as number);
+            .map((d) => d.version as string);
 
           diagnostics.push({
             code: VERSION_MISMATCH,
@@ -54,7 +54,7 @@ export function resolveVersions(
             context: {
               capability: capIdStr,
               suggestion:
-                available.length > 0 ? `Use version ${Math.max(...available)}` : undefined,
+                available.length > 0 ? `Use version ${available[available.length - 1]}` : undefined,
             },
           });
         }

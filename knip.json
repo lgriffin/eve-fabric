@@ -3,7 +3,15 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/*.ts"],
-      "project": ["scripts/**/*.ts"]
+      "project": ["scripts/**/*.ts"],
+      "ignoreDependencies": [
+        "@stryker-mutator/api",
+        "@eve-fabric/domain",
+        "@eve-fabric/compiler",
+        "@eve-fabric/planner",
+        "@eve-fabric/schema-package"
+      ],
+      "typedoc": false
     },
     "packages/*": {
       "entry": ["src/index.ts!"],
@@ -18,9 +26,19 @@
       "entry": ["src/index.ts!", "src/bdd/**/*.ts"],
       "project": ["src/**/*.ts"]
     },
-    "apps/gateway": {
-      "entry": ["src/server.ts!"],
+    "packages/esi-adapter": {
+      "entry": ["src/index.ts!"],
       "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@lgriffin/esi.ts"]
+    },
+    "packages/persistence": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["drizzle-kit"]
+    },
+    "apps/gateway": {
+      "entry": ["src/server.ts!", "tests/**/*.test.ts"],
+      "project": ["src/**/*.ts", "tests/**/*.ts"],
       "ignoreDependencies": [
         "@eve-fabric/cache",
         "@eve-fabric/compiler",
@@ -33,7 +51,8 @@
     },
     "apps/designer": {
       "entry": ["src/main.tsx!"],
-      "project": ["src/**/*.{ts,tsx}"]
+      "project": ["src/**/*.{ts,tsx}"],
+      "ignoreDependencies": ["@eve-fabric/planner", "@eve-fabric/executor", "@eve-fabric/graphql"]
     }
   },
   "ignore": ["cucumber.cjs", "examples/**"]

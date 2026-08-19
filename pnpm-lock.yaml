@@ -89,6 +89,15 @@ importers:
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@eve-fabric/executor':
+        specifier: workspace:*
+        version: link:../../packages/executor
+      '@eve-fabric/graphql':
+        specifier: workspace:*
+        version: link:../../packages/graphql
+      '@eve-fabric/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
       '@xyflow/react':
         specifier: ^12.0.0
         version: 12.11.3(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -197,9 +206,6 @@ importers:
       yaml:
         specifier: ^2.5.0
         version: 2.9.0
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -283,9 +289,6 @@ importers:
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../domain
-      '@pothos/core':
-        specifier: ^4.0.0
-        version: 4.13.1(graphql@16.14.2)
       graphql:
         specifier: ^16.9.0
         version: 16.14.2
@@ -334,12 +337,6 @@ importers:
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../domain
-      yaml:
-        specifier: ^2.5.0
-        version: 2.9.0
-      zod:
-        specifier: ^3.23.0
-        version: 3.25.76
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -353,9 +350,6 @@ importers:
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../domain
-      '@lgriffin/esi.ts':
-        specifier: ^9.4.0
-        version: 9.4.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -369,9 +363,6 @@ importers:
       '@cucumber/cucumber':
         specifier: ^11.0.0
         version: 11.3.0
-      '@eve-fabric/domain':
-        specifier: workspace:*
-        version: link:../domain
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -1888,11 +1879,6 @@ packages:
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
-
-  '@pothos/core@4.13.1':
-    resolution: {integrity: sha512-2hkLxmvrT7VnbiWAfYhfF09PjaHeflZ5HrBHYzU6Tn/P9tDviuZS7IS5xO4k/KnK5GkRo3YxDzXyn+HnkEkVNw==}
-    peerDependencies:
-      graphql: ^16.9.0
 
   '@repeaterjs/repeater@3.1.0':
     resolution: {integrity: sha512-TaoVksZRSx2KWYYpyLQtMQXXeS98VsgZImzW65xmiVgbYhXLk+aEsmzPLirqVuE4/XuUapH2iMtxUzaBNDzdSQ==}
@@ -6005,10 +5991,6 @@ snapshots:
 
   '@pkgjs/parseargs@0.11.0':
     optional: true
-
-  '@pothos/core@4.13.1(graphql@16.14.2)':
-    dependencies:
-      graphql: 16.14.2
 
   '@repeaterjs/repeater@3.1.0': {}
 

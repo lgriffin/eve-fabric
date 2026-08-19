@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "@eve-fabric/domain": "workspace:*",
-    "@pothos/core": "^4.0.0",
     "graphql": "^16.9.0"
   },
   "devDependencies": {

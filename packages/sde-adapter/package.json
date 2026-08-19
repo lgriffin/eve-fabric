@@ -12,8 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/domain": "workspace:*",
-    "@lgriffin/esi.ts": "^9.4.0"
+    "@eve-fabric/domain": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

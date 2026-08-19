@@ -5,7 +5,7 @@ import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.j
 import type { CompilerDiagnostic } from './diagnostics.js';
 
 export interface PipelineRegistry {
-  get(id: string, version: number): PipelineDefinition | undefined;
+  get(id: string, version: number | string): PipelineDefinition | undefined;
 }
 
 export interface CompositeExpansion {
@@ -33,7 +33,7 @@ function prefixId(parentNodeId: string, childId: string): string {
 export function expandCompositeNode(
   nodeId: string,
   capabilityIdStr: string,
-  capabilityVersionNum: number | undefined,
+  capabilityVersionStr: string | number | undefined,
   parentInputBindings: readonly InputBinding[],
   catalog: CapabilityCatalog,
   registry: PipelineRegistry,
@@ -53,7 +53,7 @@ export function expandCompositeNode(
 
   const capId = capabilityId(capabilityIdStr);
   const capVer =
-    capabilityVersionNum !== undefined ? capabilityVersion(capabilityVersionNum) : undefined;
+    capabilityVersionStr !== undefined ? capabilityVersion(capabilityVersionStr) : undefined;
 
   let def;
   try {
@@ -141,7 +141,7 @@ export function expandCompositeNode(
 
   for (const subNode of subPipeline.nodes) {
     const subCapId = subNode.capability.id as string;
-    const subCapVer = subNode.capability.version as number | undefined;
+    const subCapVer = subNode.capability.version as string | undefined;
 
     let subDef;
     try {
@@ -215,13 +215,13 @@ export function resolveComposites(
 
   for (const node of pipeline.nodes) {
     const capIdStr = node.capability.id as string;
-    const capVerNum = node.capability.version as number | undefined;
+    const capVerStr = node.capability.version as string | undefined;
 
     let def;
     try {
       def = catalog.get(
         capabilityId(capIdStr),
-        capVerNum !== undefined ? capabilityVersion(capVerNum) : undefined,
+        capVerStr !== undefined ? capabilityVersion(capVerStr) : undefined,
       );
     } catch {
       expandedNodes.push(node);
@@ -259,7 +259,7 @@ export function resolveComposites(
       const expansion = expandCompositeNode(
         node.id,
         capIdStr,
-        capVerNum,
+        capVerStr,
         inputBindings,
         catalog,
         registry,

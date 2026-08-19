@@ -16,7 +16,7 @@ export interface InputBinding {
 
 export interface ExecutionStep {
   readonly id: string;
-  readonly capability: { readonly id: string; readonly version?: number | undefined };
+  readonly capability: { readonly id: string; readonly version?: string | undefined };
   readonly inputs: readonly InputBinding[];
   readonly dependsOn: readonly string[];
   readonly cacheKey?: string | undefined;
@@ -36,7 +36,7 @@ export interface CostEstimate {
 
 export interface SourceRequirement {
   readonly source: string;
-  readonly capabilities: readonly { readonly id: string; readonly version?: number | undefined }[];
+  readonly capabilities: readonly { readonly id: string; readonly version?: string | undefined }[];
 }
 
 export interface CacheStrategy {

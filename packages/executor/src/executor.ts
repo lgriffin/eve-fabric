@@ -211,7 +211,7 @@ export class Executor {
           provenance: {
             source: 'CACHE',
             capability: step.capability,
-            capabilityVersion: step.capability.version ?? 1,
+            capabilityVersion: step.capability.version ?? '1.0.0',
             cached: true,
             upstream: [],
           },

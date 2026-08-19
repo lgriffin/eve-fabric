@@ -4,6 +4,9 @@ Auto-generated from all feature plans. Last updated: 2026-08-19
 
 ## Active Technologies
 
+- TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM (003-composite-flow-registry)
+- SQLite via Drizzle ORM (persistence package, with in-memory implementations for testing) (003-composite-flow-registry)
+
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation) (002-visual-pipeline-designer)
 - Gateway API persistence (YAML pipeline definitions via POST/GET endpoints) (002-visual-pipeline-designer)
 
@@ -49,6 +52,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 003-composite-flow-registry: Added TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM
 
 - 002-visual-pipeline-designer: Added TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation)
 

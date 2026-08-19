@@ -24,7 +24,7 @@ export interface ExecutionStepMetrics {
   error?: string;
 }
 
-export interface ExecutionSession {
+interface ExecutionSession {
   id: string;
   status: 'running' | 'completed' | 'failed' | 'cancelled';
   stepStatuses: Record<string, ExecutionNodeState>;
@@ -47,7 +47,7 @@ export interface BridgingSuggestion {
 
 export interface CapabilityNodeData {
   capabilityId: string;
-  capabilityVersion: number;
+  capabilityVersion: string;
   label: string;
   source: string;
   inputs: Array<{ name: string; semanticType: string; required: boolean }>;
@@ -57,7 +57,7 @@ export interface CapabilityNodeData {
 
 export type CapabilityFlowNode = Node<CapabilityNodeData, 'capability'>;
 
-export interface PipelineState {
+interface PipelineState {
   nodes: CapabilityFlowNode[];
   edges: Edge[];
   pipelineId: string;
@@ -72,7 +72,7 @@ export interface PipelineState {
   bridgingSuggestions: BridgingSuggestion[];
 }
 
-export interface PipelineActions {
+interface PipelineActions {
   onNodesChange: OnNodesChange<CapabilityFlowNode>;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;

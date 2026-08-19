@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface CatalogCapability {
   id: string;
-  version: number;
+  version: string;
   name: string;
   description: string;
   source: string;
@@ -11,14 +11,14 @@ export interface CatalogCapability {
   category: string;
 }
 
-export interface CatalogState {
+interface CatalogState {
   capabilities: CatalogCapability[];
   searchQuery: string;
   selectedSource: string | null;
   isLoading: boolean;
 }
 
-export interface CatalogActions {
+interface CatalogActions {
   setCapabilities: (capabilities: CatalogCapability[]) => void;
   setSearchQuery: (query: string) => void;
   setSelectedSource: (source: string | null) => void;

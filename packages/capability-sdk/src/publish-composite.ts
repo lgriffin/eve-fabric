@@ -29,7 +29,7 @@ export function publishAsComposite(
   catalog: CapabilityCatalog,
   options: {
     readonly id: string;
-    readonly version: number;
+    readonly version: string | number;
     readonly name: string;
     readonly description: string;
   },
