@@ -2,7 +2,7 @@
   "name": "eve-fabric",
   "private": true,
   "scripts": {
-    "build": "pnpm -r run build",
+    "build": "pnpm --filter @eve-fabric/domain run build && pnpm -r run build",
     "test": "vitest run",
     "test:bdd": "node node_modules/.pnpm/@cucumber+cucumber@11.3.0/node_modules/@cucumber/cucumber/bin/cucumber.js -c cucumber.cjs",
     "test:watch": "vitest",
