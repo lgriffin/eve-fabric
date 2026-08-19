@@ -9,17 +9,41 @@ Auto-generated from all feature plans. Last updated: 2026-08-19
 ## Project Structure
 
 ```text
-src/
-tests/
+apps/
+  gateway/          # Fastify API server
+  designer/         # Vite/React pipeline designer
+packages/
+  domain/           # Core domain types and value objects
+  compiler/         # Pipeline compiler
+  planner/          # Execution planner
+  executor/         # Pipeline executor
+  cache/            # Cache implementation
+  esi-adapter/      # ESI data source adapter
+  sde-adapter/      # SDE data source adapter
+  capability-sdk/   # Capability definition SDK
+  schema-package/   # Schema import/export
+  graphql/          # GraphQL schema generation
+  persistence/      # Data persistence
+  test-support/     # Shared test utilities
 ```
 
 ## Commands
 
-npm test; npm run lint
+- `pnpm test` — run all unit tests (vitest)
+- `pnpm run test:bdd` — run BDD/Cucumber tests
+- `pnpm run test:property` — run property-based tests (fast-check)
+- `pnpm run coverage` — run tests with coverage thresholds (branches 80%, functions 75%, lines 90%, statements 90%)
+- `pnpm run lint` — ESLint 9 flat config with typescript-eslint type-checked rules, eslint-plugin-security, eslint-plugin-sonarjs
+- `pnpm run lint:fix` — auto-fix lint issues
+- `pnpm run format` / `pnpm run format:check` — Prettier
+- `pnpm run typecheck` — TypeScript type checking across all packages
+- `pnpm run knip` — dead code detection
+- `pnpm run mutate` — Stryker mutation testing
+- `pnpm run validate` — full quality gate (lint + format + typecheck + coverage + knip)
 
 ## Code Style
 
-TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions
+TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
 

@@ -41,7 +41,8 @@ export function resolveVersions(
             resolvedVersion: requestedVersion,
           });
         } else {
-          const available = catalog.list()
+          const available = catalog
+            .list()
             .filter((d) => (d.id as string) === capIdStr)
             .map((d) => d.version as number);
 
@@ -52,9 +53,8 @@ export function resolveVersions(
             location: { nodeId: node.id },
             context: {
               capability: capIdStr,
-              suggestion: available.length > 0
-                ? `Use version ${Math.max(...available)}`
-                : undefined,
+              suggestion:
+                available.length > 0 ? `Use version ${Math.max(...available)}` : undefined,
             },
           });
         }
@@ -65,7 +65,7 @@ export function resolveVersions(
             nodeId: node.id,
             capabilityId: capIdStr,
             requestedVersion: undefined,
-            resolvedVersion: def.version as number,
+            resolvedVersion: def.version,
           });
         } else {
           diagnostics.push({

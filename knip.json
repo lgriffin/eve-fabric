@@ -1,0 +1,40 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["scripts/*.ts"],
+      "project": ["scripts/**/*.ts"]
+    },
+    "packages/*": {
+      "entry": ["src/index.ts!"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/domain": {
+      "entry": ["src/index.ts!", "tests/bdd/**/*.ts"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@cucumber/cucumber"]
+    },
+    "packages/test-support": {
+      "entry": ["src/index.ts!", "src/bdd/**/*.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/gateway": {
+      "entry": ["src/server.ts!"],
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": [
+        "@eve-fabric/cache",
+        "@eve-fabric/compiler",
+        "@eve-fabric/esi-adapter",
+        "@eve-fabric/executor",
+        "@eve-fabric/graphql",
+        "@eve-fabric/planner",
+        "@eve-fabric/sde-adapter"
+      ]
+    },
+    "apps/designer": {
+      "entry": ["src/main.tsx!"],
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  },
+  "ignore": ["cucumber.cjs", "examples/**"]
+}

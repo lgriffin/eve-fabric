@@ -1,14 +1,16 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import fp from 'fastify-plugin';
 
+type SpanAttributeValue = string | number | boolean;
+
 interface Span {
-  setAttribute(key: string, value: string | number | boolean): void;
+  setAttribute(key: string, value: SpanAttributeValue): void;
   setStatus(status: { code: number; message?: string }): void;
   end(): void;
 }
 
 interface Tracer {
-  startSpan(name: string, options?: { attributes?: Record<string, string | number | boolean> }): Span;
+  startSpan(name: string, options?: { attributes?: Record<string, SpanAttributeValue> }): Span;
 }
 
 interface TracerProvider {
@@ -34,7 +36,7 @@ async function tracingPluginImpl(app: FastifyInstance): Promise<void> {
     const tracer = tracerProvider?.getTracer('@eve-fabric/gateway', '0.0.0');
     if (tracer === undefined) return;
 
-    const attributes: Record<string, string | number | boolean> = {
+    const attributes: Record<string, SpanAttributeValue> = {
       'http.method': req.method,
       'http.url': req.url,
     };

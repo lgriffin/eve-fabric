@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Connection } from '@xyflow/react';
 import { usePipelineStore } from '../stores/pipeline-store.js';
-import type { CapabilityFlowNode } from '../stores/pipeline-store.js';
 
 export function useConnectionValidator() {
   const nodes = usePipelineStore((s) => s.nodes);
@@ -11,8 +10,8 @@ export function useConnectionValidator() {
       if (!connection.source || !connection.target) return false;
       if (connection.source === connection.target) return false;
 
-      const sourceNode = nodes.find((n) => n.id === connection.source) as CapabilityFlowNode | undefined;
-      const targetNode = nodes.find((n) => n.id === connection.target) as CapabilityFlowNode | undefined;
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
       if (!sourceNode || !targetNode) return false;
 
       if (!connection.sourceHandle || !connection.targetHandle) return true;

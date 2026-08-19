@@ -52,9 +52,8 @@ export function expandCompositeNode(
   }
 
   const capId = capabilityId(capabilityIdStr);
-  const capVer = capabilityVersionNum !== undefined
-    ? capabilityVersion(capabilityVersionNum)
-    : undefined;
+  const capVer =
+    capabilityVersionNum !== undefined ? capabilityVersion(capabilityVersionNum) : undefined;
 
   let def;
   try {
@@ -212,8 +211,6 @@ export function resolveComposites(
   const diagnostics: CompilerDiagnostic[] = [];
   const expandedNodes: PipelineDefinition['nodes'][number][] = [];
   const expandedEdges: PipelineDefinition['edges'][number][] = [];
-  const compositeSteps: ExecutionStep[] = [];
-
   const compositeNodeIds = new Set<string>();
 
   for (const node of pipeline.nodes) {
@@ -270,7 +267,6 @@ export function resolveComposites(
       );
 
       diagnostics.push(...expansion.diagnostics);
-      compositeSteps.push(...expansion.expandedSteps);
 
       const subPipeline = registry.get(def.pipelineRef.id, def.pipelineRef.version);
       if (subPipeline) {
@@ -313,9 +309,9 @@ export function resolveComposites(
     let def;
     try {
       def = catalog.get(
-        capabilityId(node.capability.id as string),
+        capabilityId(node.capability.id),
         node.capability.version !== undefined
-          ? capabilityVersion(node.capability.version as number)
+          ? capabilityVersion(node.capability.version)
           : undefined,
       );
     } catch {

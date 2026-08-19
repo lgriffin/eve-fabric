@@ -35,8 +35,10 @@ export function useLoadCatalog() {
       }
     }
 
-    load();
-    return () => { cancelled = true; };
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [setCapabilities, setLoading]);
 }
 
@@ -48,7 +50,7 @@ export function useSavePipeline() {
       body: yaml,
     });
     if (!res.ok) throw new Error(`Save failed: ${res.status}`);
-    return res.json();
+    return (await res.json()) as unknown;
   }, []);
 }
 
@@ -56,6 +58,6 @@ export function useExportSchema() {
   return useCallback(async (pipelineId: string) => {
     const res = await fetch(`${gatewayUrl()}/api/schemas/${pipelineId}/export`);
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
-    return res.json();
+    return (await res.json()) as unknown;
   }, []);
 }

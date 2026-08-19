@@ -1,4 +1,10 @@
-import type { PipelineDefinition, PipelineNode, PipelineEdge, PipelineInput, PipelineOutput } from '@eve-fabric/domain';
+import type {
+  PipelineDefinition,
+  PipelineNode,
+  PipelineEdge,
+  PipelineInput,
+  PipelineOutput,
+} from '@eve-fabric/domain';
 import type { Edge } from '@xyflow/react';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
 
@@ -7,9 +13,10 @@ const NODE_HEIGHT = 120;
 const HORIZONTAL_GAP = 80;
 const VERTICAL_GAP = 60;
 
-export function pipelineToFlow(
-  definition: PipelineDefinition,
-): { nodes: CapabilityFlowNode[]; edges: Edge[] } {
+export function pipelineToFlow(definition: PipelineDefinition): {
+  nodes: CapabilityFlowNode[];
+  edges: Edge[];
+} {
   const nodes: CapabilityFlowNode[] = definition.nodes.map((node, index) => ({
     id: node.id,
     type: 'capability',
@@ -18,8 +25,8 @@ export function pipelineToFlow(
       y: Math.floor(index / 4) * (NODE_HEIGHT + VERTICAL_GAP) + 50,
     },
     data: {
-      capabilityId: node.capability.id as string,
-      capabilityVersion: node.capability.version as number ?? 1,
+      capabilityId: node.capability.id,
+      capabilityVersion: (node.capability.version as number) ?? 1,
       label: node.id,
       source: '',
       inputs: [],
@@ -78,7 +85,15 @@ export function flowToPipeline(
 
 export function enrichNodesWithCatalog(
   nodes: CapabilityFlowNode[],
-  catalog: Map<string, { name: string; source: string; inputs: CapabilityNodeData['inputs']; outputs: CapabilityNodeData['outputs'] }>,
+  catalog: Map<
+    string,
+    {
+      name: string;
+      source: string;
+      inputs: CapabilityNodeData['inputs'];
+      outputs: CapabilityNodeData['outputs'];
+    }
+  >,
 ): CapabilityFlowNode[] {
   return nodes.map((node) => {
     const cap = catalog.get(node.data.capabilityId);

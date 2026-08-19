@@ -13,10 +13,7 @@ export function analyzeSelectionSet(info: GraphQLResolveInfo): Set<string> {
   return requested;
 }
 
-function collectFields(
-  fieldNodes: readonly FieldNode[],
-  out: Set<string>,
-): void {
+function collectFields(fieldNodes: readonly FieldNode[], out: Set<string>): void {
   for (const fieldNode of fieldNodes) {
     const selectionSet = fieldNode.selectionSet;
     if (selectionSet !== undefined) {
@@ -25,13 +22,10 @@ function collectFields(
   }
 }
 
-function collectFromSelectionSet(
-  selectionSet: SelectionSetNode,
-  out: Set<string>,
-): void {
+function collectFromSelectionSet(selectionSet: SelectionSetNode, out: Set<string>): void {
   for (const selection of selectionSet.selections) {
-    if (selection.kind === 'Field') {
-      out.add(selection.name.value);
+    if ((selection.kind as string) === 'Field') {
+      out.add((selection as FieldNode).name.value);
     }
     // InlineFragment and FragmentSpread are intentionally ignored for
     // top-level output analysis; fragments don't change field names.

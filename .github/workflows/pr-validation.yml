@@ -1,0 +1,96 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint & Format
+        run: |
+          pnpm run lint
+          pnpm run format:check
+
+      - name: Type Check
+        run: pnpm run typecheck
+
+      - name: Dead Code Detection
+        run: pnpm run knip
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Unit Tests
+        run: pnpm run test
+
+      - name: BDD Tests
+        run: pnpm run test:bdd
+
+      - name: Property Tests
+        run: pnpm run test:property
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run coverage
+      - name: Coverage Summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const summary = JSON.parse(fs.readFileSync('coverage/coverage-summary.json', 'utf8'));
+              const total = summary.total;
+              const body = [
+                '## Coverage Report',
+                '',
+                '| Metric | Coverage |',
+                '|--------|----------|',
+                `| Statements | ${total.statements.pct}% |`,
+                `| Branches | ${total.branches.pct}% |`,
+                `| Functions | ${total.functions.pct}% |`,
+                `| Lines | ${total.lines.pct}% |`,
+              ].join('\n');
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } catch (e) {
+              console.log('Could not read coverage summary:', e.message);
+            }

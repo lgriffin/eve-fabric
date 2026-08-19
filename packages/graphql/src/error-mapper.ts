@@ -17,16 +17,14 @@ function extractExtensions(error: GatewayError): ErrorExtensions {
 
   if ('context' in error) {
     const ctx = (error as GatewayError & { context: Record<string, unknown> }).context;
-    if (typeof ctx === 'object' && ctx !== null) {
-      if (typeof ctx['capabilityId'] === 'string') {
-        base.capability = ctx['capabilityId'];
-      }
-      if (typeof ctx['capability'] === 'string') {
-        base.capability = ctx['capability'];
-      }
-      if (typeof ctx['source'] === 'string') {
-        base.source = ctx['source'];
-      }
+    if (typeof ctx['capabilityId'] === 'string') {
+      base.capability = ctx['capabilityId'];
+    }
+    if (typeof ctx['capability'] === 'string') {
+      base.capability = ctx['capability'];
+    }
+    if (typeof ctx['source'] === 'string') {
+      base.source = ctx['source'];
     }
   }
 
