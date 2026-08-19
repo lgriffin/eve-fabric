@@ -1,0 +1,33 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/domain",
+    "packages/capability-sdk",
+    "packages/compiler",
+    "packages/planner",
+    "packages/executor",
+    "packages/schema-package",
+    "packages/graphql",
+    "packages/esi-adapter",
+    "packages/sde-adapter",
+    "packages/cache",
+    "packages/persistence",
+    "apps/gateway",
+    "apps/designer"
+  ],
+  "out": "docs/api",
+  "theme": "default",
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/__tests__/**",
+    "**/*.test.tsx",
+    "**/*.spec.tsx"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "name": "EVE Fabric API"
+}

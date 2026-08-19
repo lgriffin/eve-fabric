@@ -1,0 +1,41 @@
+id: market.snapshot
+version: 1
+name: MarketSnapshot
+description: >
+  Fetches market orders for a given item type in a specific region
+  and aggregates them into a summary with price and volume statistics.
+
+inputs:
+  - name: typeId
+    semanticType: eve.type.reference
+    description: Item type to query market orders for
+    required: true
+  - name: regionId
+    semanticType: eve.region.reference
+    description: Region to query market orders in
+    required: true
+
+nodes:
+  - id: fetchOrders
+    capability:
+      id: market.orders
+      version: 1
+
+  - id: aggregate
+    capability:
+      id: market.aggregate
+      version: 1
+
+edges:
+  - from: input.typeId
+    to: fetchOrders.typeId
+  - from: input.regionId
+    to: fetchOrders.regionId
+  - from: fetchOrders.orders
+    to: aggregate.orders
+
+outputs:
+  - name: orders
+    source: fetchOrders.orders
+  - name: summary
+    source: aggregate.summary

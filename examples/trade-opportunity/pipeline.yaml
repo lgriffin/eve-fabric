@@ -1,0 +1,78 @@
+id: trade.opportunity
+version: 1
+name: Trade Opportunity
+description: >
+  Finds profitable trade opportunities between two regions by comparing
+  buy orders in the source region with sell orders in the destination region,
+  factoring in route distance and volume.
+
+inputs:
+  - name: sourceRegion
+    semanticType: eve.region.reference
+    description: Region to buy items from
+    required: true
+  - name: destinationRegion
+    semanticType: eve.region.reference
+    description: Region to sell items in
+    required: true
+  - name: typeId
+    semanticType: eve.type.reference
+    description: Item type to evaluate
+    required: true
+
+nodes:
+  - id: sourceSellOrders
+    capability:
+      id: market.orders
+      version: 1
+    config:
+      orderType: sell
+
+  - id: destBuyOrders
+    capability:
+      id: market.orders
+      version: 1
+    config:
+      orderType: buy
+
+  - id: routeCalc
+    capability:
+      id: universe.route.distance
+      version: 1
+
+  - id: profitCalc
+    capability:
+      id: trade.profit.calculator
+      version: 1
+
+edges:
+  - from: input.sourceRegion
+    to: sourceSellOrders.regionId
+  - from: input.typeId
+    to: sourceSellOrders.typeId
+  - from: input.destinationRegion
+    to: destBuyOrders.regionId
+  - from: input.typeId
+    to: destBuyOrders.typeId
+  - from: input.sourceRegion
+    to: routeCalc.fromRegion
+  - from: input.destinationRegion
+    to: routeCalc.toRegion
+  - from: sourceSellOrders.orders
+    to: profitCalc.sellOrders
+  - from: destBuyOrders.orders
+    to: profitCalc.buyOrders
+  - from: routeCalc.distance
+    to: profitCalc.routeDistance
+
+outputs:
+  - name: bestPrice
+    source: profitCalc.bestPrice
+  - name: profit
+    source: profitCalc.profit
+  - name: profitMargin
+    source: profitCalc.profitMargin
+  - name: volume
+    source: profitCalc.volume
+  - name: routeDistance
+    source: routeCalc.distance

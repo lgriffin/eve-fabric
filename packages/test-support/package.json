@@ -1,0 +1,23 @@
+{
+  "name": "@eve-fabric/test-support",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "test:bdd": "cucumber-js"
+  },
+  "dependencies": {
+    "@eve-fabric/domain": "workspace:*",
+    "@cucumber/cucumber": "^11.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

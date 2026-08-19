@@ -1,0 +1,46 @@
+"""EVE Online ISK currency amount"""
+scalar ISK
+
+"""Reference to an EVE item type ID"""
+scalar TypeReference
+
+"""Reference to an EVE region ID"""
+scalar RegionReference
+
+"""Distance in jumps between systems"""
+scalar RouteDistance
+
+enum DataSource {
+  ESI
+  SDE
+  DERIVED
+  CACHE
+}
+
+type DataProvenance {
+  source: DataSource!
+  capability: String!
+  version: Int!
+  retrievedAt: String
+  calculatedAt: String
+  cached: Boolean!
+}
+
+type TradeOpportunity {
+  bestPrice: ISK!
+  profit: ISK!
+  profitMargin: Float!
+  volume: Int!
+  routeDistance: RouteDistance!
+  _provenance: DataProvenance
+}
+
+input TradeOpportunityInput {
+  sourceRegion: RegionReference!
+  destinationRegion: RegionReference!
+  typeId: TypeReference!
+}
+
+type Query {
+  tradeOpportunity(input: TradeOpportunityInput!): TradeOpportunity!
+}

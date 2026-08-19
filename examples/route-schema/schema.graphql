@@ -1,0 +1,48 @@
+"""Reference to an EVE solar system ID"""
+scalar SystemReference
+
+enum DataSource {
+  ESI
+  SDE
+  DERIVED
+  CACHE
+}
+
+type DataProvenance {
+  source: DataSource!
+  capability: String!
+  version: Int!
+  retrievedAt: String
+  calculatedAt: String
+  cached: Boolean!
+}
+
+type SolarSystem {
+  name: String!
+  securityStatus: Float!
+  constellation: String!
+  _provenance: DataProvenance
+}
+
+type Route {
+  jumps: Int!
+  distance: Float!
+  securityRating: Float!
+  _provenance: DataProvenance
+}
+
+type RouteInfoResult {
+  route: Route!
+  originSystem: SolarSystem!
+  destinationSystem: SolarSystem!
+  _provenance: DataProvenance
+}
+
+input RouteInfoInput {
+  origin: SystemReference!
+  destination: SystemReference!
+}
+
+type Query {
+  routeInfo(input: RouteInfoInput!): RouteInfoResult!
+}
