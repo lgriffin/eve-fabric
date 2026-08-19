@@ -5,6 +5,7 @@ import { InMemoryFabricRegistry } from '@eve-fabric/domain';
 import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
+import { createDiscoveryRoutes } from './routes/discovery-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { seedPrebuiltCapabilities } from './seed-capabilities.js';
 import { seedDemoCapabilities } from './seed-demo.js';
@@ -99,6 +100,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   seedDemoCapabilities(registry);
 
   void app.register(createRegistryRoutes(registry));
+  void app.register(createDiscoveryRoutes(registry.getCatalog()));
   void app.register(
     createPublishRoutes(registry, (id, version) => {
       const saved = savedPipelines.get(id);

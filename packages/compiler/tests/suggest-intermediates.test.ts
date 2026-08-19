@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { suggestIntermediates } from '../src/suggest-intermediates.js';
 import { SEMANTIC_SUGGESTION } from '../src/diagnostics.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog, DiscoveryEngine } from '@eve-fabric/domain';
 
 function bridgingCapDef() {
   return {
@@ -142,6 +142,78 @@ describe('suggestIntermediates', () => {
     expect(diagnostics).toHaveLength(2);
     diagnostics.forEach((d) => {
       expect(d.code).toBe(SEMANTIC_SUGGESTION);
+    });
+  });
+
+  describe('with DiscoveryEngine delegation', () => {
+    it('finds multi-hop bridging via discovery engine', () => {
+      // Register capabilities forming a chain: A -> B -> C
+      catalog.register({
+        id: 'bridge.a.to.b',
+        version: 1,
+        name: 'A to B Bridge',
+        description: 'Converts A to B',
+        inputs: { input: { name: 'input', semanticType: 'eve.region.reference', required: true } },
+        outputs: {
+          output: { name: 'output', semanticType: 'eve.location.reference', required: true },
+        },
+        source: 'DERIVED' as const,
+        dependencies: [],
+        auth: { required: false, scopes: [] },
+        cache: {
+          cacheable: false,
+          defaultTtlSeconds: 0,
+          stalePermitted: false,
+          identityInKey: false,
+        },
+        cost: { estimatedLatencyMs: 50, esiCallCount: 0 },
+      });
+      catalog.register({
+        id: 'bridge.b.to.c',
+        version: 1,
+        name: 'B to C Bridge',
+        description: 'Converts B to C',
+        inputs: {
+          input: { name: 'input', semanticType: 'eve.location.reference', required: true },
+        },
+        outputs: {
+          output: { name: 'output', semanticType: 'eve.market.order.collection', required: true },
+        },
+        source: 'DERIVED' as const,
+        dependencies: [],
+        auth: { required: false, scopes: [] },
+        cache: {
+          cacheable: false,
+          defaultTtlSeconds: 0,
+          stalePermitted: false,
+          identityInKey: false,
+        },
+        cost: { estimatedLatencyMs: 50, esiCallCount: 0 },
+      });
+
+      const engine = new DiscoveryEngine(catalog);
+      const diagnostics = suggestIntermediates(
+        'eve.region.reference',
+        'eve.market.order.collection',
+        catalog,
+        engine,
+      );
+
+      expect(diagnostics.length).toBeGreaterThanOrEqual(2);
+      diagnostics.forEach((d) => {
+        expect(d.code).toBe(SEMANTIC_SUGGESTION);
+      });
+    });
+
+    it('falls back to linear scan without discovery engine', () => {
+      catalog.register(bridgingCapDef());
+      const diagnostics = suggestIntermediates(
+        'eve.region.reference',
+        'eve.market.order.collection',
+        catalog,
+      );
+      expect(diagnostics).toHaveLength(1);
+      expect(diagnostics[0]!.context?.capability).toBe('transform.region.to.orders');
     });
   });
 
