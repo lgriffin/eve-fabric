@@ -19,6 +19,7 @@
     "test:mutation": "stryker run",
     "scan:secrets": "tsx scripts/scan-secrets.ts",
     "benchmark": "tsx scripts/benchmark.ts",
+    "demo": "tsx examples/e2e-demo/demo.ts",
     "validate": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
     "prepare": "husky"
   },
