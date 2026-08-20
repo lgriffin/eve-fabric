@@ -22,11 +22,13 @@ export function useLoadCatalog() {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch(`${gatewayUrl()}/api/capabilities`);
+        const res = await fetch(`${gatewayUrl()}/api/registry`);
         if (!res.ok) return;
-        const data = (await res.json()) as Omit<CatalogCapability, 'category'>[];
+        const json = (await res.json()) as {
+          capabilities: Omit<CatalogCapability, 'category'>[];
+        };
         if (!cancelled) {
-          setCapabilities(data.map(enrichWithCategory));
+          setCapabilities(json.capabilities.map(enrichWithCategory));
         }
       } catch {
         // Gateway not available — use empty catalog
