@@ -16,7 +16,7 @@ Auto-generated from all feature plans. Last updated: 2026-08-20
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation) (002-visual-pipeline-designer)
 - Gateway API persistence (YAML pipeline definitions via POST/GET endpoints) (002-visual-pipeline-designer)
 
-- TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.4.0), Fastify, (001-schema-gateway-mvp)
+- TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.6.0), Fastify, (001-schema-gateway-mvp)
 
 ## Project Structure
 

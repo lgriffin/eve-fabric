@@ -172,8 +172,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sde-adapter
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
       fastify:
         specifier: ^5.0.0
         version: 5.12.1
@@ -267,8 +267,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -366,8 +366,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -1755,8 +1755,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lgriffin/esi.ts@9.4.0':
-    resolution: {integrity: sha512-gh8f0qKwDfjJkkzLv/T9el3Y9XhGbujMTazTeAlPno6uUMRoCIqNKZ8MKVnzOZSoRSri5OfHerTvDCDMUYGloA==}
+  '@lgriffin/esi.ts@9.6.0':
+    resolution: {integrity: sha512-AveYYhto2NsbANerRbQSq073/H29B1RRWAa3yiYSogsbWPgn7r9WTY6UaLspIgP9bqJp54ChmWjS/4BStqOTHw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       better-sqlite3: '>=9.0.0'
@@ -5900,7 +5900,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lgriffin/esi.ts@9.4.0':
+  '@lgriffin/esi.ts@9.6.0':
     dependencies:
       pino: 9.14.0
       zod: 4.4.3

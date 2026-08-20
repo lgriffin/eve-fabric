@@ -33,15 +33,20 @@ export interface ServerOptions {
 }
 
 async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
-  const { MemorySdeProvider, SdeDataProvider } = await import('@lgriffin/esi.ts/sde');
+  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
+    MemorySdeProvider: new () => IStaticDataProvider;
+  };
   if (sdeDataPath) {
     try {
-      return SdeDataProvider.fromDirectory(sdeDataPath);
+      const sdeModule = (await import('@lgriffin/esi.ts/sde')) as {
+        SdeDataProvider: { fromDirectory: (path: string) => IStaticDataProvider };
+      };
+      return sdeModule.SdeDataProvider.fromDirectory(sdeDataPath);
     } catch {
-      return new MemorySdeProvider();
+      return new memoryModule.MemorySdeProvider();
     }
   }
-  return new MemorySdeProvider();
+  return new memoryModule.MemorySdeProvider();
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {

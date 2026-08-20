@@ -6,25 +6,15 @@
  * SDE provides item/region/system metadata, ESI provides live market data
  * and route calculations.
  *
- * NOTE: The SDE adapter uses an inline provider here because importing
- * @lgriffin/esi.ts/sde under tsx pulls in adm-zip (CJS) which breaks
- * ESM mode. The gateway server uses the real MemorySdeProvider under
- * plain Node.js where CJS interop works fine. Once ESI.ts exports
- * MemorySdeProvider separately from SdeDataProvider/adm-zip, this
- * example can switch to createMemorySdeProvider().
- * See: https://github.com/lgriffin/ESI.ts/issues/194
- *
  * Run: npx tsx examples/esi-live.ts
  *      — or —
  *      pnpm run demo:esi
  */
 import { EsiAdapter, EsiClient } from '@eve-fabric/esi-adapter';
-import { SdeAdapter } from '@eve-fabric/sde-adapter';
+import { SdeAdapter, createMemorySdeProvider } from '@eve-fabric/sde-adapter';
 import type { CapabilityDefinition, SourceAdapterResult } from '@eve-fabric/domain';
 
-// Inline SDE data — matches the EveType/Region/SolarSystem shapes from
-// @lgriffin/esi.ts exactly, so the SDE adapter works identically to the
-// real MemorySdeProvider used in the gateway server.
+// Inline SDE seed data for the demo (types, regions, systems).
 
 const TYPES = [
   {
@@ -249,25 +239,6 @@ const SOLAR_SYSTEMS = [
   },
 ];
 
-function createInlineSdeProvider() {
-  return {
-    getType: (typeId: number) => TYPES.find((t) => t.typeId === typeId) ?? null,
-    searchTypesByName: (query: string, limit = 10) =>
-      TYPES.filter((t) => t.name.toLowerCase().includes(query.toLowerCase())).slice(0, limit),
-    getRegion: (regionId: number) => REGIONS.find((r) => r.regionId === regionId) ?? null,
-    getAllRegions: () => [...REGIONS],
-    getSolarSystem: (systemId: number) =>
-      SOLAR_SYSTEMS.find((s) => s.systemId === systemId) ?? null,
-    searchSolarSystemsByName: (query: string, limit = 10) =>
-      SOLAR_SYSTEMS.filter((s) => s.name.toLowerCase().includes(query.toLowerCase())).slice(
-        0,
-        limit,
-      ),
-    getVersion: () => ({ version: 'inline-demo', buildDate: new Date().toISOString() }),
-    close: () => {},
-  };
-}
-
 function makeCapability(id: string, source: 'ESI' | 'SDE' | 'DERIVED'): CapabilityDefinition {
   return {
     id: id as never,
@@ -307,8 +278,12 @@ async function main(): Promise<void> {
 
   const client = new EsiClient();
   const esiAdapter = new EsiAdapter({ client });
-  const sdeProvider = createInlineSdeProvider();
-  const sdeAdapter = new SdeAdapter({ provider: sdeProvider as never });
+  const sdeProvider = await createMemorySdeProvider({
+    types: TYPES,
+    regions: REGIONS,
+    solarSystems: SOLAR_SYSTEMS,
+  });
+  const sdeAdapter = new SdeAdapter({ provider: sdeProvider });
 
   // -- Step 1: Resolve items from SDE --
   section('Step 1: SDE — Resolve Items by Name');
@@ -439,7 +414,7 @@ async function main(): Promise<void> {
 
   // -- Summary --
   section('Summary: SDE + ESI Working Together');
-  console.log('  SDE (static data via inline provider, same shape as MemorySdeProvider):');
+  console.log('  SDE (static data via MemorySdeProvider from @lgriffin/esi.ts/sde/memory):');
   console.log('    - Resolved item types by name -> typeId, volume, description');
   console.log('    - Resolved solar systems by name -> systemId, security, region');
   console.log('    - Resolved regions by ID -> region name');
@@ -452,12 +427,7 @@ async function main(): Promise<void> {
   console.log();
   console.log('  The adapter layer wraps both data sources behind the same');
   console.log('  SourceAdapter interface, so the pipeline executor can mix');
-  console.log('  SDE lookups and ESI calls in a single execution plan.');
-  console.log();
-  console.log('  NOTE: The gateway server uses the real MemorySdeProvider from');
-  console.log('  @lgriffin/esi.ts/sde under plain Node.js. This example uses an');
-  console.log('  inline provider because tsx ESM mode cannot import adm-zip (CJS).');
-  console.log('  See: https://github.com/lgriffin/esi.ts — separate MemorySdeProvider export\n');
+  console.log('  SDE lookups and ESI calls in a single execution plan.\n');
 }
 
 main().catch((err) => {
