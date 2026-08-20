@@ -1,8 +1,11 @@
 ﻿# eve-fabric Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-08-19
+Auto-generated from all feature plans. Last updated: 2026-08-20
 
 ## Active Technologies
+
+- TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod (005-intent-flow-designer)
+- Semantic type to editor type mapping in domain package, reference data endpoints in gateway (005-intent-flow-designer)
 
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM (003-composite-flow-registry)
 - SQLite via Drizzle ORM (persistence package, with in-memory implementations for testing) (003-composite-flow-registry)
@@ -52,6 +55,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 005-intent-flow-designer: Added semantic type to editor type mapping, reference data endpoints, single-node execution endpoint, palette modes (Discover/Recommended/All), interactive node input editors, contextual palette for smart connections
 
 - 003-composite-flow-registry: Added TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM
 

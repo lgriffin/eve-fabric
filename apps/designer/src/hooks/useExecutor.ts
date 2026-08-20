@@ -4,7 +4,13 @@ import {
   type ExecutionNodeState,
   type ExecutionStepMetrics,
 } from '../stores/pipeline-store.js';
+import type { NodeExecutionState } from '../stores/types.js';
 import { flowToPipeline } from '../services/pipeline-serializer.js';
+
+function mapStepStatus(status: string | undefined): 'success' | 'error' {
+  if (status === 'failed') return 'error';
+  return 'success';
+}
 
 const DEFAULT_GATEWAY_URL = 'http://localhost:3456';
 
@@ -14,6 +20,17 @@ function gatewayUrl(): string {
     if (typeof url === 'string') return url;
   }
   return DEFAULT_GATEWAY_URL;
+}
+
+export interface ValidationError {
+  nodeId: string;
+  nodeName: string;
+  message: string;
+}
+
+export interface ValidationResult {
+  valid: boolean;
+  errors: ValidationError[];
 }
 
 interface ExecuteOptions {
@@ -30,6 +47,32 @@ export function useExecutor() {
   const setExecutionSession = usePipelineStore((s) => s.setExecutionSession);
   const updateStepStatus = usePipelineStore((s) => s.updateStepStatus);
   const setExecutionOutputs = usePipelineStore((s) => s.setExecutionOutputs);
+  const nodeConfiguredValues = usePipelineStore((s) => s.nodeConfiguredValues);
+  const setNodeExecutionState = usePipelineStore((s) => s.setNodeExecutionState);
+
+  const validate = useCallback((): ValidationResult => {
+    const errors: ValidationError[] = [];
+    const configValues = nodeConfiguredValues;
+
+    for (const node of nodes) {
+      for (const input of node.data.inputs) {
+        if (!input.required) continue;
+        const isConnected = edges.some(
+          (e) => e.target === node.id && e.targetHandle === input.name,
+        );
+        const isConfigured = configValues[node.id]?.[input.name] != null;
+        if (!isConnected && !isConfigured) {
+          errors.push({
+            nodeId: node.id,
+            nodeName: node.data.label,
+            message: `Missing required input: ${input.name}`,
+          });
+        }
+      }
+    }
+
+    return { valid: errors.length === 0, errors };
+  }, [nodes, edges, nodeConfiguredValues]);
 
   const execute = useCallback(
     async (options?: ExecuteOptions) => {
@@ -64,12 +107,29 @@ export function useExecutor() {
         errors: [],
       });
 
+      // Set all nodes to running state
+      for (const node of nodes) {
+        setNodeExecutionState(node.id, {
+          status: 'running',
+          resultCount: null,
+          durationMs: null,
+          source: null,
+          cached: false,
+          error: null,
+          preview: null,
+        });
+      }
+
       if (options?.stream !== false) {
         try {
           const res = await fetch(`${gatewayUrl()}/api/pipelines/execute`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pipeline: definition, inputs: options?.inputs ?? {} }),
+            body: JSON.stringify({
+              pipeline: definition,
+              inputs: options?.inputs ?? {},
+              nodeConfiguredValues,
+            }),
           });
 
           if (!res.ok) {
@@ -98,8 +158,16 @@ export function useExecutor() {
 
           const data = (await res.json()) as {
             outputs: Record<string, unknown>;
+            steps?: Array<{
+              stepId: string;
+              capabilityId: string;
+              status: string;
+              durationMs: number;
+              cached: boolean;
+            }>;
             metrics?: {
               stepDurations?: Record<string, number>;
+              totalDurationMs?: number;
               cacheHits?: number;
               cacheMisses?: number;
             };
@@ -126,6 +194,37 @@ export function useExecutor() {
             }
           }
 
+          // Update per-node execution states from steps array (T056)
+          if (data.steps) {
+            for (const step of data.steps) {
+              const nodeState: NodeExecutionState = {
+                status: step.status === 'completed' ? 'success' : 'error',
+                resultCount: null,
+                durationMs: step.durationMs,
+                source: null,
+                cached: step.cached,
+                error: step.status !== 'completed' ? `Step failed: ${step.status}` : null,
+                preview: data.outputs?.[step.stepId] ?? null,
+              };
+              setNodeExecutionState(step.stepId, nodeState);
+            }
+          } else {
+            // Fallback: use stepStatuses if no steps array
+            for (const node of nodes) {
+              const status = data.stepStatuses?.[node.id];
+              const nodeState: NodeExecutionState = {
+                status: mapStepStatus(status),
+                resultCount: null,
+                durationMs: data.metrics?.stepDurations?.[node.id] ?? null,
+                source: null,
+                cached: false,
+                error: null,
+                preview: data.outputs?.[node.id] ?? null,
+              };
+              setNodeExecutionState(node.id, nodeState);
+            }
+          }
+
           if (data.errors && data.errors.length > 0) {
             for (const err of data.errors) {
               updateStepStatus(err.stepId, 'failed', {
@@ -133,11 +232,32 @@ export function useExecutor() {
                 cached: false,
                 error: err.message,
               });
+              setNodeExecutionState(err.stepId, {
+                status: 'error',
+                resultCount: null,
+                durationMs: null,
+                source: null,
+                cached: false,
+                error: err.message,
+                preview: null,
+              });
             }
           }
 
           setExecutionOutputs(data.outputs ?? {});
         } catch (err) {
+          // Set all nodes to error state
+          for (const node of nodes) {
+            setNodeExecutionState(node.id, {
+              status: 'error',
+              resultCount: null,
+              durationMs: null,
+              source: null,
+              cached: false,
+              error: err instanceof Error ? err.message : 'Network error',
+              preview: null,
+            });
+          }
           setExecutionSession({
             id: sessionId,
             status: 'failed',
@@ -162,9 +282,11 @@ export function useExecutor() {
       pipelineId,
       pipelineName,
       pipelineVersion,
+      nodeConfiguredValues,
       setExecutionSession,
       updateStepStatus,
       setExecutionOutputs,
+      setNodeExecutionState,
     ],
   );
 
@@ -175,5 +297,5 @@ export function useExecutor() {
     }
   }, [setExecutionSession]);
 
-  return { execute, cancelExecution };
+  return { execute, validate, cancelExecution };
 }

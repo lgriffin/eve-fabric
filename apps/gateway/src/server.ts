@@ -6,6 +6,8 @@ import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
 import { createDiscoveryRoutes } from './routes/discovery-routes.js';
+import { createReferenceDataRoutes } from './routes/reference-data-routes.js';
+import { createExecutionRoutes } from './routes/execution-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { seedPrebuiltCapabilities } from './seed-capabilities.js';
 import { seedDemoCapabilities } from './seed-demo.js';
@@ -101,6 +103,8 @@ export function createServer(options?: ServerOptions): FastifyInstance {
 
   void app.register(createRegistryRoutes(registry));
   void app.register(createDiscoveryRoutes(registry.getCatalog()));
+  void app.register(createReferenceDataRoutes());
+  void app.register(createExecutionRoutes(registry.getCatalog()));
   void app.register(
     createPublishRoutes(registry, (id, version) => {
       const saved = savedPipelines.get(id);
@@ -114,54 +118,107 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   );
 
   // Pipeline execution endpoint
-  app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
-    '/api/pipelines/execute',
-    async (req, reply) => {
-      try {
-        const { pipeline, inputs } = req.body;
-        if (!pipeline) {
-          return reply.status(400).send({
-            error: {
-              code: 'PARSE_ERROR',
-              message: 'Missing pipeline in request body',
-              details: null,
-            },
-          });
-        }
-
-        const stepStatuses: Record<string, string> = {};
-        const stepDurations: Record<string, number> = {};
-        const pipelineDef = pipeline as { nodes?: Array<{ id: string }> };
-        if (pipelineDef.nodes) {
-          for (const node of pipelineDef.nodes) {
-            stepStatuses[node.id] = 'completed';
-            stepDurations[node.id] = 100;
-          }
-        }
-
-        return reply.status(200).send({
-          outputs: inputs,
-          provenance: {},
-          metrics: {
-            totalDurationMs: Object.values(stepDurations).reduce((a, b) => a + b, 0),
-            stepDurations,
-            cacheHits: 0,
-            cacheMisses: pipelineDef.nodes?.length ?? 0,
-          },
-          stepStatuses,
-          errors: [],
-        });
-      } catch (err) {
-        return reply.status(500).send({
+  app.post<{
+    Body: {
+      pipeline: unknown;
+      inputs: Record<string, unknown>;
+      nodeConfiguredValues?: Record<
+        string,
+        Record<string, { value: unknown; semanticType?: string }>
+      >;
+    };
+  }>('/api/pipelines/execute', async (req, reply) => {
+    try {
+      const { pipeline } = req.body;
+      if (!pipeline) {
+        return reply.status(400).send({
           error: {
-            code: 'EXECUTION_FAILED',
-            message: err instanceof Error ? err.message : 'Unknown error',
+            code: 'PARSE_ERROR',
+            message: 'Missing pipeline in request body',
             details: null,
           },
         });
       }
-    },
-  );
+
+      const pipelineDef = pipeline as {
+        nodes?: Array<{ id: string; capabilityId?: string }>;
+        edges?: Array<{ source: string; target: string }>;
+      };
+      const catalog = registry.getCatalog();
+      const capabilities = catalog.list();
+
+      const steps: Array<{
+        stepId: string;
+        capabilityId: string;
+        status: string;
+        durationMs: number;
+        cached: boolean;
+      }> = [];
+      const stepOutputs: Record<string, unknown> = {};
+      let totalDurationMs = 0;
+      const cacheHits = 0;
+
+      /* eslint-disable sonarjs/pseudo-random -- mock data for demo */
+      for (const node of pipelineDef.nodes ?? []) {
+        const capId = node.capabilityId ?? node.id;
+        const cap = capabilities.find((c) => (c.id as string) === capId);
+        const durationMs = 50 + Math.floor(Math.random() * 300);
+        totalDurationMs += durationMs;
+
+        if (cap) {
+          const nodeOutputs: Record<string, unknown> = {};
+          for (const [name, port] of cap.outputs) {
+            const st = port.semanticType as string;
+            if (st === 'eve.market.order.collection') {
+              nodeOutputs[name] = Array.from({ length: 50 }, (_, i) => ({
+                order_id: 6200000000 + i,
+                price: 3.5 + Math.random() * 3,
+                volume_remain: Math.floor(Math.random() * 100000),
+                is_buy_order: Math.random() > 0.5,
+              }));
+            } else if (st === 'eve.currency.isk') {
+              nodeOutputs[name] = 4.52;
+            } else if (st === 'eve.route.distance') {
+              nodeOutputs[name] = Math.floor(Math.random() * 10) + 1;
+            } else {
+              nodeOutputs[name] = null;
+            }
+          }
+          stepOutputs[node.id] = nodeOutputs;
+        }
+
+        steps.push({
+          stepId: node.id,
+          capabilityId: capId,
+          status: 'completed',
+          durationMs,
+          cached: false,
+        });
+      }
+      /* eslint-enable sonarjs/pseudo-random */
+
+      return reply.status(200).send({
+        status: 'completed',
+        steps,
+        outputs: stepOutputs,
+        metrics: {
+          totalDurationMs,
+          parallelDurationMs: Math.max(...steps.map((s) => s.durationMs), 0),
+          cacheHits,
+          cacheMisses: steps.length - cacheHits,
+        },
+        errors: [],
+      });
+    } catch (err) {
+      return reply.status(500).send({
+        error: {
+          code: 'EXECUTION_FAILED',
+          message: err instanceof Error ? err.message : 'Unknown error',
+          details: null,
+        },
+      });
+    }
+  });
 
   // Pipeline CRUD endpoints
   app.post('/api/pipelines', async (req, reply) => {

@@ -44,20 +44,30 @@ export function App() {
 
   useLoadCatalog();
   const { compileNow } = useCompiler();
-  const { execute } = useExecutor();
+  const { execute, validate } = useExecutor();
   useAutoCompile(true);
+
+  const [validationErrors, setValidationErrors] = useState<
+    Array<{ nodeId: string; nodeName: string; message: string }>
+  >([]);
 
   const handleValidate = useCallback(() => {
     compileNow();
-  }, [compileNow]);
+    const result = validate();
+    setValidationErrors(result.errors);
+  }, [compileNow, validate]);
 
   const handleExecute = useCallback(async () => {
+    const valResult = validate();
+    setValidationErrors(valResult.errors);
+    if (!valResult.valid) return;
+
     const result = compileNow();
     if (result && result.success) {
       setActiveTab('results');
       await execute();
     }
-  }, [compileNow, execute]);
+  }, [compileNow, execute, validate]);
 
   const handleSave = useCallback(() => {
     const definition = flowToPipeline(
@@ -156,6 +166,7 @@ export function App() {
           onExport={handleExport}
           onImport={handleImport}
           onPublish={() => setPublishDialogOpen(true)}
+          validationErrors={validationErrors}
         />
 
         {drilldownStack.length > 0 && (
