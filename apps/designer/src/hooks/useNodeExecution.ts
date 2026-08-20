@@ -2,14 +2,6 @@ import { useCallback } from 'react';
 import { usePipelineStore } from '../stores/pipeline-store.js';
 import type { NodeExecutionState } from '../stores/types.js';
 
-function getGatewayUrl(): string {
-  if (typeof window !== 'undefined') {
-    const url = (window as unknown as Record<string, unknown>)['__GATEWAY_URL__'];
-    if (typeof url === 'string') return url;
-  }
-  return 'http://localhost:3456';
-}
-
 export function useNodeExecution() {
   const setNodeExecutionState = usePipelineStore((s) => s.setNodeExecutionState);
   const nodeConfiguredValues = usePipelineStore((s) => s.nodeConfiguredValues);
@@ -44,7 +36,7 @@ export function useNodeExecution() {
         }
 
         const res = await fetch(
-          `${getGatewayUrl()}/api/capabilities/${encodeURIComponent(node.data.capabilityId)}/execute`,
+          `/api/capabilities/${encodeURIComponent(node.data.capabilityId)}/execute`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

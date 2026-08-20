@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import type { PaletteMode } from './types.js';
+import { getCapabilities } from '../services/gateway-client.js';
+import { useToastStore } from './toast-store.js';
 
 export interface CatalogCapability {
   id: string;
@@ -28,6 +30,7 @@ interface CatalogState {
   searchQuery: string;
   selectedSource: string | null;
   isLoading: boolean;
+  error: string | null;
   paletteMode: PaletteMode;
   recommendedCapabilities: DiscoverySuggestion[];
 }
@@ -64,6 +67,7 @@ export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get
   searchQuery: '',
   selectedSource: null,
   isLoading: false,
+  error: null,
   paletteMode: 'discover',
   recommendedCapabilities: [],
 
@@ -84,19 +88,20 @@ export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get
   },
 
   fetchCapabilities: async () => {
-    set({ isLoading: true });
-    try {
-      const response = await fetch('/api/registry');
-      if (!response.ok) throw new Error('Failed to fetch capabilities');
-      const data = (await response.json()) as {
-        capabilities: Array<Omit<CatalogCapability, 'category'>>;
-      };
+    set({ isLoading: true, error: null });
+    const result = await getCapabilities();
+    if (result.ok) {
       set({
-        capabilities: data.capabilities.map(enrichWithCategory),
+        capabilities: result.data.capabilities.map(enrichWithCategory),
         isLoading: false,
+        error: null,
       });
-    } catch {
-      set({ isLoading: false });
+    } else {
+      const errorMsg = result.error.isNetworkError
+        ? 'Cannot connect to gateway. Start it with: pnpm --filter @eve-fabric/gateway dev'
+        : result.error.message;
+      set({ isLoading: false, error: errorMsg });
+      useToastStore.getState().addToast('error', 'Failed to load capabilities', errorMsg);
     }
   },
 

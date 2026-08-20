@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { ReactFlow, type Node, type Edge, Background, Controls, MiniMap } from '@xyflow/react';
 import type { DrilldownEntry } from '../../stores/pipeline-store.js';
+import { colors, borderRadius } from '../../tokens.js';
 
 interface CompositeOverlayProps {
   entry: DrilldownEntry;
@@ -28,10 +29,10 @@ export function CompositeOverlay({
           : (node.capability.id as string),
       },
       style: {
-        background: '#2a2a45',
-        color: '#e0e0e0',
-        border: '1px solid #555',
-        borderRadius: 6,
+        background: colors.surface.overlay,
+        color: colors.text.primary,
+        border: `1px solid ${colors.text.disabled}`,
+        borderRadius: borderRadius.lg,
         padding: 8,
         fontSize: '11px',
       },
@@ -41,7 +42,7 @@ export function CompositeOverlay({
       id: `e-${i}`,
       source: edge.from.split('.')[0]!,
       target: edge.to.split('.')[0]!,
-      style: { stroke: '#555' },
+      style: { stroke: colors.text.disabled },
     }));
 
     return { nodes: flowNodes, edges: flowEdges };
@@ -61,24 +62,24 @@ export function CompositeOverlay({
       <div
         style={{
           padding: '8px 16px',
-          background: '#1a1a2e',
-          borderBottom: '1px solid #444',
+          background: colors.surface.base,
+          borderBottom: `1px solid ${colors.surface.borderLight}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <span style={{ color: '#e0e0e0', fontSize: '13px', fontWeight: 600 }}>
+        <span style={{ color: colors.text.primary, fontSize: '13px', fontWeight: 600 }}>
           {entry.capabilityId} v{entry.version}
         </span>
         <button
           onClick={onClose}
           style={{
-            background: '#333',
+            background: colors.surface.border,
             border: 'none',
-            borderRadius: 4,
+            borderRadius: borderRadius.md,
             padding: '4px 12px',
-            color: '#aaa',
+            color: colors.text.secondary,
             cursor: 'pointer',
           }}
         >
@@ -106,7 +107,7 @@ export function CompositeOverlay({
               alignItems: 'center',
               justifyContent: 'center',
               height: '100%',
-              color: '#666',
+              color: colors.text.dim,
             }}
           >
             Loading pipeline...

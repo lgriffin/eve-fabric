@@ -4,6 +4,7 @@ import { useFlowContext } from '../../hooks/useFlowContext.js';
 import { CapabilityCard } from './CapabilityCard.js';
 import { useCatalogStore, type CatalogCapability } from '../../stores/catalog-store.js';
 import type { SearchResultItem } from '../../services/discovery-service.js';
+import { colors, fontSize as fs, spacing, borderRadius } from '../../tokens.js';
 
 interface IntentSearchProps {
   onAddToFlow: (capability: CatalogCapability) => void;
@@ -47,13 +48,13 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
   };
 
   return (
-    <div style={{ padding: '12px 10px' }}>
+    <div style={{ padding: `${spacing.md}px 10px` }}>
       <h3
         style={{
-          color: '#e0e0e0',
+          color: colors.text.primary,
           fontSize: '13px',
           fontWeight: 600,
-          margin: '0 0 8px',
+          margin: `0 0 ${spacing.sm}px`,
         }}
       >
         What are you trying to do?
@@ -66,12 +67,12 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
           onChange={(e) => void handleSearch(e.target.value)}
           style={{
             width: '100%',
-            padding: '6px 8px',
-            background: '#13131d',
-            border: '1px solid #333',
-            borderRadius: 4,
-            color: '#e0e0e0',
-            fontSize: '12px',
+            padding: `${spacing.sm - 2}px ${spacing.sm}px`,
+            background: colors.surface.base,
+            border: `1px solid ${colors.surface.border}`,
+            borderRadius: borderRadius.md,
+            color: colors.text.primary,
+            fontSize: fs.md,
             outline: 'none',
             boxSizing: 'border-box',
           }}
@@ -80,11 +81,11 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
           <span
             style={{
               position: 'absolute',
-              right: 8,
+              right: spacing.sm,
               top: '50%',
               transform: 'translateY(-50%)',
-              color: '#666',
-              fontSize: '10px',
+              color: colors.text.dim,
+              fontSize: fs.xs,
             }}
           >
             ...
@@ -93,29 +94,31 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
       </div>
 
       {!query && (
-        <div style={{ marginTop: 12 }}>
-          <p style={{ color: '#888', fontSize: '10px', marginBottom: 6 }}>Try:</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ marginTop: spacing.md }}>
+          <p style={{ color: colors.text.muted, fontSize: fs.xs, marginBottom: spacing.sm - 2 }}>
+            Try:
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xs }}>
             {EXAMPLE_QUERIES.map((example) => (
               <button
                 key={example}
                 onClick={() => handleExampleClick(example)}
                 style={{
                   background: '#252535',
-                  border: '1px solid #333',
-                  borderRadius: 4,
-                  padding: '5px 8px',
+                  border: `1px solid ${colors.surface.border}`,
+                  borderRadius: borderRadius.md,
+                  padding: `5px ${spacing.sm}px`,
                   color: '#aaa',
-                  fontSize: '11px',
+                  fontSize: fs.sm,
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#7c4dff';
-                  (e.currentTarget as HTMLButtonElement).style.color = '#e0e0e0';
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = colors.accent;
+                  (e.currentTarget as HTMLButtonElement).style.color = colors.text.primary;
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.borderColor = '#333';
+                  (e.currentTarget as HTMLButtonElement).style.borderColor = colors.surface.border;
                   (e.currentTarget as HTMLButtonElement).style.color = '#aaa';
                 }}
               >
@@ -128,7 +131,7 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
 
       {searchResults.length > 0 && (
         <div style={{ marginTop: 10 }}>
-          <p style={{ color: '#888', fontSize: '10px', marginBottom: 6 }}>
+          <p style={{ color: colors.text.muted, fontSize: fs.xs, marginBottom: spacing.sm - 2 }}>
             {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
           </p>
           {searchResults.map((result) => {
@@ -146,7 +149,14 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
       )}
 
       {query && !isLoading && searchResults.length === 0 && (
-        <div style={{ marginTop: 12, color: '#666', fontSize: '11px', textAlign: 'center' }}>
+        <div
+          style={{
+            marginTop: spacing.md,
+            color: colors.text.dim,
+            fontSize: fs.sm,
+            textAlign: 'center',
+          }}
+        >
           No capabilities found for &ldquo;{query}&rdquo;
         </div>
       )}

@@ -6,20 +6,11 @@ import {
 } from '../stores/pipeline-store.js';
 import type { NodeExecutionState } from '../stores/types.js';
 import { flowToPipeline } from '../services/pipeline-serializer.js';
+import { useToastStore } from '../stores/toast-store.js';
 
 function mapStepStatus(status: string | undefined): 'success' | 'error' {
   if (status === 'failed') return 'error';
   return 'success';
-}
-
-const DEFAULT_GATEWAY_URL = 'http://localhost:3456';
-
-function gatewayUrl(): string {
-  if (typeof window !== 'undefined') {
-    const url = (window as unknown as Record<string, unknown>)['__GATEWAY_URL__'];
-    if (typeof url === 'string') return url;
-  }
-  return DEFAULT_GATEWAY_URL;
 }
 
 export interface ValidationError {
@@ -49,6 +40,7 @@ export function useExecutor() {
   const setExecutionOutputs = usePipelineStore((s) => s.setExecutionOutputs);
   const nodeConfiguredValues = usePipelineStore((s) => s.nodeConfiguredValues);
   const setNodeExecutionState = usePipelineStore((s) => s.setNodeExecutionState);
+  const addToast = useToastStore((s) => s.addToast);
 
   const validate = useCallback((): ValidationResult => {
     const errors: ValidationError[] = [];
@@ -122,7 +114,7 @@ export function useExecutor() {
 
       if (options?.stream !== false) {
         try {
-          const res = await fetch(`${gatewayUrl()}/api/pipelines/execute`, {
+          const res = await fetch(`/api/pipelines/execute`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -138,6 +130,8 @@ export function useExecutor() {
               .catch(() => ({ error: { message: `HTTP ${res.status}` } }))) as {
               error?: { message?: string };
             };
+            const errorMsg = errorData.error?.message ?? `Execution failed: ${res.status}`;
+            addToast('error', 'Execution failed', errorMsg);
             setExecutionSession({
               id: sessionId,
               status: 'failed',
@@ -148,7 +142,7 @@ export function useExecutor() {
               errors: [
                 {
                   stepId: '',
-                  message: errorData.error?.message ?? `Execution failed: ${res.status}`,
+                  message: errorMsg,
                   code: 'EXECUTION_FAILED',
                 },
               ],
@@ -246,7 +240,8 @@ export function useExecutor() {
 
           setExecutionOutputs(data.outputs ?? {});
         } catch (err) {
-          // Set all nodes to error state
+          const errorMsg = err instanceof Error ? err.message : 'Network error';
+          addToast('error', 'Execution failed', errorMsg);
           for (const node of nodes) {
             setNodeExecutionState(node.id, {
               status: 'error',
@@ -287,6 +282,7 @@ export function useExecutor() {
       updateStepStatus,
       setExecutionOutputs,
       setNodeExecutionState,
+      addToast,
     ],
   );
 

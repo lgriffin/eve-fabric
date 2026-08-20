@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { colors, fontSize } from '../../tokens.js';
 
 interface ResultInspectorProps {
   nodeId: string;
@@ -16,13 +17,13 @@ const TABS: Array<{ key: InspectorTab; label: string }> = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
-  success: '#81c784',
-  error: '#ef5350',
-  running: '#42a5f5',
+  success: colors.status.successLight,
+  error: colors.status.error,
+  running: colors.status.info,
 };
 
 function statusColor(status: string): string {
-  return STATUS_COLORS[status] ?? '#888';
+  return STATUS_COLORS[status] ?? colors.text.muted;
 }
 
 export function ResultInspector({ nodeId }: ResultInspectorProps) {
@@ -37,8 +38,14 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
   if (!node) return null;
 
   return (
-    <div style={{ fontSize: '11px', color: '#ccc' }}>
-      <div style={{ display: 'flex', borderBottom: '1px solid #333', marginBottom: 8 }}>
+    <div style={{ fontSize: fontSize.sm, color: colors.text.secondary }}>
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: `1px solid ${colors.surface.border}`,
+          marginBottom: 8,
+        }}
+      >
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -49,9 +56,10 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
               fontSize: '9px',
               fontWeight: 600,
               border: 'none',
-              borderBottom: activeTab === tab.key ? '2px solid #7c4dff' : '2px solid transparent',
+              borderBottom:
+                activeTab === tab.key ? `2px solid ${colors.accent}` : '2px solid transparent',
               background: 'transparent',
-              color: activeTab === tab.key ? '#e0e0e0' : '#666',
+              color: activeTab === tab.key ? colors.text.primary : colors.text.dim,
               cursor: 'pointer',
             }}
           >
@@ -62,29 +70,35 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
 
       {activeTab === 'config' && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: '#aaa' }}>Configuration</div>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: colors.text.secondary }}>
+            Configuration
+          </div>
           {Object.entries(configuredValues).map(([name, val]) => (
             <div key={name} style={{ marginBottom: 2 }}>
-              <span style={{ color: '#888' }}>{name}: </span>
+              <span style={{ color: colors.text.muted }}>{name}: </span>
               <span>{val.displayLabel}</span>
             </div>
           ))}
           {Object.keys(configuredValues).length === 0 && (
-            <div style={{ color: '#666' }}>No values configured</div>
+            <div style={{ color: colors.text.dim }}>No values configured</div>
           )}
         </div>
       )}
 
       {activeTab === 'input' && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: '#aaa' }}>Inputs</div>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: colors.text.secondary }}>
+            Inputs
+          </div>
           {node.data.inputs.map((input) => (
             <div key={input.name} style={{ marginBottom: 2 }}>
-              <span style={{ color: '#888' }}>{input.name}</span>
-              <span style={{ color: '#555', fontSize: '9px', marginLeft: 4 }}>
+              <span style={{ color: colors.text.muted }}>{input.name}</span>
+              <span style={{ color: colors.text.disabled, fontSize: '9px', marginLeft: 4 }}>
                 ({input.semanticType})
               </span>
-              {input.required && <span style={{ color: '#ef5350', marginLeft: 2 }}>*</span>}
+              {input.required && (
+                <span style={{ color: colors.status.error, marginLeft: 2 }}>*</span>
+              )}
             </div>
           ))}
         </div>
@@ -92,11 +106,13 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
 
       {activeTab === 'output' && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: '#aaa' }}>Outputs</div>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: colors.text.secondary }}>
+            Outputs
+          </div>
           {node.data.outputs.map((output) => (
             <div key={output.name} style={{ marginBottom: 2 }}>
-              <span style={{ color: '#888' }}>{output.name}</span>
-              <span style={{ color: '#555', fontSize: '9px', marginLeft: 4 }}>
+              <span style={{ color: colors.text.muted }}>{output.name}</span>
+              <span style={{ color: colors.text.disabled, fontSize: '9px', marginLeft: 4 }}>
                 ({output.semanticType})
               </span>
             </div>
@@ -106,11 +122,13 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
 
       {activeTab === 'execution' && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: '#aaa' }}>Execution</div>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: colors.text.secondary }}>
+            Execution
+          </div>
           {execState && (
             <>
               <div style={{ marginBottom: 2 }}>
-                <span style={{ color: '#888' }}>Status: </span>
+                <span style={{ color: colors.text.muted }}>Status: </span>
                 <span
                   style={{
                     color: statusColor(execState.status),
@@ -121,72 +139,83 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
               </div>
               {execState.durationMs != null && (
                 <div style={{ marginBottom: 2 }}>
-                  <span style={{ color: '#888' }}>Duration: </span>
+                  <span style={{ color: colors.text.muted }}>Duration: </span>
                   {execState.durationMs}ms
                 </div>
               )}
               {execState.source && (
                 <div style={{ marginBottom: 2 }}>
-                  <span style={{ color: '#888' }}>Source: </span>
+                  <span style={{ color: colors.text.muted }}>Source: </span>
                   {execState.source}
                 </div>
               )}
               <div style={{ marginBottom: 2 }}>
-                <span style={{ color: '#888' }}>Cached: </span>
+                <span style={{ color: colors.text.muted }}>Cached: </span>
                 {execState.cached ? 'Yes' : 'No'}
               </div>
               {execState.resultCount != null && (
                 <div style={{ marginBottom: 2 }}>
-                  <span style={{ color: '#888' }}>Results: </span>
+                  <span style={{ color: colors.text.muted }}>Results: </span>
                   {execState.resultCount}
                 </div>
               )}
               {execState.error && (
-                <div style={{ color: '#ef5350', marginTop: 4 }}>{execState.error}</div>
+                <div style={{ color: colors.status.error, marginTop: 4 }}>{execState.error}</div>
               )}
             </>
           )}
           {stepMetrics && (
             <>
-              <div style={{ fontWeight: 600, marginTop: 8, marginBottom: 4, color: '#aaa' }}>
+              <div
+                style={{
+                  fontWeight: 600,
+                  marginTop: 8,
+                  marginBottom: 4,
+                  color: colors.text.secondary,
+                }}
+              >
                 Flow Execution
               </div>
               <div style={{ marginBottom: 2 }}>
-                <span style={{ color: '#888' }}>Duration: </span>
+                <span style={{ color: colors.text.muted }}>Duration: </span>
                 {stepMetrics.durationMs}ms
               </div>
               <div style={{ marginBottom: 2 }}>
-                <span style={{ color: '#888' }}>Cached: </span>
+                <span style={{ color: colors.text.muted }}>Cached: </span>
                 {stepMetrics.cached ? 'Yes' : 'No'}
               </div>
               {stepMetrics.source && (
                 <div style={{ marginBottom: 2 }}>
-                  <span style={{ color: '#888' }}>Source: </span>
+                  <span style={{ color: colors.text.muted }}>Source: </span>
                   {stepMetrics.source}
                 </div>
               )}
             </>
           )}
-          {!execState && !stepMetrics && <div style={{ color: '#666' }}>Not yet executed</div>}
+          {!execState && !stepMetrics && (
+            <div style={{ color: colors.text.dim }}>Not yet executed</div>
+          )}
         </div>
       )}
 
       {activeTab === 'preview' && (
         <div>
-          <div style={{ fontWeight: 600, marginBottom: 4, color: '#aaa' }}>Data Preview</div>
+          <div style={{ fontWeight: 600, marginBottom: 4, color: colors.text.secondary }}>
+            Data Preview
+          </div>
           {(() => {
             const previewData = execState?.preview ?? stepResult;
             if (previewData != null) {
               return (
                 <pre
                   style={{
-                    background: '#13131d',
+                    background: colors.surface.base,
                     padding: 8,
                     borderRadius: 4,
                     fontSize: '9px',
                     overflow: 'auto',
                     maxHeight: 200,
-                    color: '#b0b0b0',
+                    color: colors.text.secondary,
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-all',
                   }}
@@ -195,7 +224,7 @@ export function ResultInspector({ nodeId }: ResultInspectorProps) {
                 </pre>
               );
             }
-            return <div style={{ color: '#666' }}>Execute to see data preview</div>;
+            return <div style={{ color: colors.text.dim }}>Execute to see data preview</div>;
           })()}
         </div>
       )}
