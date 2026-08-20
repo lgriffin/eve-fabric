@@ -3,6 +3,7 @@ import {
   flowToPipeline,
   pipelineToYaml,
   pipelineToFlow,
+  yamlToPipeline,
 } from '../../src/services/pipeline-serializer.js';
 import type { CapabilityFlowNode } from '../../src/stores/pipeline-store.js';
 import type { PipelineDefinition } from '@eve-fabric/domain';
@@ -125,12 +126,64 @@ describe('Pipeline Serializer', () => {
       expect(yaml).toContain('version: 1');
       expect(yaml).toContain('name: Trade Opportunity');
       expect(yaml).toContain('description: Find cheapest market orders');
-      expect(yaml).toContain('type: eve.type.reference');
+      expect(yaml).toContain('semanticType: eve.type.reference');
       expect(yaml).toContain('required: true');
-      expect(yaml).toContain('capability: market.orders');
+      expect(yaml).toContain('id: market.orders');
       expect(yaml).toContain('from: input.item');
       expect(yaml).toContain('to: orders.item');
-      expect(yaml).toContain('sellPrice: aggregate.lowestSell');
+      expect(yaml).toContain('name: sellPrice');
+      expect(yaml).toContain('source: aggregate.lowestSell');
+    });
+  });
+
+  describe('yamlToPipeline', () => {
+    it('parses nested capability blocks', () => {
+      const yaml = `
+id: test-pipeline
+version: 2
+name: Test
+nodes:
+  - id: orders
+    capability:
+      id: market.orders
+      version: 1
+edges:
+  - from: input.item
+    to: orders.typeId
+`;
+      const result = yamlToPipeline(yaml);
+      expect(result.id).toBe('test-pipeline');
+      expect(result.version).toBe(2);
+      expect(result.nodes).toHaveLength(1);
+      expect(result.nodes[0]!.capability.id).toBe('market.orders');
+      expect(result.nodes[0]!.capability.version).toBe('1');
+      expect(result.edges).toHaveLength(1);
+      expect(result.edges[0]!.from).toBe('input.item');
+    });
+
+    it('round-trips through pipelineToYaml', () => {
+      const definition: PipelineDefinition = {
+        id: 'round-trip',
+        version: 3,
+        name: 'Round Trip Test',
+        inputs: [{ name: 'region', semanticType: 'eve.region.reference' as any, required: true }],
+        outputs: [{ name: 'result', source: 'calc.output' }],
+        nodes: [{ id: 'calc', capability: { id: 'trade.calc' as any, version: '2.0.0' as any } }],
+        edges: [{ from: 'input.region', to: 'calc.region' }],
+      };
+
+      const yaml = pipelineToYaml(definition);
+      const parsed = yamlToPipeline(yaml);
+
+      expect(parsed.id).toBe(definition.id);
+      expect(parsed.version).toBe(definition.version);
+      expect(parsed.name).toBe(definition.name);
+      expect(parsed.nodes).toHaveLength(1);
+      expect(parsed.nodes[0]!.capability.id).toBe('trade.calc');
+      expect(parsed.nodes[0]!.capability.version).toBe('2.0.0');
+      expect(parsed.edges).toHaveLength(1);
+      expect(parsed.inputs).toHaveLength(1);
+      expect(parsed.outputs).toHaveLength(1);
     });
   });
 });

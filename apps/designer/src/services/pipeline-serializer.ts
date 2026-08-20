@@ -6,6 +6,7 @@ import type {
   PipelineOutput,
 } from '@eve-fabric/domain';
 import type { Edge } from '@xyflow/react';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
 
 const NODE_WIDTH = 240;
@@ -120,158 +121,92 @@ function parsePortRef(ref: string): { nodeId: string; portName: string } {
   };
 }
 
+function str(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number') return value.toString();
+  return fallback;
+}
+
 export function yamlToPipeline(yaml: string): PipelineDefinition {
-  const lines = yaml.split('\n');
-  let id = '';
-  let version = 1;
-  let name = '';
-  let description: string | undefined;
-  const inputs: PipelineInput[] = [];
-  const nodes: PipelineNode[] = [];
-  const edges: PipelineEdge[] = [];
-  const outputs: PipelineOutput[] = [];
+  const doc = parseYaml(yaml) as Record<string, unknown>;
 
-  let section = '';
-  let currentInputName = '';
+  const id = str(doc.id);
+  const version = Number(doc.version) || 1;
+  const name = str(doc.name);
+  const description = typeof doc.description === 'string' ? doc.description.trim() : undefined;
 
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
+  const rawInputs = Array.isArray(doc.inputs) ? (doc.inputs as Record<string, unknown>[]) : [];
+  const inputs: PipelineInput[] = rawInputs.map((inp) => ({
+    name: str(inp.name),
+    semanticType: str(inp.semanticType) as PipelineInput['semanticType'],
+    description: typeof inp.description === 'string' ? inp.description : undefined,
+    required: inp.required !== false,
+  }));
 
-    if (trimmed.startsWith('id:')) {
-      id = trimmed.substring(3).trim();
-      continue;
+  const rawNodes = Array.isArray(doc.nodes) ? (doc.nodes as Record<string, unknown>[]) : [];
+  const nodes: PipelineNode[] = rawNodes.map((n) => {
+    const cap = n.capability as Record<string, unknown> | string | undefined;
+    let capId = '';
+    let capVersion = '1.0.0';
+    if (typeof cap === 'string') {
+      capId = cap;
+    } else if (cap && typeof cap === 'object') {
+      capId = str(cap.id);
+      capVersion = str(cap.version, '1.0.0');
     }
-    if (trimmed.startsWith('version:')) {
-      version = parseInt(trimmed.substring(8).trim(), 10) || 1;
-      continue;
-    }
-    if (trimmed.startsWith('name:') && section === '') {
-      name = trimmed.substring(5).trim();
-      continue;
-    }
-    if (trimmed.startsWith('description:') && section === '') {
-      description = trimmed.substring(12).trim();
-      continue;
-    }
+    return {
+      id: str(n.id),
+      capability: {
+        id: capId as PipelineNode['capability']['id'],
+        version: capVersion as PipelineNode['capability']['version'],
+      },
+    };
+  });
 
-    if (trimmed === 'inputs:' && section === '') {
-      section = 'inputs';
-      continue;
-    }
-    if (trimmed === 'nodes:') {
-      section = 'nodes';
-      continue;
-    }
-    if (trimmed === 'edges:') {
-      section = 'edges';
-      continue;
-    }
-    if (trimmed === 'outputs:') {
-      section = 'outputs';
-      continue;
-    }
+  const rawEdges = Array.isArray(doc.edges) ? (doc.edges as Record<string, unknown>[]) : [];
+  const edges: PipelineEdge[] = rawEdges.map((e) => ({
+    from: str(e.from),
+    to: str(e.to),
+  }));
 
-    if (section === 'inputs') {
-      if (
-        !trimmed.startsWith('-') &&
-        trimmed.endsWith(':') &&
-        !trimmed.startsWith('type:') &&
-        !trimmed.startsWith('description:') &&
-        !trimmed.startsWith('required:')
-      ) {
-        currentInputName = trimmed.slice(0, -1).trim();
-      } else if (trimmed.startsWith('type:')) {
-        const semanticType = trimmed.substring(5).trim();
-        inputs.push({
-          name: currentInputName,
-          semanticType: semanticType as PipelineInput['semanticType'],
-          required: true,
-        });
-      } else if (trimmed.startsWith('required:')) {
-        const lastInput = inputs[inputs.length - 1];
-        if (lastInput) {
-          (lastInput as { required: boolean }).required = trimmed.substring(9).trim() === 'true';
-        }
-      }
-    }
-
-    if (section === 'nodes' && trimmed.startsWith('- id:')) {
-      const nodeId = trimmed.substring(5).trim();
-      nodes.push({
-        id: nodeId,
-        capability: {
-          id: '' as PipelineNode['capability']['id'],
-          version: '1.0.0' as PipelineNode['capability']['version'],
-        },
-      });
-    }
-    if (section === 'nodes' && trimmed.startsWith('capability:')) {
-      const lastNode = nodes[nodes.length - 1];
-      if (lastNode) {
-        (lastNode as { capability: { id: string } }).capability.id = trimmed.substring(11).trim();
-      }
-    }
-
-    if (section === 'edges' && trimmed.startsWith('- from:')) {
-      edges.push({ from: trimmed.substring(7).trim(), to: '' });
-    }
-    if (section === 'edges' && trimmed.startsWith('to:')) {
-      const lastEdge = edges[edges.length - 1];
-      if (lastEdge) {
-        (lastEdge as { to: string }).to = trimmed.substring(3).trim();
-      }
-    }
-
-    if (section === 'outputs' && trimmed.includes(':') && !trimmed.startsWith('-')) {
-      const colonIdx = trimmed.indexOf(':');
-      outputs.push({
-        name: trimmed.substring(0, colonIdx).trim(),
-        source: trimmed.substring(colonIdx + 1).trim(),
-      });
-    }
-  }
+  const rawOutputs = Array.isArray(doc.outputs) ? (doc.outputs as Record<string, unknown>[]) : [];
+  const outputs: PipelineOutput[] = rawOutputs.map((o) => ({
+    name: str(o.name),
+    source: str(o.source),
+  }));
 
   return { id, version, name, description, inputs, nodes, edges, outputs };
 }
 
 export function pipelineToYaml(definition: PipelineDefinition): string {
-  const lines: string[] = [];
-  lines.push(`id: ${definition.id}`);
-  lines.push(`version: ${definition.version}`);
-  lines.push(`name: ${definition.name}`);
+  const doc: Record<string, unknown> = {
+    id: definition.id,
+    version: definition.version,
+    name: definition.name,
+  };
   if (definition.description) {
-    lines.push(`description: ${definition.description}`);
+    doc.description = definition.description;
   }
-
-  lines.push('');
-  lines.push('inputs:');
-  for (const input of definition.inputs) {
-    lines.push(`  ${input.name}:`);
-    lines.push(`    type: ${input.semanticType as string}`);
-    if (input.description) lines.push(`    description: ${input.description}`);
-    lines.push(`    required: ${input.required}`);
-  }
-
-  lines.push('');
-  lines.push('nodes:');
-  for (const node of definition.nodes) {
-    lines.push(`  - id: ${node.id}`);
-    lines.push(`    capability: ${node.capability.id as string}`);
-  }
-
-  lines.push('');
-  lines.push('edges:');
-  for (const edge of definition.edges) {
-    lines.push(`  - from: ${edge.from}`);
-    lines.push(`    to: ${edge.to}`);
-  }
-
-  lines.push('');
-  lines.push('outputs:');
-  for (const output of definition.outputs) {
-    lines.push(`  ${output.name}: ${output.source}`);
-  }
-
-  return lines.join('\n') + '\n';
+  doc.inputs = definition.inputs.map((inp) => {
+    const entry: Record<string, unknown> = {
+      name: inp.name,
+      semanticType: inp.semanticType,
+    };
+    if (inp.description) entry.description = inp.description;
+    entry.required = inp.required;
+    return entry;
+  });
+  doc.nodes = definition.nodes.map((node) => ({
+    id: node.id,
+    capability: { id: node.capability.id, version: node.capability.version },
+  }));
+  doc.edges = definition.edges.map((edge) => ({
+    from: edge.from,
+    to: edge.to,
+  }));
+  doc.outputs = definition.outputs.map((output) => ({
+    name: output.name,
+    source: output.source,
+  }));
+  return stringifyYaml(doc);
 }
