@@ -11,6 +11,8 @@ export function BooleanToggle({ value, label, onChange }: BooleanToggleProps) {
   return (
     <label
       className="boolean-toggle nopan nodrag"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       style={{
         display: 'flex',
         alignItems: 'center',

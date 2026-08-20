@@ -10,6 +10,8 @@ export function EnumSelector({ options, value, onChange }: EnumSelectorProps) {
   return (
     <div
       className="enum-selector nopan nodrag"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}
     >
       {options.map((option) => (

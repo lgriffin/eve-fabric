@@ -18,11 +18,24 @@ export function createExecutionRoutes(catalog: CapabilityCatalog): (app: Fastify
           const capability = capabilities.find((c) => (c.id as string) === capabilityId);
 
           if (!capability) {
+            const registeredIds = capabilities.map((c) => c.id as string);
+            req.log.error(
+              {
+                requestedId: capabilityId,
+                catalogSize: capabilities.length,
+                registeredIds,
+              },
+              `CAPABILITY_NOT_FOUND: '${capabilityId}' not in catalog (${capabilities.length} registered)`,
+            );
             return reply.status(404).send({
               status: 'error',
               capabilityId,
               error: `Capability '${capabilityId}' not found`,
               code: 'CAPABILITY_NOT_FOUND',
+              debug: {
+                catalogSize: capabilities.length,
+                registeredIds,
+              },
             });
           }
 

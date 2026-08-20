@@ -76,6 +76,8 @@ export function NodeInputEditor(props: NodeInputEditorProps) {
           className="text-input nopan nodrag"
           value={configured?.value != null ? String(configured.value) : ''}
           onChange={(e) => handleChange(e.target.value, e.target.value)}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           placeholder={`Enter ${portName}...`}
           style={{
             width: '100%',

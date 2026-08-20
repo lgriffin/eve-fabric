@@ -14,6 +14,8 @@ export function NumericInput({ value, onChange, min, max, step, placeholder }: N
     <input
       type="number"
       className="numeric-input nopan nodrag"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
       value={value != null ? String(value) : ''}
       onChange={(e) => {
         const num = Number(e.target.value);

@@ -112,7 +112,12 @@ export function SearchableSelector({
     >
       <button
         className="searchable-selector-trigger"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
         type="button"
         style={{
           width: '100%',
@@ -137,7 +142,9 @@ export function SearchableSelector({
 
       {isOpen && (
         <div
-          className="searchable-selector-dropdown"
+          className="searchable-selector-dropdown nopan nodrag"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
             top: '100%',
@@ -154,9 +161,12 @@ export function SearchableSelector({
         >
           <input
             type="text"
+            className="nopan nodrag"
             placeholder="Search..."
             value={searchText}
             onChange={(e) => handleSearchChange(e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             autoFocus
             style={{
               padding: '4px 8px',
@@ -177,7 +187,11 @@ export function SearchableSelector({
             {filteredOptions.map((item) => (
               <button
                 key={item.id}
-                onClick={() => handleSelect(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(item);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
                 type="button"
                 style={{
                   display: 'block',
