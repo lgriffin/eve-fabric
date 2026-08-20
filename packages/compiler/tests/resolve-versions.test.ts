@@ -109,6 +109,32 @@ describe('resolveVersions', () => {
     expect(result.diagnostics[0]!.code).toBe('CAPABILITY_NOT_FOUND');
   });
 
+  it('suggests latest semantic version when requested version is unavailable', () => {
+    const outOfOrderCatalog = new CapabilityCatalog();
+    registerCap(outOfOrderCatalog, 'market.orders', 3);
+    registerCap(outOfOrderCatalog, 'market.orders', 1);
+    registerCap(outOfOrderCatalog, 'market.orders', 2);
+
+    const pipeline: PipelineDefinition = {
+      id: 'test',
+      version: 1,
+      name: 'Test',
+      inputs: [],
+      nodes: [
+        {
+          id: 'orders',
+          capability: { id: capabilityId('market.orders'), version: capabilityVersion(99) },
+        },
+      ],
+      edges: [],
+      outputs: [{ name: 'r', source: 'orders.result' }],
+    };
+
+    const result = resolveVersions(pipeline, outOfOrderCatalog);
+    expect(result.diagnostics).toHaveLength(1);
+    expect(result.diagnostics[0]!.context?.suggestion).toBe('Use version 3.0.0');
+  });
+
   it('resolves multiple nodes independently', () => {
     const pipeline: PipelineDefinition = {
       id: 'test',
