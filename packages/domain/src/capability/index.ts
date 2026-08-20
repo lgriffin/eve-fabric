@@ -34,3 +34,5 @@ export {
 } from './schemas.js';
 
 export { CapabilityCatalog } from './catalog.js';
+
+export { type EditorType, getEditorType } from './input-editor-mapping.js';

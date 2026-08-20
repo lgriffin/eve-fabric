@@ -11,7 +11,7 @@ import {
   addEdge,
 } from '@xyflow/react';
 import type { PipelineDefinition } from '@eve-fabric/domain';
-import type { CompilerDiagnostic } from './types.js';
+import type { CompilerDiagnostic, ConfiguredValue, NodeExecutionState } from './types.js';
 import type { ExecutionPlan } from '@eve-fabric/compiler';
 
 export type ExecutionNodeState =
@@ -72,12 +72,15 @@ interface PipelineState {
   diagnostics: CompilerDiagnostic[];
   isDirty: boolean;
   selectedNodeId: string | null;
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents -- ExecutionPlan type resolves at build time
   compiledPlan: ExecutionPlan | null;
   graphqlSdl: string | null;
   executionSession: ExecutionSession | null;
   bridgingSuggestions: BridgingSuggestion[];
   drilldownStack: DrilldownEntry[];
   isPublishing: boolean;
+  nodeConfiguredValues: Record<string, Record<string, ConfiguredValue>>;
+  nodeExecutionStates: Record<string, NodeExecutionState>;
 }
 
 interface PipelineActions {
@@ -90,6 +93,7 @@ interface PipelineActions {
   setPipeline: (definition: PipelineDefinition) => void;
   setSelectedNode: (nodeId: string | null) => void;
   setPipelineMeta: (meta: { id?: string; name?: string; version?: number }) => void;
+  // eslint-disable-next-line @typescript-eslint/no-redundant-type-constituents
   setCompiledPlan: (plan: ExecutionPlan | null) => void;
   setGraphqlSdl: (sdl: string | null) => void;
   setExecutionSession: (session: ExecutionSession | null) => void;
@@ -116,6 +120,9 @@ interface PipelineActions {
     selectedOutputs: string[];
   }) => Promise<{ success: boolean; diagnostics: Array<{ message: string }> }>;
   reset: () => void;
+  setNodeInputValue: (nodeId: string, portName: string, value: ConfiguredValue) => void;
+  clearNodeInputValue: (nodeId: string, portName: string) => void;
+  setNodeExecutionState: (nodeId: string, state: NodeExecutionState) => void;
 }
 
 const initialState: PipelineState = {
@@ -133,6 +140,8 @@ const initialState: PipelineState = {
   bridgingSuggestions: [],
   drilldownStack: [],
   isPublishing: false,
+  nodeConfiguredValues: {},
+  nodeExecutionStates: {},
 };
 
 export const usePipelineStore = create<PipelineState & PipelineActions>()((set, get) => ({
@@ -167,9 +176,15 @@ export const usePipelineStore = create<PipelineState & PipelineActions>()((set, 
   },
 
   removeNode: (nodeId) => {
+    const configuredValues = { ...get().nodeConfiguredValues };
+    delete configuredValues[nodeId];
+    const executionStates = { ...get().nodeExecutionStates };
+    delete executionStates[nodeId];
     set({
       nodes: get().nodes.filter((n) => n.id !== nodeId),
       edges: get().edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
+      nodeConfiguredValues: configuredValues,
+      nodeExecutionStates: executionStates,
       isDirty: true,
     });
   },
@@ -295,5 +310,35 @@ export const usePipelineStore = create<PipelineState & PipelineActions>()((set, 
 
   reset: () => {
     set(initialState);
+  },
+
+  setNodeInputValue: (nodeId, portName, value) => {
+    const current = get().nodeConfiguredValues;
+    set({
+      nodeConfiguredValues: {
+        ...current,
+        [nodeId]: { ...current[nodeId], [portName]: value },
+      },
+      isDirty: true,
+    });
+  },
+
+  clearNodeInputValue: (nodeId, portName) => {
+    const current = get().nodeConfiguredValues;
+    const nodeValues = { ...current[nodeId] };
+    delete nodeValues[portName];
+    set({
+      nodeConfiguredValues: { ...current, [nodeId]: nodeValues },
+      isDirty: true,
+    });
+  },
+
+  setNodeExecutionState: (nodeId, state) => {
+    set({
+      nodeExecutionStates: {
+        ...get().nodeExecutionStates,
+        [nodeId]: state,
+      },
+    });
   },
 }));

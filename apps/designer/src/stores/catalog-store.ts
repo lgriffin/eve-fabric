@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { PaletteMode } from './types.js';
 
 export interface CatalogCapability {
   id: string;
@@ -12,11 +13,23 @@ export interface CatalogCapability {
   isComposite: boolean;
 }
 
+interface DiscoverySuggestion {
+  capabilityId: string;
+  name: string;
+  description: string;
+  source: string;
+  readiness: 'ready' | 'partial' | 'unreachable';
+  satisfactionRatio: number;
+  matchReasons: string[];
+}
+
 interface CatalogState {
   capabilities: CatalogCapability[];
   searchQuery: string;
   selectedSource: string | null;
   isLoading: boolean;
+  paletteMode: PaletteMode;
+  recommendedCapabilities: DiscoverySuggestion[];
 }
 
 interface CatalogActions {
@@ -26,6 +39,8 @@ interface CatalogActions {
   setLoading: (loading: boolean) => void;
   fetchCapabilities: () => Promise<void>;
   filteredCapabilities: () => CatalogCapability[];
+  setPaletteMode: (mode: PaletteMode) => void;
+  setRecommendedCapabilities: (capabilities: DiscoverySuggestion[]) => void;
 }
 
 function deriveCategory(id: string): string {
@@ -49,6 +64,8 @@ export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get
   searchQuery: '',
   selectedSource: null,
   isLoading: false,
+  paletteMode: 'discover',
+  recommendedCapabilities: [],
 
   setCapabilities: (capabilities) => {
     set({ capabilities: capabilities.map(enrichWithCategory) });
@@ -102,5 +119,13 @@ export const useCatalogStore = create<CatalogState & CatalogActions>()((set, get
     }
 
     return filtered;
+  },
+
+  setPaletteMode: (mode) => {
+    set({ paletteMode: mode });
+  },
+
+  setRecommendedCapabilities: (capabilities) => {
+    set({ recommendedCapabilities: capabilities });
   },
 }));
