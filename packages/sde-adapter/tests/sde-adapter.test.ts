@@ -111,6 +111,33 @@ describe('SdeAdapter', () => {
       expect(mockProvider.searchSolarSystemsByName).toHaveBeenCalledWith('Jita', 1);
     });
 
+    it('resolves region by name search', async () => {
+      const cap = makeCapability('universe.resolve.region', 'SDE');
+      const inputs = new Map<string, unknown>([['query', 'The Forge']]);
+      const result = await adapter.execute(cap, inputs);
+
+      expect(mockProvider.getAllRegions).toHaveBeenCalled();
+      expect((result.data as Record<string, unknown>).regionName).toBe('The Forge');
+    });
+
+    it('throws when type query is neither number nor string', async () => {
+      const cap = makeCapability('universe.resolve.type', 'SDE');
+      const inputs = new Map<string, unknown>([['query', true]]);
+      await expect(adapter.execute(cap, inputs)).rejects.toThrow(/numeric ID or string name/);
+    });
+
+    it('throws when region query is neither number nor string', async () => {
+      const cap = makeCapability('universe.resolve.region', 'SDE');
+      const inputs = new Map<string, unknown>([['query', true]]);
+      await expect(adapter.execute(cap, inputs)).rejects.toThrow(/numeric ID or string name/);
+    });
+
+    it('throws when solar system query is neither number nor string', async () => {
+      const cap = makeCapability('universe.resolve.solar.system', 'SDE');
+      const inputs = new Map<string, unknown>([['query', true]]);
+      await expect(adapter.execute(cap, inputs)).rejects.toThrow(/numeric ID or string name/);
+    });
+
     it('throws on unknown capability', async () => {
       const cap = makeCapability('unknown.capability', 'SDE');
       await expect(adapter.execute(cap, new Map())).rejects.toThrow(/does not handle capability/);

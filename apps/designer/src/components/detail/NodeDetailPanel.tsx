@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { ResultInspector } from './ResultInspector.js';
 
 const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
   ESI: { color: '#4fc3f7', label: 'ESI' },
@@ -189,6 +190,9 @@ export function NodeDetailPanel() {
             )}
           </>
         )}
+
+        <div style={sectionHeaderStyle}>RESULTS</div>
+        <ResultInspector nodeId={selectedNodeId!} />
       </div>
     </div>
   );

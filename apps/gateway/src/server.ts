@@ -16,6 +16,8 @@ import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
 import { createDiscoveryRoutes } from './routes/discovery-routes.js';
+import { createReferenceDataRoutes } from './routes/reference-data-routes.js';
+import { createExecutionRoutes } from './routes/execution-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { seedPrebuiltCapabilities } from './seed-capabilities.js';
 import { seedDemoCapabilities } from './seed-demo.js';
@@ -138,6 +140,8 @@ export function createServer(options?: ServerOptions): FastifyInstance {
 
   void app.register(createRegistryRoutes(registry));
   void app.register(createDiscoveryRoutes(registry.getCatalog()));
+  void app.register(createReferenceDataRoutes());
+  void app.register(createExecutionRoutes(registry.getCatalog()));
   void app.register(
     createPublishRoutes(registry, (id, version) => {
       const saved = savedPipelines.get(id);
@@ -198,8 +202,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
         });
 
         const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
-        // The compiler produces structurally compatible plans with plain string IDs;
-        // cast to the domain's branded ExecutionPlan type.
         const plan = compileResult.plan as unknown as ExecutionPlan;
         const result = await executor.execute(plan, inputMap);
 

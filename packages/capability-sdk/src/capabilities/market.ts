@@ -23,7 +23,7 @@ export const aggregate = defineCapability({
   id: 'market.aggregate',
   version: '1.0.0',
   name: 'Aggregate Market Data',
-  description: 'Aggregate market orders into lowest sell and highest buy prices',
+  description: 'Calculate statistics — find lowest sell and highest buy prices',
   inputs: {
     orders: { type: 'eve.market.order.collection', description: 'Orders to aggregate' },
   },

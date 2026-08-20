@@ -4,7 +4,7 @@ export const filter = defineCapability({
   id: 'collection.filter',
   version: '1.0.0',
   name: 'Filter Collection',
-  description: 'Filter a collection by a numeric threshold predicate',
+  description: "Filter them — remove items that don't match your conditions",
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to filter' },
     threshold: { type: 'eve.route.distance', description: 'Maximum value threshold' },
@@ -22,7 +22,7 @@ export const sort = defineCapability({
   id: 'collection.sort',
   version: '1.0.0',
   name: 'Sort Collection',
-  description: 'Sort a collection by a field in ascending or descending order',
+  description: 'Sort them — order results by price, volume, or other fields',
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to sort' },
   },
@@ -39,7 +39,7 @@ export const limit = defineCapability({
   id: 'collection.limit',
   version: '1.0.0',
   name: 'Limit Collection',
-  description: 'Take the first N items from a collection',
+  description: 'Take the top results — limit to a specific count',
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to limit' },
   },
