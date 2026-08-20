@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { colors } from '../../tokens.js';
 
 interface Port {
   name: string;
@@ -39,7 +40,14 @@ export function ContractEditor({ inputs, outputs, onSelectionChange }: ContractE
   return (
     <div style={{ display: 'flex', gap: 16 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ color: '#aaa', fontSize: '11px', fontWeight: 600, marginBottom: 6 }}>
+        <div
+          style={{
+            color: colors.text.secondary,
+            fontSize: '11px',
+            fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
           INPUTS
         </div>
         {inputs.map((port) => (
@@ -50,7 +58,7 @@ export function ContractEditor({ inputs, outputs, onSelectionChange }: ContractE
               alignItems: 'center',
               gap: 6,
               padding: '4px 0',
-              color: '#ccc',
+              color: colors.text.secondary,
               fontSize: '12px',
               cursor: 'pointer',
             }}
@@ -61,12 +69,19 @@ export function ContractEditor({ inputs, outputs, onSelectionChange }: ContractE
               onChange={() => toggleInput(port.name)}
             />
             <span>{port.name}</span>
-            <span style={{ color: '#666', fontSize: '10px' }}>{port.semanticType}</span>
+            <span style={{ color: colors.text.dim, fontSize: '10px' }}>{port.semanticType}</span>
           </label>
         ))}
       </div>
       <div style={{ flex: 1 }}>
-        <div style={{ color: '#aaa', fontSize: '11px', fontWeight: 600, marginBottom: 6 }}>
+        <div
+          style={{
+            color: colors.text.secondary,
+            fontSize: '11px',
+            fontWeight: 600,
+            marginBottom: 6,
+          }}
+        >
           OUTPUTS
         </div>
         {outputs.map((port) => (
@@ -77,7 +92,7 @@ export function ContractEditor({ inputs, outputs, onSelectionChange }: ContractE
               alignItems: 'center',
               gap: 6,
               padding: '4px 0',
-              color: '#ccc',
+              color: colors.text.secondary,
               fontSize: '12px',
               cursor: 'pointer',
             }}
@@ -88,7 +103,7 @@ export function ContractEditor({ inputs, outputs, onSelectionChange }: ContractE
               onChange={() => toggleOutput(port.name)}
             />
             <span>{port.name}</span>
-            <span style={{ color: '#666', fontSize: '10px' }}>{port.semanticType}</span>
+            <span style={{ color: colors.text.dim, fontSize: '10px' }}>{port.semanticType}</span>
           </label>
         ))}
       </div>

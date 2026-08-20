@@ -1,4 +1,5 @@
 import type { DrilldownEntry } from '../../stores/pipeline-store.js';
+import { colors } from '../../tokens.js';
 
 interface BreadcrumbNavProps {
   pipelineName: string;
@@ -12,8 +13,8 @@ export function BreadcrumbNav({ pipelineName, stack, onNavigate }: BreadcrumbNav
   return (
     <div
       style={{
-        background: '#1a1a2e',
-        borderBottom: '1px solid #333',
+        background: colors.surface.base,
+        borderBottom: `1px solid ${colors.surface.border}`,
         padding: '6px 12px',
         display: 'flex',
         alignItems: 'center',
@@ -26,7 +27,7 @@ export function BreadcrumbNav({ pipelineName, stack, onNavigate }: BreadcrumbNav
         style={{
           background: 'none',
           border: 'none',
-          color: '#7c4dff',
+          color: colors.accent,
           cursor: 'pointer',
           padding: '2px 4px',
           fontSize: '12px',
@@ -36,14 +37,14 @@ export function BreadcrumbNav({ pipelineName, stack, onNavigate }: BreadcrumbNav
       </button>
       {stack.map((entry, i) => (
         <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: '#555' }}>&gt;</span>
+          <span style={{ color: colors.text.disabled }}>&gt;</span>
           {i < stack.length - 1 ? (
             <button
               onClick={() => onNavigate(i)}
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#7c4dff',
+                color: colors.accent,
                 cursor: 'pointer',
                 padding: '2px 4px',
                 fontSize: '12px',
@@ -52,7 +53,7 @@ export function BreadcrumbNav({ pipelineName, stack, onNavigate }: BreadcrumbNav
               {entry.capabilityId}
             </button>
           ) : (
-            <span style={{ color: '#e0e0e0', padding: '2px 4px' }}>
+            <span style={{ color: colors.text.primary, padding: '2px 4px' }}>
               {entry.capabilityId} v{entry.version}
             </span>
           )}

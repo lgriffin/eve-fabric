@@ -38,7 +38,7 @@ export function CapabilityCard({ capability, onAddToFlow, highlighted }: Capabil
         }
       }}
       style={{
-        background: highlighted ? '#2a2a45' : '#252535',
+        background: highlighted ? colors.surface.overlay : colors.surface.raised,
         border: `1px solid ${highlighted ? colors.accent : colors.surface.border}`,
         borderRadius: borderRadius.lg,
         padding: `${spacing.sm}px 10px`,
@@ -72,7 +72,7 @@ export function CapabilityCard({ capability, onAddToFlow, highlighted }: Capabil
           {sourceLabel}
         </span>
       </div>
-      <div style={{ color: '#999', fontSize: fs.xs, marginTop: 3 }}>
+      <div style={{ color: colors.text.muted, fontSize: fs.xs, marginTop: 3 }}>
         {capability.description.length > 80
           ? capability.description.substring(0, 80) + '...'
           : capability.description}
@@ -93,7 +93,7 @@ export function CapabilityCard({ capability, onAddToFlow, highlighted }: Capabil
           }}
           style={{
             background: colors.accent,
-            color: '#fff',
+            color: colors.text.primary,
             border: 'none',
             borderRadius: borderRadius.sm,
             padding: `2px ${spacing.sm}px`,
