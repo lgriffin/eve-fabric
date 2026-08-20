@@ -72,7 +72,6 @@ interface PipelineState {
   diagnostics: CompilerDiagnostic[];
   isDirty: boolean;
   selectedNodeId: string | null;
-
   compiledPlan: ExecutionPlan | null;
   graphqlSdl: string | null;
   executionSession: ExecutionSession | null;
@@ -93,7 +92,6 @@ interface PipelineActions {
   setPipeline: (definition: PipelineDefinition) => void;
   setSelectedNode: (nodeId: string | null) => void;
   setPipelineMeta: (meta: { id?: string; name?: string; version?: number }) => void;
-
   setCompiledPlan: (plan: ExecutionPlan | null) => void;
   setGraphqlSdl: (sdl: string | null) => void;
   setExecutionSession: (session: ExecutionSession | null) => void;

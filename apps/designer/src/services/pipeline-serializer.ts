@@ -208,6 +208,5 @@ export function pipelineToYaml(definition: PipelineDefinition): string {
     name: output.name,
     source: output.source,
   }));
-
   return stringifyYaml(doc);
 }
