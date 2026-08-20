@@ -30,7 +30,7 @@ export interface SearchResultItem {
   explanation: string[];
 }
 
-export interface SearchResult {
+interface SearchResult {
   query: string;
   results: SearchResultItem[];
   count: number;
@@ -105,24 +105,6 @@ export async function findConsumers(semanticType: string): Promise<ConsumerInfo[
     if (!res.ok) return [];
     const json = (await res.json()) as { consumers: ConsumerInfo[] };
     return json.consumers;
-  } catch {
-    return [];
-  }
-}
-
-export async function findProducers(
-  semanticType: string,
-): Promise<{ id: string; version: string; name: string; explanation: string[] }[]> {
-  try {
-    const res = await fetch(
-      `${gatewayUrl()}/api/discovery/producers/${encodeURIComponent(semanticType)}`,
-    );
-
-    if (!res.ok) return [];
-    const json = (await res.json()) as {
-      producers: { id: string; version: string; name: string; explanation: string[] }[];
-    };
-    return json.producers;
   } catch {
     return [];
   }

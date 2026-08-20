@@ -13,7 +13,7 @@ export interface CatalogCapability {
   isComposite: boolean;
 }
 
-export interface DiscoverySuggestion {
+interface DiscoverySuggestion {
   capabilityId: string;
   name: string;
   description: string;

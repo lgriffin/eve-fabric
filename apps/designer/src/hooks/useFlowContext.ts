@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { usePipelineStore } from '../stores/pipeline-store.js';
 
-export interface FlowContext {
+interface FlowContext {
   availableOutputTypes: string[];
   existingCapabilityIds: string[];
 }

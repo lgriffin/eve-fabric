@@ -32,10 +32,3 @@ export interface NodeExecutionState {
 }
 
 export type PaletteMode = 'discover' | 'recommended' | 'all';
-
-export interface ContextualSuggestion {
-  capabilityId: string;
-  actionLabel: string;
-  description: string;
-  readiness: 'ready' | 'partial' | 'unreachable';
-}
