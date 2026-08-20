@@ -1,13 +1,3 @@
-const DEFAULT_GATEWAY_URL = 'http://localhost:3456';
-
-function gatewayUrl(): string {
-  if (typeof window !== 'undefined') {
-    const url = (window as unknown as Record<string, unknown>)['__GATEWAY_URL__'];
-    if (typeof url === 'string') return url;
-  }
-  return DEFAULT_GATEWAY_URL;
-}
-
 export interface DiscoverySuggestion {
   capabilityId: string;
   capabilityName: string;
@@ -60,7 +50,7 @@ export async function searchCapabilities(
       body.availableOutputTypes = flowContext.availableOutputTypes;
     }
 
-    const res = await fetch(`${gatewayUrl()}/api/discovery/search`, {
+    const res = await fetch(`/api/discovery/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -78,7 +68,7 @@ export async function suggestNext(
   maxResults = 20,
 ): Promise<DiscoverySuggestion[]> {
   try {
-    const res = await fetch(`${gatewayUrl()}/api/discovery/suggest`, {
+    const res = await fetch(`/api/discovery/suggest`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -98,9 +88,7 @@ export async function suggestNext(
 
 export async function findConsumers(semanticType: string): Promise<ConsumerInfo[]> {
   try {
-    const res = await fetch(
-      `${gatewayUrl()}/api/discovery/consumers/${encodeURIComponent(semanticType)}`,
-    );
+    const res = await fetch(`/api/discovery/consumers/${encodeURIComponent(semanticType)}`);
 
     if (!res.ok) return [];
     const json = (await res.json()) as { consumers: ConsumerInfo[] };

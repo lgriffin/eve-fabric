@@ -83,6 +83,9 @@ importers:
 
   apps/designer:
     dependencies:
+      '@dagrejs/dagre':
+        specifier: ^1.1.4
+        version: 1.1.8
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
@@ -169,8 +172,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sde-adapter
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
       fastify:
         specifier: ^5.0.0
         version: 5.12.1
@@ -264,8 +267,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -363,8 +366,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.4.0
-        version: 9.4.0
+        specifier: 9.6.0
+        version: 9.6.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -852,6 +855,13 @@ packages:
 
   '@cucumber/tag-expressions@6.1.2':
     resolution: {integrity: sha512-xa3pER+ntZhGCxRXSguDTKEHTZpUUsp+RzTRNnit+vi5cqnk6abLdSLg5i3HZXU3c74nQ8afQC6IT507EN74oQ==}
+
+  '@dagrejs/dagre@1.1.8':
+    resolution: {integrity: sha512-5SEDlndt4W/LaVzPYJW+bSmSEZc9EzTf8rJ20WCKvjS5EAZAN0b+x0Yww7VMT4R3Wootkg+X9bUfUxazYw6Blw==}
+
+  '@dagrejs/graphlib@2.2.4':
+    resolution: {integrity: sha512-mepCf/e9+SKYy1d02/UkvSy6+6MoyXhVxP8lLDfA7BPE1X1d4dR0sZznmbM8/XVJ1GPM+Svnx7Xj6ZweByWUkw==}
+    engines: {node: '>17.0.0'}
 
   '@drizzle-team/brocli@0.10.2':
     resolution: {integrity: sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w==}
@@ -1745,8 +1755,8 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lgriffin/esi.ts@9.4.0':
-    resolution: {integrity: sha512-gh8f0qKwDfjJkkzLv/T9el3Y9XhGbujMTazTeAlPno6uUMRoCIqNKZ8MKVnzOZSoRSri5OfHerTvDCDMUYGloA==}
+  '@lgriffin/esi.ts@9.6.0':
+    resolution: {integrity: sha512-AveYYhto2NsbANerRbQSq073/H29B1RRWAa3yiYSogsbWPgn7r9WTY6UaLspIgP9bqJp54ChmWjS/4BStqOTHw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       better-sqlite3: '>=9.0.0'
@@ -5247,6 +5257,12 @@ snapshots:
 
   '@cucumber/tag-expressions@6.1.2': {}
 
+  '@dagrejs/dagre@1.1.8':
+    dependencies:
+      '@dagrejs/graphlib': 2.2.4
+
+  '@dagrejs/graphlib@2.2.4': {}
+
   '@drizzle-team/brocli@0.10.2': {}
 
   '@emnapi/core@1.11.2':
@@ -5884,7 +5900,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lgriffin/esi.ts@9.4.0':
+  '@lgriffin/esi.ts@9.6.0':
     dependencies:
       pino: 9.14.0
       zod: 4.4.3

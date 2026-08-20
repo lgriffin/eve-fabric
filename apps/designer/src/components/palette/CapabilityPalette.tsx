@@ -5,14 +5,7 @@ import type { PaletteMode } from '../../stores/types.js';
 import { CapabilityCard } from './CapabilityCard.js';
 import { IntentSearch } from './IntentSearch.js';
 import { RecommendedPanel } from './RecommendedPanel.js';
-
-const SOURCE_COLORS: Record<string, string> = {
-  ESI: '#4fc3f7',
-  SDE: '#81c784',
-  DERIVED: '#ba68c8',
-  CACHE: '#ffd54f',
-  COMPOSITE: '#ff8a65',
-};
+import { colors, fontSize as fs, spacing, borderRadius, SOURCE_COLORS } from '../../tokens.js';
 
 const PALETTE_MODES: Array<{ key: PaletteMode; label: string }> = [
   { key: 'discover', label: 'Discover' },
@@ -30,6 +23,8 @@ export function CapabilityPalette() {
   const filteredCapabilities = useCatalogStore((s) => s.filteredCapabilities);
   const allCapabilities = useCatalogStore((s) => s.capabilities);
   const isLoading = useCatalogStore((s) => s.isLoading);
+  const error = useCatalogStore((s) => s.error);
+  const fetchCapabilities = useCatalogStore((s) => s.fetchCapabilities);
   const [showCompatibleOnly, setShowCompatibleOnly] = useState(false);
 
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
@@ -110,8 +105,8 @@ export function CapabilityPalette() {
       style={{
         width: 260,
         height: '100%',
-        background: '#1e1e2e',
-        borderRight: '1px solid #333',
+        background: colors.surface.raised,
+        borderRight: `1px solid ${colors.surface.border}`,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -123,7 +118,7 @@ export function CapabilityPalette() {
         aria-label="Palette modes"
         style={{
           display: 'flex',
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.surface.border}`,
           flexShrink: 0,
         }}
       >
@@ -154,14 +149,14 @@ export function CapabilityPalette() {
             tabIndex={paletteMode === mode.key ? 0 : -1}
             style={{
               flex: 1,
-              padding: '8px 4px',
-              fontSize: '10px',
+              padding: `${spacing.sm}px ${spacing.xs}px`,
+              fontSize: fs.xs,
               fontWeight: 600,
               border: 'none',
               borderBottom:
-                paletteMode === mode.key ? '2px solid #7c4dff' : '2px solid transparent',
+                paletteMode === mode.key ? `2px solid ${colors.accent}` : '2px solid transparent',
               background: 'transparent',
-              color: paletteMode === mode.key ? '#e0e0e0' : '#666',
+              color: paletteMode === mode.key ? colors.text.primary : colors.text.dim,
               cursor: 'pointer',
               letterSpacing: '0.3px',
             }}
@@ -174,10 +169,10 @@ export function CapabilityPalette() {
       {/* Mode description */}
       <div
         style={{
-          padding: '4px 10px',
+          padding: `${spacing.xs}px 10px`,
           fontSize: '9px',
-          color: '#555',
-          borderBottom: '1px solid #2a2a2a',
+          color: colors.text.disabled,
+          borderBottom: `1px solid ${colors.surface.overlay}`,
           flexShrink: 0,
         }}
       >
@@ -213,13 +208,19 @@ export function CapabilityPalette() {
       {/* All Capabilities mode */}
       {paletteMode === 'all' && (
         <>
-          <div style={{ padding: '12px 10px 8px', borderBottom: '1px solid #333', flexShrink: 0 }}>
+          <div
+            style={{
+              padding: `${spacing.md}px 10px ${spacing.sm}px`,
+              borderBottom: `1px solid ${colors.surface.border}`,
+              flexShrink: 0,
+            }}
+          >
             <div
               style={{
                 color: '#aaa',
-                fontSize: '11px',
+                fontSize: fs.sm,
                 fontWeight: 700,
-                marginBottom: 6,
+                marginBottom: spacing.sm - 2,
                 letterSpacing: '0.5px',
               }}
             >
@@ -232,31 +233,40 @@ export function CapabilityPalette() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                padding: '6px 8px',
-                background: '#13131d',
-                border: '1px solid #333',
-                borderRadius: 4,
-                color: '#e0e0e0',
-                fontSize: '12px',
+                padding: `${spacing.sm - 2}px ${spacing.sm}px`,
+                background: colors.surface.base,
+                border: `1px solid ${colors.surface.border}`,
+                borderRadius: borderRadius.md,
+                color: colors.text.primary,
+                fontSize: fs.md,
                 outline: 'none',
                 boxSizing: 'border-box',
               }}
             />
-            <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                gap: spacing.xs,
+                marginTop: spacing.sm - 2,
+                flexWrap: 'wrap',
+              }}
+            >
               {sources.map((source) => (
                 <button
                   key={source}
                   onClick={() => setSelectedSource(selectedSource === source ? null : source)}
                   style={{
-                    padding: '2px 6px',
+                    padding: `2px ${spacing.sm - 2}px`,
                     fontSize: '9px',
                     fontWeight: 600,
                     border: 'none',
-                    borderRadius: 3,
+                    borderRadius: borderRadius.sm,
                     cursor: 'pointer',
                     background:
-                      selectedSource === source ? (SOURCE_COLORS[source] ?? '#9e9e9e') : '#333',
-                    color: selectedSource === source ? '#1e1e2e' : '#888',
+                      selectedSource === source
+                        ? (SOURCE_COLORS[source] ?? colors.source.fallback)
+                        : colors.surface.border,
+                    color: selectedSource === source ? colors.surface.raised : colors.text.muted,
                   }}
                 >
                   {source}
@@ -267,16 +277,16 @@ export function CapabilityPalette() {
               <button
                 onClick={() => setShowCompatibleOnly((v) => !v)}
                 style={{
-                  marginTop: 6,
+                  marginTop: spacing.sm - 2,
                   width: '100%',
-                  padding: '4px 8px',
-                  fontSize: '10px',
+                  padding: `${spacing.xs}px ${spacing.sm}px`,
+                  fontSize: fs.xs,
                   fontWeight: 600,
                   border: 'none',
-                  borderRadius: 3,
+                  borderRadius: borderRadius.sm,
                   cursor: 'pointer',
-                  background: showCompatibleOnly ? '#7c4dff' : '#333',
-                  color: showCompatibleOnly ? '#fff' : '#888',
+                  background: showCompatibleOnly ? colors.accent : colors.surface.border,
+                  color: showCompatibleOnly ? '#fff' : colors.text.muted,
                 }}
               >
                 {showCompatibleOnly ? 'Show all' : 'Show compatible'}
@@ -284,25 +294,72 @@ export function CapabilityPalette() {
             )}
           </div>
 
-          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 10px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: `${spacing.sm}px 10px` }}>
+            {error && (
+              <div
+                style={{
+                  background: '#3d1a1a',
+                  border: `1px solid ${colors.status.error}`,
+                  borderRadius: borderRadius.lg,
+                  padding: `${spacing.md}px 10px`,
+                  marginBottom: spacing.sm,
+                  fontSize: fs.sm,
+                  color: colors.status.errorLight,
+                }}
+              >
+                <div style={{ fontWeight: 700, marginBottom: spacing.xs }}>Gateway Error</div>
+                <div style={{ color: colors.text.secondary, marginBottom: spacing.sm }}>
+                  {error}
+                </div>
+                <button
+                  onClick={() => void fetchCapabilities()}
+                  style={{
+                    padding: `${spacing.xs}px ${spacing.md}px`,
+                    fontSize: fs.sm,
+                    fontWeight: 600,
+                    border: `1px solid ${colors.status.error}`,
+                    borderRadius: borderRadius.md,
+                    background: 'transparent',
+                    color: colors.status.errorLight,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
             {isLoading && (
-              <div style={{ color: '#666', fontSize: '12px', textAlign: 'center', padding: 20 }}>
+              <div
+                style={{
+                  color: colors.text.dim,
+                  fontSize: fs.md,
+                  textAlign: 'center',
+                  padding: spacing.xl,
+                }}
+              >
                 Loading...
               </div>
             )}
-            {!isLoading && capabilities.length === 0 && (
-              <div style={{ color: '#666', fontSize: '12px', textAlign: 'center', padding: 20 }}>
+            {!isLoading && !error && capabilities.length === 0 && (
+              <div
+                style={{
+                  color: colors.text.dim,
+                  fontSize: fs.md,
+                  textAlign: 'center',
+                  padding: spacing.xl,
+                }}
+              >
                 No capabilities found. Connect to a gateway or drag capabilities will appear here.
               </div>
             )}
             {[...grouped.entries()].map(([category, caps]) => (
-              <div key={category} style={{ marginBottom: 12 }}>
+              <div key={category} style={{ marginBottom: spacing.md }}>
                 <div
                   style={{
                     color: '#777',
-                    fontSize: '10px',
+                    fontSize: fs.xs,
                     fontWeight: 600,
-                    marginBottom: 4,
+                    marginBottom: spacing.xs,
                     letterSpacing: '0.3px',
                   }}
                 >

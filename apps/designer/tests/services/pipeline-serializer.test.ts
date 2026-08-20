@@ -1,4 +1,6 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
   flowToPipeline,
   pipelineToYaml,
@@ -184,6 +186,54 @@ edges:
       expect(parsed.edges).toHaveLength(1);
       expect(parsed.inputs).toHaveLength(1);
       expect(parsed.outputs).toHaveLength(1);
+    });
+  });
+
+  describe('example pipeline imports', () => {
+    const examplesDir = resolve(__dirname, '../../../../examples');
+
+    it('imports market-schema pipeline with 2 nodes and 3 edges', () => {
+      const yaml = readFileSync(resolve(examplesDir, 'market-schema/pipeline.yaml'), 'utf-8');
+      const pipeline = yamlToPipeline(yaml);
+      expect(pipeline.nodes).toHaveLength(2);
+      expect(pipeline.edges).toHaveLength(3);
+      expect(pipeline.id).toBe('market.snapshot');
+      expect(pipeline.inputs).toHaveLength(2);
+    });
+
+    it('imports route-schema pipeline with 3 nodes and 4 edges', () => {
+      const yaml = readFileSync(resolve(examplesDir, 'route-schema/pipeline.yaml'), 'utf-8');
+      const pipeline = yamlToPipeline(yaml);
+      expect(pipeline.nodes).toHaveLength(3);
+      expect(pipeline.edges).toHaveLength(4);
+      expect(pipeline.id).toBe('route.info');
+    });
+
+    it('imports trade-opportunity pipeline with 4 nodes and 9 edges', () => {
+      const yaml = readFileSync(resolve(examplesDir, 'trade-opportunity/pipeline.yaml'), 'utf-8');
+      const pipeline = yamlToPipeline(yaml);
+      expect(pipeline.nodes).toHaveLength(4);
+      expect(pipeline.edges).toHaveLength(9);
+      expect(pipeline.id).toBe('trade.opportunity');
+    });
+
+    it('converts example pipelines to flow nodes and edges', () => {
+      const yaml = readFileSync(resolve(examplesDir, 'market-schema/pipeline.yaml'), 'utf-8');
+      const pipeline = yamlToPipeline(yaml);
+      const { nodes, edges } = pipelineToFlow(pipeline);
+      expect(nodes).toHaveLength(2);
+      expect(edges).toHaveLength(3);
+      expect(nodes[0]!.data.capabilityId).toBe('market.orders');
+    });
+
+    it('throws on malformed YAML', () => {
+      expect(() => yamlToPipeline('{')).toThrow();
+    });
+
+    it('handles YAML without nodes key gracefully', () => {
+      const pipeline = yamlToPipeline('id: empty\nversion: 1\nname: Empty');
+      expect(pipeline.nodes).toHaveLength(0);
+      expect(pipeline.edges).toHaveLength(0);
     });
   });
 });

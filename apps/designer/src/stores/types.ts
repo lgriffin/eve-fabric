@@ -32,3 +32,15 @@ export interface NodeExecutionState {
 }
 
 export type PaletteMode = 'discover' | 'recommended' | 'all';
+
+export type ToastSeverity = 'error' | 'warning' | 'success' | 'info';
+
+export interface Toast {
+  id: string;
+  severity: ToastSeverity;
+  title: string;
+  message: string;
+  dismissible: boolean;
+  autoDismissMs: number;
+  createdAt: number;
+}

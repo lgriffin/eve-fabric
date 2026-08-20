@@ -14,6 +14,7 @@ import { useCatalogStore } from '../../stores/catalog-store.js';
 import { useConnectionValidator } from '../../hooks/useConnectionValidator.js';
 import { CapabilityNode } from './CapabilityNode.js';
 import { ContextualPalette } from './ContextualPalette.js';
+import { colors } from '../../tokens.js';
 
 const nodeTypes = { capability: CapabilityNode };
 
@@ -65,7 +66,7 @@ export function PipelineCanvas() {
           return {
             ...edge,
             animated: true,
-            style: { stroke: '#42a5f5', strokeWidth: isFanOut ? 3 : 2 },
+            style: { stroke: colors.status.info, strokeWidth: isFanOut ? 3 : 2 },
           };
         }
       }
@@ -81,19 +82,19 @@ export function PipelineCanvas() {
         return {
           ...edge,
           animated: true,
-          style: { stroke: '#81c784', strokeWidth: isFanOut ? 3 : 2 },
+          style: { stroke: colors.status.successLight, strokeWidth: isFanOut ? 3 : 2 },
         };
       }
       if (sourceSuccess) {
         return {
           ...edge,
           animated: true,
-          style: { stroke: '#42a5f5', strokeWidth: isFanOut ? 2.5 : 1.5 },
+          style: { stroke: colors.status.info, strokeWidth: isFanOut ? 2.5 : 1.5 },
         };
       }
 
       if (isFanOut) {
-        return { ...edge, style: { stroke: '#ba68c8', strokeWidth: 2.5 } };
+        return { ...edge, style: { stroke: colors.source.DERIVED, strokeWidth: 2.5 } };
       }
 
       return edge;
@@ -319,14 +320,14 @@ export function PipelineCanvas() {
         nodeTypes={nodeTypes}
         fitView
         proOptions={{ hideAttribution: true }}
-        style={{ background: '#13131d' }}
+        style={{ background: colors.surface.base }}
       >
-        <Background color="#333" gap={20} />
+        <Background color={colors.surface.border} gap={20} />
         <Controls position="bottom-right" />
         <MiniMap
-          nodeColor="#7c4dff"
+          nodeColor={colors.accent}
           maskColor="rgba(0,0,0,0.7)"
-          style={{ background: '#1e1e2e' }}
+          style={{ background: colors.surface.raised }}
         />
       </ReactFlow>
       {contextPalette && (

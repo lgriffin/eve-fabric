@@ -4,14 +4,7 @@ import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline
 import { SemanticHandle } from './SemanticHandle.js';
 import { NodeInputEditor } from './NodeInputEditor.js';
 import { useNodeExecution } from '../../hooks/useNodeExecution.js';
-
-const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
-  ESI: { color: '#4fc3f7', label: 'ESI' },
-  SDE: { color: '#81c784', label: 'SDE' },
-  DERIVED: { color: '#ba68c8', label: 'DRV' },
-  CACHE: { color: '#ffd54f', label: 'CCH' },
-  COMPOSITE: { color: '#ff8a65', label: 'CMP' },
-};
+import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
 
 const pulseKeyframes = `
 @keyframes unconnected-pulse {
@@ -29,11 +22,11 @@ const pulseKeyframes = `
 `;
 
 const EXECUTION_STYLES: Record<string, { border: string; animation?: string; opacity?: number }> = {
-  queued: { border: '#666', animation: 'queued-pulse 1.5s ease-in-out infinite' },
-  executing: { border: '#42a5f5', animation: 'executing-pulse 1s ease-in-out infinite' },
-  completed: { border: '#81c784' },
-  failed: { border: '#ef5350' },
-  skipped: { border: '#555', opacity: 0.5 },
+  queued: { border: colors.text.dim, animation: 'queued-pulse 1.5s ease-in-out infinite' },
+  executing: { border: colors.status.info, animation: 'executing-pulse 1s ease-in-out infinite' },
+  completed: { border: colors.status.successLight },
+  failed: { border: colors.status.error },
+  skipped: { border: colors.text.disabled, opacity: 0.5 },
 };
 
 let styleInjected = false;
@@ -63,9 +56,9 @@ export const CapabilityNode = memo(function CapabilityNode({
   const isComposite = data.source === 'COMPOSITE';
 
   let nodeExecBorder: string | undefined;
-  if (nodeExecState?.status === 'running') nodeExecBorder = '#42a5f5';
-  else if (nodeExecState?.status === 'success') nodeExecBorder = '#81c784';
-  else if (nodeExecState?.status === 'error') nodeExecBorder = '#ef5350';
+  if (nodeExecState?.status === 'running') nodeExecBorder = colors.status.info;
+  else if (nodeExecState?.status === 'success') nodeExecBorder = colors.status.successLight;
+  else if (nodeExecState?.status === 'error') nodeExecBorder = colors.status.error;
 
   const handleTest = useCallback(
     (e: React.MouseEvent) => {
@@ -96,16 +89,19 @@ export const CapabilityNode = memo(function CapabilityNode({
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const badge = SOURCE_BADGES[data.source] ?? { color: '#9e9e9e', label: data.source || '?' };
+  const badge = SOURCE_BADGES[data.source] ?? {
+    color: colors.source.fallback,
+    label: data.source || '?',
+  };
 
   return (
     <div
       style={{
-        background: '#1e1e2e',
-        border: `2px solid ${selected ? '#7c4dff' : (execStyle?.border ?? nodeExecBorder ?? '#333')}`,
-        borderRadius: 8,
+        background: colors.surface.raised,
+        border: `2px solid ${selected ? colors.accent : (execStyle?.border ?? nodeExecBorder ?? colors.surface.border)}`,
+        borderRadius: borderRadius.xl,
         minWidth: 200,
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily,
         boxShadow: selected ? '0 0 12px rgba(124,77,255,0.3)' : '0 2px 8px rgba(0,0,0,0.3)',
         animation: execStyle?.animation,
         opacity: execStyle?.opacity ?? 1,
@@ -117,13 +113,15 @@ export const CapabilityNode = memo(function CapabilityNode({
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '6px 10px',
-          borderBottom: '1px solid #333',
-          background: '#252535',
+          borderBottom: `1px solid ${colors.surface.border}`,
+          background: colors.surface.overlay,
           borderRadius: '6px 6px 0 0',
           gap: 4,
         }}
       >
-        <span style={{ color: '#e0e0e0', fontWeight: 600, fontSize: '12px', flex: 1 }}>
+        <span
+          style={{ color: colors.text.primary, fontWeight: 600, fontSize: fontSize.md, flex: 1 }}
+        >
           {data.label}
         </span>
         <button
@@ -134,7 +132,7 @@ export const CapabilityNode = memo(function CapabilityNode({
           }}
           style={{
             background: 'transparent',
-            color: '#666',
+            color: colors.text.dim,
             border: 'none',
             cursor: 'pointer',
             fontSize: '9px',
@@ -148,9 +146,9 @@ export const CapabilityNode = memo(function CapabilityNode({
         <span
           style={{
             background: badge.color,
-            color: '#1e1e2e',
+            color: colors.surface.raised,
             padding: '1px 6px',
-            borderRadius: 4,
+            borderRadius: borderRadius.md,
             fontSize: '9px',
             fontWeight: 700,
             letterSpacing: '0.5px',
@@ -207,7 +205,7 @@ export const CapabilityNode = memo(function CapabilityNode({
         {data.outputs.length > 0 && (
           <div
             style={{
-              borderTop: data.inputs.length > 0 ? '1px solid #333' : undefined,
+              borderTop: data.inputs.length > 0 ? `1px solid ${colors.surface.border}` : undefined,
               padding: '2px 0',
             }}
           >
@@ -238,9 +236,9 @@ export const CapabilityNode = memo(function CapabilityNode({
                     );
                   }}
                   style={{
-                    background: '#333',
-                    color: '#aaa',
-                    border: '1px solid #444',
+                    background: colors.surface.border,
+                    color: colors.text.secondary,
+                    border: `1px solid ${colors.surface.borderLight}`,
                     borderRadius: '50%',
                     width: 18,
                     height: 18,
@@ -268,42 +266,46 @@ export const CapabilityNode = memo(function CapabilityNode({
         <div
           style={{
             padding: '4px 10px 6px',
-            borderTop: '1px solid #333',
+            borderTop: `1px solid ${colors.surface.border}`,
             fontSize: '9px',
-            color: '#666',
-            background: '#191928',
+            color: colors.text.dim,
+            background: colors.surface.base,
           }}
         >
           <div style={{ marginBottom: 2 }}>
-            <span style={{ color: '#555' }}>ID: </span>
+            <span style={{ color: colors.text.disabled }}>ID: </span>
             <span>
               {data.capabilityId}@{data.capabilityVersion}
             </span>
           </div>
           <div style={{ marginBottom: 2 }}>
-            <span style={{ color: '#555' }}>Source: </span>
+            <span style={{ color: colors.text.disabled }}>Source: </span>
             <span>{data.source}</span>
           </div>
           {data.inputs.length > 0 && (
             <div style={{ marginTop: 4 }}>
-              <div style={{ color: '#555', fontWeight: 600, marginBottom: 1 }}>Input Types</div>
+              <div style={{ color: colors.text.disabled, fontWeight: 600, marginBottom: 1 }}>
+                Input Types
+              </div>
               {data.inputs.map((input) => (
                 <div key={input.name} style={{ paddingLeft: 6, marginBottom: 1 }}>
-                  <span style={{ color: '#777' }}>{input.name}</span>
-                  <span style={{ color: '#555' }}>{' → '}</span>
-                  <span style={{ color: '#7c4dff' }}>{input.semanticType}</span>
+                  <span style={{ color: colors.text.dim }}>{input.name}</span>
+                  <span style={{ color: colors.text.disabled }}>{' → '}</span>
+                  <span style={{ color: colors.accent }}>{input.semanticType}</span>
                 </div>
               ))}
             </div>
           )}
           {data.outputs.length > 0 && (
             <div style={{ marginTop: 4 }}>
-              <div style={{ color: '#555', fontWeight: 600, marginBottom: 1 }}>Output Types</div>
+              <div style={{ color: colors.text.disabled, fontWeight: 600, marginBottom: 1 }}>
+                Output Types
+              </div>
               {data.outputs.map((output) => (
                 <div key={output.name} style={{ paddingLeft: 6, marginBottom: 1 }}>
-                  <span style={{ color: '#777' }}>{output.name}</span>
-                  <span style={{ color: '#555' }}>{' → '}</span>
-                  <span style={{ color: '#81c784' }}>{output.semanticType}</span>
+                  <span style={{ color: colors.text.dim }}>{output.name}</span>
+                  <span style={{ color: colors.text.disabled }}>{' → '}</span>
+                  <span style={{ color: colors.status.successLight }}>{output.semanticType}</span>
                 </div>
               ))}
             </div>
@@ -314,9 +316,9 @@ export const CapabilityNode = memo(function CapabilityNode({
       <div
         style={{
           padding: '3px 10px',
-          borderTop: '1px solid #333',
-          fontSize: '10px',
-          color: '#777',
+          borderTop: `1px solid ${colors.surface.border}`,
+          fontSize: fontSize.xs,
+          color: colors.text.dim,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -337,10 +339,10 @@ export const CapabilityNode = memo(function CapabilityNode({
           onClick={handleTest}
           disabled={nodeExecState?.status === 'running'}
           style={{
-            background: nodeExecState?.status === 'running' ? '#555' : '#7c4dff',
-            color: '#fff',
+            background: nodeExecState?.status === 'running' ? colors.text.disabled : colors.accent,
+            color: colors.text.primary,
             border: 'none',
-            borderRadius: 3,
+            borderRadius: borderRadius.sm,
             padding: '1px 8px',
             fontSize: '9px',
             fontWeight: 700,
@@ -362,10 +364,10 @@ export const CapabilityNode = memo(function CapabilityNode({
               });
             }}
             style={{
-              background: '#ff8a65',
-              color: '#1e1e2e',
+              background: colors.source.COMPOSITE,
+              color: colors.surface.raised,
               border: 'none',
-              borderRadius: 3,
+              borderRadius: borderRadius.sm,
               padding: '1px 6px',
               fontSize: '9px',
               fontWeight: 700,
@@ -386,8 +388,8 @@ export const CapabilityNode = memo(function CapabilityNode({
             borderTop: '1px solid rgba(239,83,80,0.3)',
             background: 'rgba(239,83,80,0.1)',
             borderRadius: '0 0 6px 6px',
-            fontSize: '10px',
-            color: '#ef5350',
+            fontSize: fontSize.xs,
+            color: colors.status.error,
           }}
         >
           {stepError}
@@ -401,8 +403,8 @@ export const CapabilityNode = memo(function CapabilityNode({
             borderTop: '1px solid rgba(129,199,132,0.3)',
             background: 'rgba(129,199,132,0.08)',
             borderRadius: '0 0 6px 6px',
-            fontSize: '10px',
-            color: '#81c784',
+            fontSize: fontSize.xs,
+            color: colors.status.successLight,
             display: 'flex',
             gap: 8,
           }}
@@ -424,8 +426,8 @@ export const CapabilityNode = memo(function CapabilityNode({
             borderTop: '1px solid rgba(239,83,80,0.3)',
             background: 'rgba(239,83,80,0.1)',
             borderRadius: '0 0 6px 6px',
-            fontSize: '10px',
-            color: '#ef5350',
+            fontSize: fontSize.xs,
+            color: colors.status.error,
           }}
         >
           {nodeExecState.error ?? 'Execution failed'}

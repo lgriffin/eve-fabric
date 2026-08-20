@@ -1,18 +1,12 @@
 import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { useToastStore } from '../../stores/toast-store.js';
 import { ResultInspector } from './ResultInspector.js';
-
-const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
-  ESI: { color: '#4fc3f7', label: 'ESI' },
-  SDE: { color: '#81c784', label: 'SDE' },
-  DERIVED: { color: '#ba68c8', label: 'DERIVED' },
-  CACHE: { color: '#ffd54f', label: 'CACHE' },
-  COMPOSITE: { color: '#ff8a65', label: 'COMPOSITE' },
-};
+import { colors, fontSize, borderRadius, SOURCE_BADGES } from '../../tokens.js';
 
 const sectionHeaderStyle: React.CSSProperties = {
-  color: '#aaa',
-  fontSize: '10px',
+  color: colors.text.secondary,
+  fontSize: fontSize.xs,
   fontWeight: 700,
   letterSpacing: '0.5px',
   marginBottom: 6,
@@ -24,8 +18,8 @@ const portRowStyle: React.CSSProperties = {
   justifyContent: 'space-between',
   alignItems: 'center',
   padding: '4px 0',
-  borderBottom: '1px solid #2a2a3a',
-  fontSize: '12px',
+  borderBottom: `1px solid ${colors.surface.overlay}`,
+  fontSize: fontSize.md,
 };
 
 interface DependencyTreeNode {
@@ -56,10 +50,10 @@ function DependencyTree({ node, depth = 0 }: { node: DependencyTreeNode; depth?:
             style={{
               background: 'none',
               border: 'none',
-              color: '#888',
+              color: colors.text.muted,
               cursor: 'pointer',
               padding: 0,
-              fontSize: '10px',
+              fontSize: fontSize.xs,
               width: 12,
             }}
           >
@@ -67,8 +61,8 @@ function DependencyTree({ node, depth = 0 }: { node: DependencyTreeNode; depth?:
           </button>
         )}
         {!hasChildren && <span style={{ width: 12 }} />}
-        <span style={{ color: '#e0e0e0' }}>{node.id as string}</span>
-        <span style={{ color: '#666', fontSize: '9px' }}>v{node.version as string}</span>
+        <span style={{ color: colors.text.primary }}>{node.id as string}</span>
+        <span style={{ color: colors.text.dim, fontSize: '9px' }}>v{node.version as string}</span>
       </div>
       {expanded &&
         node.children.map((child, i) => (
@@ -98,21 +92,29 @@ export function NodeDetailPanel() {
     fetch(`/api/registry/${node.data.capabilityId}/dependencies`)
       .then((res) => (res.ok ? (res.json() as Promise<DependencyTreeNode>) : null))
       .then((data) => setDepTree(data))
-      .catch(() => setDepTree(null));
+      .catch(() => {
+        setDepTree(null);
+        useToastStore
+          .getState()
+          .addToast('warning', 'Dependencies', 'Failed to load dependency tree');
+      });
   }, [node?.data.capabilityId, node?.data.source, node]);
 
   if (!node) return null;
 
   const { data } = node;
-  const badge = SOURCE_BADGES[data.source] ?? { color: '#9e9e9e', label: data.source || '?' };
+  const badge = SOURCE_BADGES[data.source] ?? {
+    color: colors.source.fallback,
+    label: data.source || '?',
+  };
 
   return (
     <div
       style={{
         width: 280,
         height: '100%',
-        background: '#1e1e2e',
-        borderLeft: '1px solid #333',
+        background: colors.surface.raised,
+        borderLeft: `1px solid ${colors.surface.border}`,
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -122,25 +124,27 @@ export function NodeDetailPanel() {
       <div
         style={{
           padding: '12px 12px 10px',
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.surface.border}`,
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ color: '#e0e0e0', fontWeight: 700, fontSize: '14px' }}>{data.label}</span>
+          <span style={{ color: colors.text.primary, fontWeight: 700, fontSize: fontSize.lg }}>
+            {data.label}
+          </span>
           <span
             style={{
               background: badge.color,
-              color: '#1e1e2e',
+              color: colors.surface.raised,
               padding: '2px 8px',
-              borderRadius: 4,
-              fontSize: '10px',
+              borderRadius: borderRadius.md,
+              fontSize: fontSize.xs,
               fontWeight: 700,
             }}
           >
             {badge.label}
           </span>
         </div>
-        <div style={{ color: '#888', fontSize: '11px', marginTop: 4 }}>
+        <div style={{ color: colors.text.muted, fontSize: fontSize.sm, marginTop: 4 }}>
           {data.capabilityId}@{data.capabilityVersion}
         </div>
       </div>
@@ -148,37 +152,47 @@ export function NodeDetailPanel() {
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 12px 12px' }}>
         <div style={sectionHeaderStyle}>INPUTS</div>
         {data.inputs.length === 0 && (
-          <div style={{ color: '#555', fontSize: '11px' }}>No inputs</div>
+          <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>No inputs</div>
         )}
         {data.inputs.map((input) => (
           <div key={input.name} style={portRowStyle}>
             <div>
-              <span style={{ color: '#e0e0e0' }}>{input.name}</span>
-              {input.required && <span style={{ color: '#ef5350', marginLeft: 4 }}>*</span>}
+              <span style={{ color: colors.text.primary }}>{input.name}</span>
+              {input.required && (
+                <span style={{ color: colors.status.error, marginLeft: 4 }}>*</span>
+              )}
             </div>
-            <span style={{ color: '#777', fontSize: '10px' }}>{input.semanticType}</span>
+            <span style={{ color: colors.text.dim, fontSize: fontSize.xs }}>
+              {input.semanticType}
+            </span>
           </div>
         ))}
 
         <div style={sectionHeaderStyle}>OUTPUTS</div>
         {data.outputs.length === 0 && (
-          <div style={{ color: '#555', fontSize: '11px' }}>No outputs</div>
+          <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>No outputs</div>
         )}
         {data.outputs.map((output) => (
           <div key={output.name} style={portRowStyle}>
-            <span style={{ color: '#e0e0e0' }}>{output.name}</span>
-            <span style={{ color: '#777', fontSize: '10px' }}>{output.semanticType}</span>
+            <span style={{ color: colors.text.primary }}>{output.name}</span>
+            <span style={{ color: colors.text.dim, fontSize: fontSize.xs }}>
+              {output.semanticType}
+            </span>
           </div>
         ))}
 
         <div style={sectionHeaderStyle}>AUTHENTICATION</div>
-        <div style={{ color: '#555', fontSize: '11px' }}>No authentication required</div>
+        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>
+          No authentication required
+        </div>
 
         <div style={sectionHeaderStyle}>CACHE POLICY</div>
-        <div style={{ color: '#555', fontSize: '11px' }}>Default policy</div>
+        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>Default policy</div>
 
         <div style={sectionHeaderStyle}>COST ESTIMATE</div>
-        <div style={{ color: '#555', fontSize: '11px' }}>~100ms estimated latency</div>
+        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>
+          ~100ms estimated latency
+        </div>
 
         {data.source === 'COMPOSITE' && (
           <>
@@ -186,7 +200,7 @@ export function NodeDetailPanel() {
             {depTree ? (
               <DependencyTree node={depTree} />
             ) : (
-              <div style={{ color: '#555', fontSize: '11px' }}>Loading...</div>
+              <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>Loading...</div>
             )}
           </>
         )}

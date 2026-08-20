@@ -1,4 +1,6 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
+import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay.js';
 import { ReactFlowProvider } from '@xyflow/react';
 import { CapabilityPalette } from './components/palette/CapabilityPalette.js';
 import { PipelineCanvas } from './components/canvas/PipelineCanvas.js';
@@ -7,138 +9,84 @@ import { GraphQLPreview } from './components/preview/GraphQLPreview.js';
 import { ExecutionPlanPreview } from './components/preview/ExecutionPlanPreview.js';
 import { ResultsPanel } from './components/preview/ResultsPanel.js';
 import { Toolbar } from './components/shared/Toolbar.js';
+import { ToastContainer } from './components/shared/ToastContainer.js';
+import { ExecutionInputDialog } from './components/shared/ExecutionInputDialog.js';
 import { NodeDetailPanel } from './components/detail/NodeDetailPanel.js';
 import { PublishDialog } from './components/publish/PublishDialog.js';
 import { BreadcrumbNav } from './components/drilldown/BreadcrumbNav.js';
 import { CompositeOverlay } from './components/drilldown/CompositeOverlay.js';
 import { usePipelineStore } from './stores/pipeline-store.js';
-import {
-  flowToPipeline,
-  pipelineToYaml,
-  yamlToPipeline,
-  pipelineToFlow,
-  enrichNodesWithCatalog,
-} from './services/pipeline-serializer.js';
+import { colors, fontFamily, fontSize } from './tokens.js';
 import { useLoadCatalog } from './hooks/useGatewayApi.js';
-import { useCompiler, useAutoCompile } from './hooks/useCompiler.js';
-import { useExecutor } from './hooks/useExecutor.js';
-import { useCatalogStore } from './stores/catalog-store.js';
-
-type PreviewTab = 'diagnostics' | 'graphql' | 'execution' | 'results';
+import { useYamlImportExport } from './hooks/useYamlImportExport.js';
+import { usePipelineActions } from './hooks/usePipelineActions.js';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<PreviewTab>('diagnostics');
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
-  const nodes = usePipelineStore((s) => s.nodes);
-  const edges = usePipelineStore((s) => s.edges);
-  const pipelineId = usePipelineStore((s) => s.pipelineId);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
   const pipelineName = usePipelineStore((s) => s.pipelineName);
-  const pipelineVersion = usePipelineStore((s) => s.pipelineVersion);
+  const pipelineId = usePipelineStore((s) => s.pipelineId);
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const executionSession = usePipelineStore((s) => s.executionSession);
   const drilldownStack = usePipelineStore((s) => s.drilldownStack);
   const openComposite = usePipelineStore((s) => s.openComposite);
   const closeComposite = usePipelineStore((s) => s.closeComposite);
-  const loadPipeline = usePipelineStore((s) => s.loadPipeline);
-  const capabilities = useCatalogStore((s) => s.capabilities);
+  const removeNode = usePipelineStore((s) => s.removeNode);
+  const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
+  const undo = usePipelineStore((s) => s.undo);
+  const redo = usePipelineStore((s) => s.redo);
 
   useLoadCatalog();
-  const { compileNow } = useCompiler();
-  const { execute, validate } = useExecutor();
-  useAutoCompile(true);
+  const { handleSave, handleExport, handleImport } = useYamlImportExport();
+  const {
+    validationErrors,
+    activeTab,
+    setActiveTab,
+    inputDialogOpen,
+    setInputDialogOpen,
+    pendingInputs,
+    handleValidate,
+    handleExecute,
+    handleInputSubmit,
+    handleRelayout,
+    handleNavigate,
+  } = usePipelineActions();
 
-  const [validationErrors, setValidationErrors] = useState<
-    Array<{ nodeId: string; nodeName: string; message: string }>
-  >([]);
-
-  const handleValidate = useCallback(() => {
-    compileNow();
-    const result = validate();
-    setValidationErrors(result.errors);
-  }, [compileNow, validate]);
-
-  const handleExecute = useCallback(async () => {
-    const valResult = validate();
-    setValidationErrors(valResult.errors);
-    if (!valResult.valid) return;
-
-    const result = compileNow();
-    if (result && result.success) {
-      setActiveTab('results');
-      await execute();
-    }
-  }, [compileNow, execute, validate]);
-
-  const handleSave = useCallback(() => {
-    const definition = flowToPipeline(
-      nodes,
-      edges,
-      { id: pipelineId || 'untitled', name: pipelineName, version: pipelineVersion },
-      [],
-      [],
-    );
-    const yaml = pipelineToYaml(definition);
-    const blob = new Blob([yaml], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${definition.id}.yaml`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [nodes, edges, pipelineId, pipelineName, pipelineVersion]);
-
-  const handleExport = useCallback(() => {
-    handleSave();
-  }, [handleSave]);
-
-  const processImportedYaml = useCallback(
-    (yaml: string) => {
-      try {
-        const definition = yamlToPipeline(yaml);
-        const { nodes: flowNodes, edges: flowEdges } = pipelineToFlow(definition);
-        const catalogMap = new Map(
-          capabilities.map((c) => [
-            c.id,
-            { name: c.name, source: c.source, inputs: c.inputs, outputs: c.outputs },
-          ]),
-        );
-        const enriched = enrichNodesWithCatalog(flowNodes, catalogMap);
-        loadPipeline(enriched, flowEdges, {
-          id: definition.id,
-          name: definition.name,
-          version: definition.version,
-        });
-      } catch {
-        // Invalid YAML - ignore
-      }
-    },
-    [capabilities, loadPipeline],
+  useKeyboardShortcuts(
+    useMemo(
+      () => ({
+        onUndo: undo,
+        onRedo: redo,
+        onSave: () => void handleSave(),
+        onDelete: () => {
+          if (selectedNodeId) removeNode(selectedNodeId);
+        },
+        onSelectAll: () => {
+          /* handled by React Flow */
+        },
+        onEscape: () => {
+          setSelectedNode(null);
+          setShowShortcuts(false);
+          setPublishDialogOpen(false);
+          setInputDialogOpen(false);
+        },
+        onToggleHelp: () => setShowShortcuts((v) => !v),
+      }),
+      [undo, redo, handleSave, selectedNodeId, removeNode, setSelectedNode, setInputDialogOpen],
+    ),
   );
-
-  const handleImport = useCallback(() => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.yaml,.yml';
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const yaml = e.target?.result;
-        if (typeof yaml === 'string') processImportedYaml(yaml);
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  }, [processImportedYaml]);
 
   const executionStatusColor = useMemo(() => {
     if (!executionSession) return undefined;
-    const colors: Record<string, string> = { running: '#42a5f5', completed: '#81c784' };
-    return colors[executionSession.status] ?? '#ef5350';
+    const statusColors: Record<string, string> = {
+      running: colors.status.info,
+      completed: colors.status.successLight,
+    };
+    return statusColors[executionSession.status] ?? colors.status.error;
   }, [executionSession]);
 
-  const tabs: Array<{ key: PreviewTab; label: string }> = [
+  const tabs: Array<{ key: typeof activeTab; label: string }> = [
     { key: 'diagnostics', label: 'Diagnostics' },
     { key: 'graphql', label: 'GraphQL' },
     { key: 'execution', label: 'Execution Plan' },
@@ -153,9 +101,9 @@ export function App() {
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
-          background: '#13131d',
-          fontFamily: 'Inter, system-ui, sans-serif',
-          color: '#e0e0e0',
+          background: colors.surface.base,
+          fontFamily,
+          color: colors.text.primary,
           overflow: 'hidden',
         }}
       >
@@ -166,6 +114,7 @@ export function App() {
           onExport={handleExport}
           onImport={handleImport}
           onPublish={() => setPublishDialogOpen(true)}
+          onRelayout={handleRelayout}
           validationErrors={validationErrors}
         />
 
@@ -173,18 +122,7 @@ export function App() {
           <BreadcrumbNav
             pipelineName={pipelineName}
             stack={drilldownStack}
-            onNavigate={(depth) => {
-              if (depth < 0) {
-                while (usePipelineStore.getState().drilldownStack.length > 0) {
-                  closeComposite();
-                }
-              } else {
-                const currentLen = usePipelineStore.getState().drilldownStack.length;
-                for (let i = currentLen - 1; i > depth; i--) {
-                  closeComposite();
-                }
-              }
-            }}
+            onNavigate={handleNavigate}
           />
         )}
 
@@ -199,8 +137,8 @@ export function App() {
             <div
               style={{
                 height: 200,
-                background: '#1e1e2e',
-                borderTop: '1px solid #333',
+                background: colors.surface.raised,
+                borderTop: `1px solid ${colors.surface.border}`,
                 display: 'flex',
                 flexDirection: 'column',
                 flexShrink: 0,
@@ -209,7 +147,7 @@ export function App() {
               <div
                 style={{
                   display: 'flex',
-                  borderBottom: '1px solid #333',
+                  borderBottom: `1px solid ${colors.surface.border}`,
                 }}
               >
                 {tabs.map((tab) => (
@@ -218,13 +156,15 @@ export function App() {
                     onClick={() => setActiveTab(tab.key)}
                     style={{
                       padding: '6px 14px',
-                      fontSize: '11px',
+                      fontSize: fontSize.sm,
                       fontWeight: 600,
                       border: 'none',
                       borderBottom:
-                        activeTab === tab.key ? '2px solid #7c4dff' : '2px solid transparent',
+                        activeTab === tab.key
+                          ? `2px solid ${colors.accent}`
+                          : '2px solid transparent',
                       background: 'transparent',
-                      color: activeTab === tab.key ? '#e0e0e0' : '#666',
+                      color: activeTab === tab.key ? colors.text.primary : colors.text.dim,
                       cursor: 'pointer',
                     }}
                   >
@@ -266,6 +206,15 @@ export function App() {
           />
         )}
       </div>
+      <ExecutionInputDialog
+        open={inputDialogOpen}
+        inputs={pendingInputs}
+        pipelineId={pipelineId || 'untitled'}
+        onSubmit={handleInputSubmit}
+        onCancel={() => setInputDialogOpen(false)}
+      />
+      {showShortcuts && <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />}
+      <ToastContainer />
     </ReactFlowProvider>
   );
 }

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
 import { useCatalogStore } from '../../stores/catalog-store.js';
 import { ContractEditor } from './ContractEditor.js';
+import { colors, fontSize, borderRadius } from '../../tokens.js';
 
 interface PublishDialogProps {
   open: boolean;
@@ -107,9 +108,9 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
     >
       <div
         style={{
-          background: '#1e1e2e',
-          border: '1px solid #444',
-          borderRadius: 8,
+          background: colors.surface.raised,
+          border: `1px solid ${colors.surface.borderLight}`,
+          borderRadius: borderRadius.xl,
           padding: 24,
           width: 520,
           maxHeight: '80vh',
@@ -117,10 +118,17 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 style={{ color: '#e0e0e0', margin: '0 0 16px' }}>Publish as Capability</h3>
+        <h3 style={{ color: colors.text.primary, margin: '0 0 16px' }}>Publish as Capability</h3>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ color: '#aaa', fontSize: '11px', display: 'block', marginBottom: 4 }}>
+          <label
+            style={{
+              color: colors.text.secondary,
+              fontSize: fontSize.sm,
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
             NAME
           </label>
           <input
@@ -131,23 +139,30 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
             style={{
               width: '100%',
               padding: '6px 8px',
-              background: '#13131d',
-              border: '1px solid #333',
-              borderRadius: 4,
-              color: '#e0e0e0',
+              background: colors.surface.base,
+              border: `1px solid ${colors.surface.border}`,
+              borderRadius: borderRadius.md,
+              color: colors.text.primary,
               fontSize: '12px',
               boxSizing: 'border-box',
             }}
           />
           {name && (
-            <div style={{ color: '#666', fontSize: '10px', marginTop: 2 }}>
+            <div style={{ color: colors.text.dim, fontSize: fontSize.xs, marginTop: 2 }}>
               ID: {generateId(name)}
             </div>
           )}
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ color: '#aaa', fontSize: '11px', display: 'block', marginBottom: 4 }}>
+          <label
+            style={{
+              color: colors.text.secondary,
+              fontSize: fontSize.sm,
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
             VERSION
           </label>
           <input
@@ -158,10 +173,10 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
             style={{
               width: '100%',
               padding: '6px 8px',
-              background: '#13131d',
-              border: '1px solid #333',
-              borderRadius: 4,
-              color: '#e0e0e0',
+              background: colors.surface.base,
+              border: `1px solid ${colors.surface.border}`,
+              borderRadius: borderRadius.md,
+              color: colors.text.primary,
               fontSize: '12px',
               boxSizing: 'border-box',
             }}
@@ -169,7 +184,14 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <label style={{ color: '#aaa', fontSize: '11px', display: 'block', marginBottom: 4 }}>
+          <label
+            style={{
+              color: colors.text.secondary,
+              fontSize: fontSize.sm,
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
             DESCRIPTION
           </label>
           <textarea
@@ -180,10 +202,10 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
             style={{
               width: '100%',
               padding: '6px 8px',
-              background: '#13131d',
-              border: '1px solid #333',
-              borderRadius: 4,
-              color: '#e0e0e0',
+              background: colors.surface.base,
+              border: `1px solid ${colors.surface.border}`,
+              borderRadius: borderRadius.md,
+              color: colors.text.primary,
               fontSize: '12px',
               boxSizing: 'border-box',
               resize: 'vertical',
@@ -192,7 +214,14 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <label style={{ color: '#aaa', fontSize: '11px', display: 'block', marginBottom: 4 }}>
+          <label
+            style={{
+              color: colors.text.secondary,
+              fontSize: fontSize.sm,
+              display: 'block',
+              marginBottom: 4,
+            }}
+          >
             PUBLIC CONTRACT
           </label>
           <ContractEditor
@@ -205,11 +234,11 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
         {error && (
           <div
             style={{
-              background: '#3e1111',
-              border: '1px solid #8b0000',
-              borderRadius: 4,
+              background: 'rgba(239,83,80,0.1)',
+              border: `1px solid ${colors.status.error}`,
+              borderRadius: borderRadius.md,
               padding: '8px 10px',
-              color: '#ff6b6b',
+              color: colors.status.errorLight,
               fontSize: '12px',
               marginBottom: 12,
             }}
@@ -221,11 +250,11 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
         {success && (
           <div
             style={{
-              background: '#113e11',
-              border: '1px solid #008b00',
-              borderRadius: 4,
+              background: 'rgba(67,160,71,0.1)',
+              border: `1px solid ${colors.status.success}`,
+              borderRadius: borderRadius.md,
               padding: '8px 10px',
-              color: '#6bff6b',
+              color: colors.status.successLight,
               fontSize: '12px',
               marginBottom: 12,
             }}
@@ -239,10 +268,10 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
             onClick={onClose}
             style={{
               padding: '6px 16px',
-              background: '#333',
+              background: colors.surface.border,
               border: 'none',
-              borderRadius: 4,
-              color: '#aaa',
+              borderRadius: borderRadius.md,
+              color: colors.text.secondary,
               cursor: 'pointer',
             }}
           >
@@ -253,10 +282,10 @@ export function PublishDialog({ open, onClose }: PublishDialogProps) {
             disabled={isPublishing}
             style={{
               padding: '6px 16px',
-              background: isPublishing ? '#444' : '#7c4dff',
+              background: isPublishing ? colors.surface.borderLight : colors.accent,
               border: 'none',
-              borderRadius: 4,
-              color: '#fff',
+              borderRadius: borderRadius.md,
+              color: colors.text.primary,
               cursor: isPublishing ? 'not-allowed' : 'pointer',
               fontWeight: 600,
             }}

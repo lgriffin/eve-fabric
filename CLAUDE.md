@@ -4,6 +4,9 @@ Auto-generated from all feature plans. Last updated: 2026-08-20
 
 ## Active Technologies
 
+- TypeScript 5.x (strict mode) + React 18, @xyflow/react (React Flow), Vite, Zustand, yaml 2.x, @dagrejs/dagre (new) (006-designer-dx-overhaul)
+- N/A (gateway provides persistence; localStorage for execution input history) (006-designer-dx-overhaul)
+
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod (005-intent-flow-designer)
 - Semantic type to editor type mapping in domain package, reference data endpoints in gateway (005-intent-flow-designer)
 
@@ -13,7 +16,7 @@ Auto-generated from all feature plans. Last updated: 2026-08-20
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation) (002-visual-pipeline-designer)
 - Gateway API persistence (YAML pipeline definitions via POST/GET endpoints) (002-visual-pipeline-designer)
 
-- TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.4.0), Fastify, (001-schema-gateway-mvp)
+- TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.6.0), Fastify, (001-schema-gateway-mvp)
 
 ## Project Structure
 
@@ -56,13 +59,11 @@ TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conve
 
 ## Recent Changes
 
+- 006-designer-dx-overhaul: Added TypeScript 5.x (strict mode) + React 18, @xyflow/react (React Flow), Vite, Zustand, yaml 2.x, @dagrejs/dagre (new)
+
 - 005-intent-flow-designer: Added semantic type to editor type mapping, reference data endpoints, single-node execution endpoint, palette modes (Discover/Recommended/All), interactive node input editors, contextual palette for smart connections
 
 - 003-composite-flow-registry: Added TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM
-
-- 002-visual-pipeline-designer: Added TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation)
-
-- 001-schema-gateway-mvp: Added TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.4.0), Fastify,
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
