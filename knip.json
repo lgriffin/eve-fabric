@@ -10,52 +10,36 @@
         "@eve-fabric/compiler",
         "@eve-fabric/planner",
         "@eve-fabric/schema-package",
+        "@eve-fabric/esi-adapter",
+        "@eve-fabric/sde-adapter",
         "lint-staged"
       ],
       "typedoc": false
     },
     "packages/*": {
-      "entry": ["src/index.ts!"],
       "project": ["src/**/*.ts"]
     },
     "packages/domain": {
-      "entry": ["src/index.ts!", "tests/bdd/**/*.ts"],
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@cucumber/cucumber"]
-    },
-    "packages/test-support": {
-      "entry": ["src/index.ts!", "src/bdd/**/*.ts"],
+      "entry": ["tests/bdd/**/*.ts"],
       "project": ["src/**/*.ts"]
     },
-    "packages/esi-adapter": {
-      "entry": ["src/index.ts!"],
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@lgriffin/esi.ts"]
+    "packages/test-support": {
+      "entry": ["src/bdd/**/*.ts"],
+      "project": ["src/**/*.ts"]
     },
     "packages/persistence": {
-      "entry": ["src/index.ts!"],
       "project": ["src/**/*.ts"],
       "ignoreDependencies": ["drizzle-kit"]
     },
     "apps/gateway": {
-      "entry": ["src/server.ts!", "tests/**/*.test.ts"],
+      "entry": ["tests/**/*.test.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": [
-        "@eve-fabric/cache",
-        "@eve-fabric/compiler",
-        "@eve-fabric/esi-adapter",
-        "@eve-fabric/executor",
-        "@eve-fabric/graphql",
-        "@eve-fabric/planner",
-        "@eve-fabric/sde-adapter"
-      ]
+      "ignoreDependencies": ["@eve-fabric/cache", "@eve-fabric/graphql", "@eve-fabric/planner"]
     },
     "apps/designer": {
-      "entry": ["src/main.tsx!"],
       "project": ["src/**/*.{ts,tsx}"],
       "ignoreDependencies": ["@eve-fabric/planner", "@eve-fabric/executor", "@eve-fabric/graphql"]
     }
   },
-  "ignore": ["cucumber.cjs", "examples/**", ".husky/**"],
-  "ignoreBinaries": ["lint-staged"]
+  "ignore": [".husky/**"]
 }

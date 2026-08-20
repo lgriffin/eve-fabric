@@ -1,1 +1,1 @@
-export { SdeAdapter } from './sde-adapter.js';
+export { SdeAdapter, type SdeAdapterConfig } from './sde-adapter.js';

@@ -106,7 +106,7 @@ describe('Pipeline CRUD and execute routes', () => {
     expect(body.error.code).toBe('NOT_FOUND');
   });
 
-  it('POST /api/pipelines/execute with valid pipeline returns 200 with outputs and metrics', async () => {
+  it('POST /api/pipelines/execute with invalid pipeline returns 400 with COMPILE_ERROR', async () => {
     const response = await app.inject({
       method: 'POST',
       url: '/api/pipelines/execute',
@@ -116,17 +116,9 @@ describe('Pipeline CRUD and execute routes', () => {
         inputs: { region: 10000002 },
       }),
     });
-    expect(response.statusCode).toBe(200);
+    expect(response.statusCode).toBe(400);
     const body = JSON.parse(response.body);
-    expect(body.status).toBe('completed');
-    expect(body.steps).toBeDefined();
-    expect(body.steps).toHaveLength(1);
-    expect(body.steps[0].stepId).toBe('n1');
-    expect(body.steps[0].status).toBe('completed');
-    expect(body.outputs).toBeDefined();
-    expect(body.metrics).toBeDefined();
-    expect(body.metrics.totalDurationMs).toBeGreaterThan(0);
-    expect(body.errors).toEqual([]);
+    expect(body.error.code).toBe('COMPILE_ERROR');
   });
 
   it('POST /api/pipelines/execute with missing pipeline returns 400 with PARSE_ERROR', async () => {

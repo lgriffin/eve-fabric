@@ -14,3 +14,5 @@ export {
 } from './tracing.js';
 
 export { aggregateProvenance } from './aggregate-provenance.js';
+
+export { DerivedAdapter } from './derived-adapter.js';

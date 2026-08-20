@@ -2,6 +2,16 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
 import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
+import { EsiClient } from '@lgriffin/esi.ts';
+import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
+import { EsiAdapter } from '@eve-fabric/esi-adapter';
+import { SdeAdapter } from '@eve-fabric/sde-adapter';
+import { Executor, DerivedAdapter } from '@eve-fabric/executor';
+import { compile } from '@eve-fabric/compiler';
+// GraphQL schema builder available for future pipeline-backed GraphQL endpoints
+// import { buildSchema as buildGraphQLSchema } from '@eve-fabric/graphql';
+// import type { PipelineRegistration } from '@eve-fabric/graphql';
 import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
@@ -18,9 +28,47 @@ export interface ServerOptions {
   readonly schema?: GraphQLSchema | undefined;
   readonly typeDefs?: string | undefined;
   readonly resolvers?: Record<string, Record<string, unknown>> | undefined;
+  readonly sdeDataPath?: string | undefined;
+  readonly esiClient?: EsiClient | undefined;
+}
+
+async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
+  const { MemorySdeProvider, SdeDataProvider } = await import('@lgriffin/esi.ts/sde');
+  if (sdeDataPath) {
+    try {
+      return SdeDataProvider.fromDirectory(sdeDataPath);
+    } catch {
+      return new MemorySdeProvider();
+    }
+  }
+  return new MemorySdeProvider();
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
+  const app = Fastify({ logger: true });
+
+  void app.register(tracingPlugin);
+
+  // Fabric Registry
+  const registry = new InMemoryFabricRegistry();
+  seedPrebuiltCapabilities(registry);
+  seedDemoCapabilities(registry);
+
+  // Adapters — SDE provider loads async to avoid CJS require issues in test
+  const esiClient = options?.esiClient ?? new EsiClient();
+  const esiAdapter = new EsiAdapter({ client: esiClient });
+  const derivedAdapter = new DerivedAdapter();
+  let sdeAdapterPromise: Promise<SdeAdapter> | undefined;
+  function getSdeAdapter(): Promise<SdeAdapter> {
+    if (sdeAdapterPromise === undefined) {
+      sdeAdapterPromise = createSdeProvider(
+        options?.sdeDataPath ?? process.env['SDE_DATA_PATH'],
+      ).then((provider) => new SdeAdapter({ provider }));
+    }
+    return sdeAdapterPromise;
+  }
+
+  // Build GraphQL schema
   let schema: GraphQLSchema;
   if (options?.schema !== undefined) {
     schema = options.schema;
@@ -36,10 +84,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     });
   }
 
-  const app = Fastify({ logger: true });
-
-  void app.register(tracingPlugin);
-
   const yoga = createYoga({
     schema,
     graphqlEndpoint: '/graphql',
@@ -53,8 +97,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   });
 
   // Mount GraphQL Yoga as a Fastify route.
-  // Uses yoga.fetch() with the Fastify-parsed body to avoid
-  // handleNodeRequest re-reading the raw stream (which hangs under inject).
   app.route({
     url: '/graphql',
     method: ['GET', 'POST', 'OPTIONS'],
@@ -96,11 +138,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     { yaml: string; name: string; version: number; savedAt: string }
   >();
 
-  // Fabric Registry
-  const registry = new InMemoryFabricRegistry();
-  seedPrebuiltCapabilities(registry);
-  seedDemoCapabilities(registry);
-
   void app.register(createRegistryRoutes(registry));
   void app.register(createDiscoveryRoutes(registry.getCatalog()));
   void app.register(createReferenceDataRoutes());
@@ -110,115 +147,100 @@ export function createServer(options?: ServerOptions): FastifyInstance {
       const saved = savedPipelines.get(id);
       if (!saved || saved.version !== version) return undefined;
       try {
-        return JSON.parse(saved.yaml) as import('@eve-fabric/domain').PipelineDefinition;
+        return JSON.parse(saved.yaml) as PipelineDefinition;
       } catch {
         return undefined;
       }
     }),
   );
 
-  // Pipeline execution endpoint
-  app.post<{
-    Body: {
-      pipeline: unknown;
-      inputs: Record<string, unknown>;
-      nodeConfiguredValues?: Record<
-        string,
-        Record<string, { value: unknown; semanticType?: string }>
-      >;
-    };
-  }>('/api/pipelines/execute', async (req, reply) => {
-    try {
-      const { pipeline } = req.body;
-      if (!pipeline) {
-        return reply.status(400).send({
+  // Pipeline execution endpoint — real compilation and execution
+  app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
+    '/api/pipelines/execute',
+    async (req, reply) => {
+      try {
+        const { pipeline, inputs } = req.body;
+        if (!pipeline) {
+          return reply.status(400).send({
+            error: {
+              code: 'PARSE_ERROR',
+              message: 'Missing pipeline in request body',
+              details: null,
+            },
+          });
+        }
+
+        const pipelineDef = pipeline as PipelineDefinition;
+        const catalog = registry.getCatalog();
+
+        let compileResult: ReturnType<typeof compile>;
+        try {
+          compileResult = compile(pipelineDef, catalog);
+        } catch (compileErr) {
+          return reply.status(400).send({
+            error: {
+              code: 'COMPILE_ERROR',
+              message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
+              details: null,
+            },
+          });
+        }
+        if (!compileResult.success || !compileResult.plan) {
+          return reply.status(400).send({
+            error: {
+              code: 'COMPILE_ERROR',
+              message: 'Pipeline compilation failed',
+              details: compileResult.diagnostics,
+            },
+          });
+        }
+
+        const sdeAdapter = await getSdeAdapter();
+        const executor = new Executor({
+          adapters: [esiAdapter, sdeAdapter, derivedAdapter],
+          catalog,
+        });
+
+        const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+        const plan = compileResult.plan as unknown as ExecutionPlan;
+        const result = await executor.execute(plan, inputMap);
+
+        const outputs: Record<string, unknown> = {};
+        for (const [key, value] of result.outputs) {
+          outputs[key] = value;
+        }
+
+        const provenance: Record<string, unknown> = {};
+        for (const [key, value] of result.provenance) {
+          provenance[key] = value;
+        }
+
+        const stepDurations: Record<string, number> = {};
+        for (const [key, value] of result.metrics.stepDurations) {
+          stepDurations[key] = value;
+        }
+
+        return reply.status(200).send({
+          outputs,
+          provenance,
+          metrics: {
+            totalDurationMs: result.metrics.totalDurationMs,
+            stepDurations,
+            cacheHits: result.metrics.cacheHits,
+            cacheMisses: result.metrics.cacheMisses,
+          },
+        });
+      } catch (err) {
+        return reply.status(500).send({
           error: {
-            code: 'PARSE_ERROR',
-            message: 'Missing pipeline in request body',
+            code: 'EXECUTION_FAILED',
+            message: err instanceof Error ? err.message : 'Unknown error',
             details: null,
           },
         });
       }
-
-      const pipelineDef = pipeline as {
-        nodes?: Array<{ id: string; capabilityId?: string }>;
-        edges?: Array<{ source: string; target: string }>;
-      };
-      const catalog = registry.getCatalog();
-      const capabilities = catalog.list();
-
-      const steps: Array<{
-        stepId: string;
-        capabilityId: string;
-        status: string;
-        durationMs: number;
-        cached: boolean;
-      }> = [];
-      const stepOutputs: Record<string, unknown> = {};
-      let totalDurationMs = 0;
-      const cacheHits = 0;
-
-      /* eslint-disable sonarjs/pseudo-random -- mock data for demo */
-      for (const node of pipelineDef.nodes ?? []) {
-        const capId = node.capabilityId ?? node.id;
-        const cap = capabilities.find((c) => (c.id as string) === capId);
-        const durationMs = 50 + Math.floor(Math.random() * 300);
-        totalDurationMs += durationMs;
-
-        if (cap) {
-          const nodeOutputs: Record<string, unknown> = {};
-          for (const [name, port] of cap.outputs) {
-            const st = port.semanticType as string;
-            if (st === 'eve.market.order.collection') {
-              nodeOutputs[name] = Array.from({ length: 50 }, (_, i) => ({
-                order_id: 6200000000 + i,
-                price: 3.5 + Math.random() * 3,
-                volume_remain: Math.floor(Math.random() * 100000),
-                is_buy_order: Math.random() > 0.5,
-              }));
-            } else if (st === 'eve.currency.isk') {
-              nodeOutputs[name] = 4.52;
-            } else if (st === 'eve.route.distance') {
-              nodeOutputs[name] = Math.floor(Math.random() * 10) + 1;
-            } else {
-              nodeOutputs[name] = null;
-            }
-          }
-          stepOutputs[node.id] = nodeOutputs;
-        }
-
-        steps.push({
-          stepId: node.id,
-          capabilityId: capId,
-          status: 'completed',
-          durationMs,
-          cached: false,
-        });
-      }
-      /* eslint-enable sonarjs/pseudo-random */
-
-      return reply.status(200).send({
-        status: 'completed',
-        steps,
-        outputs: stepOutputs,
-        metrics: {
-          totalDurationMs,
-          parallelDurationMs: Math.max(...steps.map((s) => s.durationMs), 0),
-          cacheHits,
-          cacheMisses: steps.length - cacheHits,
-        },
-        errors: [],
-      });
-    } catch (err) {
-      return reply.status(500).send({
-        error: {
-          code: 'EXECUTION_FAILED',
-          message: err instanceof Error ? err.message : 'Unknown error',
-          details: null,
-        },
-      });
-    }
-  });
+    },
+  );
 
   // Pipeline CRUD endpoints
   app.post('/api/pipelines', async (req, reply) => {
@@ -268,9 +290,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   return app;
 }
 
-/**
- * Start the server when run directly.
- */
 async function start(): Promise<void> {
   const port = Number(process.env['PORT'] ?? 3456);
   const host = process.env['HOST'] ?? '0.0.0.0';
