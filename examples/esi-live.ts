@@ -6,6 +6,14 @@
  * SDE provides item/region/system metadata, ESI provides live market data
  * and route calculations.
  *
+ * NOTE: The SDE adapter uses an inline provider here because importing
+ * @lgriffin/esi.ts/sde under tsx pulls in adm-zip (CJS) which breaks
+ * ESM mode. The gateway server uses the real MemorySdeProvider under
+ * plain Node.js where CJS interop works fine. Once ESI.ts exports
+ * MemorySdeProvider separately from SdeDataProvider/adm-zip, this
+ * example can switch to createMemorySdeProvider().
+ * See: https://github.com/lgriffin/ESI.ts/issues/194
+ *
  * Run: npx tsx examples/esi-live.ts
  *      — or —
  *      pnpm run demo:esi
@@ -14,67 +22,11 @@ import { EsiAdapter, EsiClient } from '@eve-fabric/esi-adapter';
 import { SdeAdapter } from '@eve-fabric/sde-adapter';
 import type { CapabilityDefinition, SourceAdapterResult } from '@eve-fabric/domain';
 
-// Inline SDE provider — implements only the methods the SDE adapter uses.
-// This avoids importing @lgriffin/esi.ts/sde which pulls in adm-zip (CJS)
-// and breaks under tsx's ESM mode.
+// Inline SDE data — matches the EveType/Region/SolarSystem shapes from
+// @lgriffin/esi.ts exactly, so the SDE adapter works identically to the
+// real MemorySdeProvider used in the gateway server.
 
-interface SdeType {
-  typeId: number;
-  name: string;
-  groupId: number;
-  mass: number;
-  portionSize: number;
-  published: boolean;
-  volume: number | null;
-  description: string | null;
-  marketGroupId: number | null;
-  iconId: number | null;
-  packagedVolume: number | null;
-  radius: number | null;
-  graphicId: number | null;
-  soundId: number | null;
-  raceId: number | null;
-  basePrice: number | null;
-  capacity: number | null;
-  isRepackable: boolean | null;
-}
-
-interface SdeRegion {
-  regionId: number;
-  name: string;
-  constellationIDs: number[];
-  description: string;
-  factionId: number;
-  nebulaId: number;
-  position: { x: number; y: number; z: number };
-  wormholeClassId: number;
-}
-
-interface SdeSolarSystem {
-  systemId: number;
-  name: string;
-  constellationId: number;
-  regionId: number;
-  securityStatus: number;
-  border: boolean;
-  hub: boolean;
-  international: boolean;
-  luminosity: number;
-  planetIDs: number[];
-  position: { x: number; y: number; z: number };
-  position2D: { x: number; y: number };
-  radius: number;
-  regional: boolean;
-  securityClass: string;
-  starId: number;
-  stargateIDs: number[];
-  corridor: boolean | null;
-  fringe: boolean | null;
-  wormholeClassId: number | null;
-  visualEffect: string | null;
-}
-
-const TYPES: SdeType[] = [
+const TYPES = [
   {
     typeId: 34,
     name: 'Tritanium',
@@ -159,11 +111,11 @@ const TYPES: SdeType[] = [
   },
 ];
 
-const REGIONS: SdeRegion[] = [
+const REGIONS = [
   {
     regionId: 10000002,
     name: 'The Forge',
-    constellationIDs: [],
+    constellationIDs: [] as number[],
     description: '',
     factionId: 0,
     nebulaId: 0,
@@ -173,7 +125,7 @@ const REGIONS: SdeRegion[] = [
   {
     regionId: 10000043,
     name: 'Domain',
-    constellationIDs: [],
+    constellationIDs: [] as number[],
     description: '',
     factionId: 0,
     nebulaId: 0,
@@ -183,7 +135,7 @@ const REGIONS: SdeRegion[] = [
   {
     regionId: 10000032,
     name: 'Sinq Laison',
-    constellationIDs: [],
+    constellationIDs: [] as number[],
     description: '',
     factionId: 0,
     nebulaId: 0,
@@ -193,7 +145,7 @@ const REGIONS: SdeRegion[] = [
   {
     regionId: 10000030,
     name: 'Heimatar',
-    constellationIDs: [],
+    constellationIDs: [] as number[],
     description: '',
     factionId: 0,
     nebulaId: 0,
@@ -202,7 +154,7 @@ const REGIONS: SdeRegion[] = [
   },
 ];
 
-const SOLAR_SYSTEMS: SdeSolarSystem[] = [
+const SOLAR_SYSTEMS = [
   {
     systemId: 30000142,
     name: 'Jita',
@@ -213,14 +165,14 @@ const SOLAR_SYSTEMS: SdeSolarSystem[] = [
     hub: true,
     international: false,
     luminosity: 0,
-    planetIDs: [],
+    planetIDs: [] as number[],
     position: { x: 0, y: 0, z: 0 },
     position2D: { x: 0, y: 0 },
     radius: 0,
     regional: false,
     securityClass: 'A',
     starId: 0,
-    stargateIDs: [],
+    stargateIDs: [] as number[],
     corridor: null,
     fringe: null,
     wormholeClassId: null,
@@ -236,14 +188,14 @@ const SOLAR_SYSTEMS: SdeSolarSystem[] = [
     hub: true,
     international: false,
     luminosity: 0,
-    planetIDs: [],
+    planetIDs: [] as number[],
     position: { x: 0, y: 0, z: 0 },
     position2D: { x: 0, y: 0 },
     radius: 0,
     regional: false,
     securityClass: 'A',
     starId: 0,
-    stargateIDs: [],
+    stargateIDs: [] as number[],
     corridor: null,
     fringe: null,
     wormholeClassId: null,
@@ -259,14 +211,14 @@ const SOLAR_SYSTEMS: SdeSolarSystem[] = [
     hub: true,
     international: false,
     luminosity: 0,
-    planetIDs: [],
+    planetIDs: [] as number[],
     position: { x: 0, y: 0, z: 0 },
     position2D: { x: 0, y: 0 },
     radius: 0,
     regional: false,
     securityClass: 'B',
     starId: 0,
-    stargateIDs: [],
+    stargateIDs: [] as number[],
     corridor: null,
     fringe: null,
     wormholeClassId: null,
@@ -282,14 +234,14 @@ const SOLAR_SYSTEMS: SdeSolarSystem[] = [
     hub: true,
     international: false,
     luminosity: 0,
-    planetIDs: [],
+    planetIDs: [] as number[],
     position: { x: 0, y: 0, z: 0 },
     position2D: { x: 0, y: 0 },
     radius: 0,
     regional: false,
     securityClass: 'B',
     starId: 0,
-    stargateIDs: [],
+    stargateIDs: [] as number[],
     corridor: null,
     fringe: null,
     wormholeClassId: null,
@@ -356,7 +308,6 @@ async function main(): Promise<void> {
   const client = new EsiClient();
   const esiAdapter = new EsiAdapter({ client });
   const sdeProvider = createInlineSdeProvider();
-  // The inline provider implements the subset of IStaticDataProvider the adapter uses
   const sdeAdapter = new SdeAdapter({ provider: sdeProvider as never });
 
   // -- Step 1: Resolve items from SDE --
@@ -488,7 +439,7 @@ async function main(): Promise<void> {
 
   // -- Summary --
   section('Summary: SDE + ESI Working Together');
-  console.log('  SDE (static data via inline provider):');
+  console.log('  SDE (static data via inline provider, same shape as MemorySdeProvider):');
   console.log('    - Resolved item types by name -> typeId, volume, description');
   console.log('    - Resolved solar systems by name -> systemId, security, region');
   console.log('    - Resolved regions by ID -> region name');
@@ -501,7 +452,12 @@ async function main(): Promise<void> {
   console.log();
   console.log('  The adapter layer wraps both data sources behind the same');
   console.log('  SourceAdapter interface, so the pipeline executor can mix');
-  console.log('  SDE lookups and ESI calls in a single execution plan.\n');
+  console.log('  SDE lookups and ESI calls in a single execution plan.');
+  console.log();
+  console.log('  NOTE: The gateway server uses the real MemorySdeProvider from');
+  console.log('  @lgriffin/esi.ts/sde under plain Node.js. This example uses an');
+  console.log('  inline provider because tsx ESM mode cannot import adm-zip (CJS).');
+  console.log('  See: https://github.com/lgriffin/esi.ts — separate MemorySdeProvider export\n');
 }
 
 main().catch((err) => {
