@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useDiscovery } from '../../hooks/useDiscovery.js';
 import { useFlowContext } from '../../hooks/useFlowContext.js';
-import type { CatalogCapability } from '../../stores/catalog-store.js';
+import { useCatalogStore, type CatalogCapability } from '../../stores/catalog-store.js';
 import type { DiscoverySuggestion } from '../../services/discovery-service.js';
 import { IntentSearch } from './IntentSearch.js';
 
@@ -29,17 +29,10 @@ export function RecommendedPanel({ onAddToFlow }: RecommendedPanelProps) {
   }, [outputTypesKey, capIdsKey]);
 
   const suggestionToCapability = useCallback(
-    (suggestion: DiscoverySuggestion): CatalogCapability => ({
-      id: suggestion.capabilityId,
-      version: '1.0.0',
-      name: suggestion.capabilityName,
-      description: suggestion.explanation.join('. '),
-      source: suggestion.matchReason.includes('ESI') ? 'ESI' : 'DERIVED',
-      inputs: [],
-      outputs: [],
-      category: suggestion.capabilityId.split('.')[0] ?? 'Other',
-      isComposite: false,
-    }),
+    (suggestion: DiscoverySuggestion): CatalogCapability | null => {
+      const capabilities = useCatalogStore.getState().capabilities;
+      return capabilities.find((c) => c.id === suggestion.capabilityId) ?? null;
+    },
     [],
   );
 
@@ -75,7 +68,10 @@ export function RecommendedPanel({ onAddToFlow }: RecommendedPanelProps) {
       {suggestions.map((suggestion) => (
         <div
           key={suggestion.capabilityId}
-          onClick={() => onAddToFlow(suggestionToCapability(suggestion))}
+          onClick={() => {
+            const cap = suggestionToCapability(suggestion);
+            if (cap) onAddToFlow(cap);
+          }}
           style={{
             background: '#252535',
             border: '1px solid #333',

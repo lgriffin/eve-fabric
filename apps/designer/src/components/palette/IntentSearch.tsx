@@ -2,17 +2,11 @@ import { useState, useCallback } from 'react';
 import { useDiscovery } from '../../hooks/useDiscovery.js';
 import { useFlowContext } from '../../hooks/useFlowContext.js';
 import { CapabilityCard } from './CapabilityCard.js';
-import type { CatalogCapability } from '../../stores/catalog-store.js';
+import { useCatalogStore, type CatalogCapability } from '../../stores/catalog-store.js';
 import type { SearchResultItem } from '../../services/discovery-service.js';
 
 interface IntentSearchProps {
   onAddToFlow: (capability: CatalogCapability) => void;
-}
-
-function deriveSource(matchReason: string): string {
-  if (matchReason.includes('ESI')) return 'ESI';
-  if (matchReason.includes('SDE')) return 'SDE';
-  return 'DERIVED';
 }
 
 const EXAMPLE_QUERIES = [
@@ -25,7 +19,7 @@ const EXAMPLE_QUERIES = [
 
 export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
   const [query, setQuery] = useState('');
-  const { searchResults, isLoading, search } = useDiscovery();
+  const { searchResults, isLoading, search, clearResults } = useDiscovery();
   const flowContext = useFlowContext();
 
   const handleSearch = useCallback(
@@ -33,9 +27,11 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
       setQuery(searchQuery);
       if (searchQuery.trim().length >= 2) {
         await search(searchQuery, flowContext);
+      } else {
+        clearResults();
       }
     },
-    [search, flowContext],
+    [search, clearResults, flowContext],
   );
 
   const handleExampleClick = useCallback(
@@ -45,17 +41,10 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
     [handleSearch],
   );
 
-  const resultToCapability = (result: SearchResultItem): CatalogCapability => ({
-    id: result.capabilityId,
-    version: '1.0.0',
-    name: result.capabilityName,
-    description: result.description,
-    source: deriveSource(result.matchReason),
-    inputs: [],
-    outputs: [],
-    category: result.capabilityId.split('.')[0] ?? 'Other',
-    isComposite: false,
-  });
+  const resultToCapability = (result: SearchResultItem): CatalogCapability | null => {
+    const capabilities = useCatalogStore.getState().capabilities;
+    return capabilities.find((c) => c.id === result.capabilityId) ?? null;
+  };
 
   return (
     <div style={{ padding: '12px 10px' }}>
@@ -142,13 +131,17 @@ export function IntentSearch({ onAddToFlow }: IntentSearchProps) {
           <p style={{ color: '#888', fontSize: '10px', marginBottom: 6 }}>
             {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
           </p>
-          {searchResults.map((result) => (
-            <CapabilityCard
-              key={result.capabilityId}
-              capability={resultToCapability(result)}
-              onAddToFlow={onAddToFlow}
-            />
-          ))}
+          {searchResults.map((result) => {
+            const cap = resultToCapability(result);
+            if (!cap) return null;
+            return (
+              <CapabilityCard
+                key={result.capabilityId}
+                capability={cap}
+                onAddToFlow={onAddToFlow}
+              />
+            );
+          })}
         </div>
       )}
 

@@ -21,7 +21,8 @@ let nodeCounter = 0;
 
 interface ContextPaletteState {
   semanticType: string;
-  position: { x: number; y: number };
+  screenPosition: { x: number; y: number };
+  flowPosition: { x: number; y: number };
   sourceNodeId: string;
   sourcePort: string;
 }
@@ -210,11 +211,16 @@ export function PipelineCanvas() {
           ? event.clientY
           : ((event as TouchEvent).changedTouches[0]?.clientY ?? 0);
 
+      const containerEl = document.querySelector('.react-flow');
+      const containerRect = containerEl?.getBoundingClientRect();
+      const screenX = clientX - (containerRect?.left ?? 0);
+      const screenY = clientY - (containerRect?.top ?? 0);
       const flowPosition = reactFlowRef.current.screenToFlowPosition({ x: clientX, y: clientY });
 
       setContextPalette({
         semanticType: sourceOutput.semanticType,
-        position: flowPosition,
+        screenPosition: { x: screenX, y: screenY },
+        flowPosition,
         sourceNodeId: from.nodeId,
         sourcePort: from.handleId,
       });
@@ -235,7 +241,7 @@ export function PipelineCanvas() {
       const newNode: CapabilityFlowNode = {
         id: nodeId,
         type: 'capability',
-        position: contextPalette.position,
+        position: contextPalette.flowPosition,
         data: {
           capabilityId: cap.id,
           capabilityVersion: cap.version,
@@ -271,12 +277,17 @@ export function PipelineCanvas() {
         position: { x: number; y: number };
       };
       if (reactFlowRef.current) {
+        const containerEl = document.querySelector('.react-flow');
+        const containerRect = containerEl?.getBoundingClientRect();
+        const screenX = detail.position.x - (containerRect?.left ?? 0);
+        const screenY = detail.position.y - (containerRect?.top ?? 0);
         const flowPos = reactFlowRef.current.screenToFlowPosition(detail.position);
         setContextPalette({
           semanticType: detail.semanticType,
           sourceNodeId: detail.sourceNodeId,
           sourcePort: detail.sourcePort,
-          position: flowPos,
+          screenPosition: { x: screenX, y: screenY },
+          flowPosition: flowPos,
         });
       }
     }
@@ -321,7 +332,7 @@ export function PipelineCanvas() {
       {contextPalette && (
         <ContextualPalette
           semanticType={contextPalette.semanticType}
-          position={contextPalette.position}
+          position={contextPalette.screenPosition}
           onSelect={handleContextPaletteSelect}
           onClose={() => setContextPalette(null)}
         />

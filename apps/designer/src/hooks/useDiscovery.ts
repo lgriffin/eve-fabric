@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   searchCapabilities,
   suggestNext,
@@ -24,9 +24,13 @@ export function useDiscovery() {
     isLoading: false,
   });
 
+  const searchRequestIdRef = useRef(0);
+
   const search = useCallback(async (query: string, flowContext?: FlowContextInput) => {
+    const requestId = ++searchRequestIdRef.current;
     setState((s) => ({ ...s, isLoading: true }));
     const result = await searchCapabilities(query, flowContext);
+    if (requestId !== searchRequestIdRef.current) return [];
     setState((s) => ({ ...s, searchResults: result.results, isLoading: false }));
     return result.results;
   }, []);
@@ -45,10 +49,15 @@ export function useDiscovery() {
     return consumers;
   }, []);
 
+  const clearResults = useCallback(() => {
+    setState((s) => ({ ...s, searchResults: [] }));
+  }, []);
+
   return {
     ...state,
     search,
     recommend,
     getConsumers,
+    clearResults,
   };
 }

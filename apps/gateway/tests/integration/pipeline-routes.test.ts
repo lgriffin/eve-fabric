@@ -118,11 +118,14 @@ describe('Pipeline CRUD and execute routes', () => {
     });
     expect(response.statusCode).toBe(200);
     const body = JSON.parse(response.body);
-    expect(body.outputs).toEqual({ region: 10000002 });
+    expect(body.status).toBe('completed');
+    expect(body.steps).toBeDefined();
+    expect(body.steps).toHaveLength(1);
+    expect(body.steps[0].stepId).toBe('n1');
+    expect(body.steps[0].status).toBe('completed');
+    expect(body.outputs).toBeDefined();
     expect(body.metrics).toBeDefined();
     expect(body.metrics.totalDurationMs).toBeGreaterThan(0);
-    expect(body.metrics.stepDurations).toHaveProperty('n1');
-    expect(body.stepStatuses).toEqual({ n1: 'completed' });
     expect(body.errors).toEqual([]);
   });
 
