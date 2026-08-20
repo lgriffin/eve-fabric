@@ -1,3 +1,5 @@
+import { colors } from '../../tokens.js';
+
 interface BooleanToggleProps {
   value: unknown;
   label?: string;
@@ -15,14 +17,14 @@ export function BooleanToggle({ value, label, onChange }: BooleanToggleProps) {
         gap: 6,
         cursor: 'pointer',
         fontSize: '11px',
-        color: '#e0e0e0',
+        color: colors.text.primary,
       }}
     >
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked, e.target.checked ? 'Yes' : 'No')}
-        style={{ accentColor: '#7c4dff' }}
+        style={{ accentColor: colors.accent }}
       />
       <span>{label ?? (checked ? 'Yes' : 'No')}</span>
     </label>

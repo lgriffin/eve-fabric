@@ -1,3 +1,5 @@
+import { colors } from '../../tokens.js';
+
 interface NumericInputProps {
   value: unknown;
   onChange: (value: number, displayLabel: string) => void;
@@ -26,10 +28,10 @@ export function NumericInput({ value, onChange, min, max, step, placeholder }: N
       style={{
         width: '100%',
         padding: '4px 8px',
-        background: '#13131d',
-        border: '1px solid #444',
+        background: colors.surface.base,
+        border: `1px solid ${colors.surface.borderLight}`,
         borderRadius: 4,
-        color: '#e0e0e0',
+        color: colors.text.primary,
         fontSize: '11px',
         outline: 'none',
         boxSizing: 'border-box',

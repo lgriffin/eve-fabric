@@ -1,11 +1,14 @@
 import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { colors } from '../../tokens.js';
 
 export function ResultsPanel() {
   const executionSession = usePipelineStore((s) => s.executionSession);
 
   if (!executionSession) {
     return (
-      <div style={{ color: '#555', fontSize: '12px', textAlign: 'center', padding: 20 }}>
+      <div
+        style={{ color: colors.text.disabled, fontSize: '12px', textAlign: 'center', padding: 20 }}
+      >
         Execute your pipeline to see results here.
       </div>
     );
@@ -14,10 +17,10 @@ export function ResultsPanel() {
   const { status, outputs, errors, stepMetrics } = executionSession;
 
   const statusColors: Record<string, string> = {
-    running: '#42a5f5',
-    completed: '#81c784',
-    failed: '#ef5350',
-    cancelled: '#ffa726',
+    running: colors.status.info,
+    completed: colors.status.successLight,
+    failed: colors.status.error,
+    cancelled: colors.status.warningLight,
   };
 
   const stepEntries = Object.entries(stepMetrics);
@@ -29,7 +32,7 @@ export function ResultsPanel() {
       <div
         style={{
           padding: '6px 10px',
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.surface.border}`,
           display: 'flex',
           gap: 16,
           fontSize: '11px',
@@ -37,25 +40,32 @@ export function ResultsPanel() {
       >
         <span>
           Status:{' '}
-          <span style={{ color: statusColors[status] ?? '#aaa', fontWeight: 600 }}>
+          <span style={{ color: statusColors[status] ?? colors.text.secondary, fontWeight: 600 }}>
             {status.toUpperCase()}
           </span>
         </span>
-        <span style={{ color: '#aaa' }}>
-          Duration: <span style={{ color: '#ffd54f' }}>{totalDuration}ms</span>
+        <span style={{ color: colors.text.secondary }}>
+          Duration: <span style={{ color: colors.source.CACHE }}>{totalDuration}ms</span>
         </span>
-        <span style={{ color: '#aaa' }}>
-          Cache hits: <span style={{ color: '#81c784' }}>{cacheHits}</span>
+        <span style={{ color: colors.text.secondary }}>
+          Cache hits: <span style={{ color: colors.status.successLight }}>{cacheHits}</span>
         </span>
-        <span style={{ color: '#aaa' }}>
-          Steps: <span style={{ color: '#4fc3f7' }}>{stepEntries.length}</span>
+        <span style={{ color: colors.text.secondary }}>
+          Steps: <span style={{ color: colors.source.ESI }}>{stepEntries.length}</span>
         </span>
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
         {errors.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ color: '#ef5350', fontSize: '11px', fontWeight: 600, marginBottom: 4 }}>
+            <div
+              style={{
+                color: colors.status.error,
+                fontSize: '11px',
+                fontWeight: 600,
+                marginBottom: 4,
+              }}
+            >
               ERRORS
             </div>
             {errors.map((err, i) => (
@@ -70,11 +80,11 @@ export function ResultsPanel() {
                   fontSize: '12px',
                 }}
               >
-                <span style={{ color: '#ef5350' }}>{err.code}</span>
+                <span style={{ color: colors.status.error }}>{err.code}</span>
                 {err.stepId && (
-                  <span style={{ color: '#777', marginLeft: 8 }}>step: {err.stepId}</span>
+                  <span style={{ color: colors.text.dim, marginLeft: 8 }}>step: {err.stepId}</span>
                 )}
-                <div style={{ color: '#e0e0e0', marginTop: 2 }}>{err.message}</div>
+                <div style={{ color: colors.text.primary, marginTop: 2 }}>{err.message}</div>
               </div>
             ))}
           </div>
@@ -82,15 +92,17 @@ export function ResultsPanel() {
 
         {stepEntries.length > 0 && (
           <div style={{ marginBottom: 12 }}>
-            <div style={{ color: '#777', fontSize: '11px', fontWeight: 600, marginBottom: 4 }}>
+            <div
+              style={{ color: colors.text.dim, fontSize: '11px', fontWeight: 600, marginBottom: 4 }}
+            >
               STEP METRICS
             </div>
             {stepEntries.map(([stepId, metrics]) => (
               <div
                 key={stepId}
                 style={{
-                  background: '#252535',
-                  border: '1px solid #333',
+                  background: colors.surface.raised,
+                  border: `1px solid ${colors.surface.border}`,
                   borderRadius: 4,
                   padding: '6px 10px',
                   marginBottom: 4,
@@ -101,20 +113,22 @@ export function ResultsPanel() {
                 }}
               >
                 <div>
-                  <span style={{ color: '#e0e0e0' }}>{stepId}</span>
+                  <span style={{ color: colors.text.primary }}>{stepId}</span>
                   {metrics.source && (
-                    <span style={{ color: '#666', marginLeft: 8, fontSize: '10px' }}>
+                    <span style={{ color: colors.text.dim, marginLeft: 8, fontSize: '10px' }}>
                       {metrics.source}
                     </span>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <span style={{ color: '#ffd54f', fontSize: '10px' }}>{metrics.durationMs}ms</span>
+                  <span style={{ color: colors.source.CACHE, fontSize: '10px' }}>
+                    {metrics.durationMs}ms
+                  </span>
                   {metrics.cached && (
                     <span
                       style={{
-                        background: '#81c784',
-                        color: '#1e1e2e',
+                        background: colors.status.successLight,
+                        color: colors.surface.raised,
                         padding: '1px 5px',
                         borderRadius: 3,
                         fontSize: '9px',
@@ -125,7 +139,9 @@ export function ResultsPanel() {
                     </span>
                   )}
                   {metrics.error && (
-                    <span style={{ color: '#ef5350', fontSize: '10px' }}>{metrics.error}</span>
+                    <span style={{ color: colors.status.error, fontSize: '10px' }}>
+                      {metrics.error}
+                    </span>
                   )}
                 </div>
               </div>
@@ -135,18 +151,20 @@ export function ResultsPanel() {
 
         {Object.keys(outputs).length > 0 && (
           <div>
-            <div style={{ color: '#777', fontSize: '11px', fontWeight: 600, marginBottom: 4 }}>
+            <div
+              style={{ color: colors.text.dim, fontSize: '11px', fontWeight: 600, marginBottom: 4 }}
+            >
               OUTPUT DATA
             </div>
             <pre
               style={{
                 margin: 0,
-                color: '#81c784',
+                color: colors.status.successLight,
                 fontSize: '11px',
                 fontFamily: 'JetBrains Mono, Fira Code, monospace',
                 lineHeight: 1.5,
-                background: '#252535',
-                border: '1px solid #333',
+                background: colors.surface.raised,
+                border: `1px solid ${colors.surface.border}`,
                 borderRadius: 4,
                 padding: 10,
                 overflow: 'auto',

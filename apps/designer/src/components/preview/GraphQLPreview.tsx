@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { colors } from '../../tokens.js';
 
 export function GraphQLPreview() {
   const sdl = usePipelineStore((s) => s.graphqlSdl);
@@ -17,23 +18,25 @@ export function GraphQLPreview() {
       <div
         style={{
           padding: '6px 10px',
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.surface.border}`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
         }}
       >
-        <span style={{ color: '#aaa', fontSize: '11px', fontWeight: 600 }}>Generated SDL</span>
+        <span style={{ color: colors.text.secondary, fontSize: '11px', fontWeight: 600 }}>
+          Generated SDL
+        </span>
         {sdl && (
           <button
             onClick={handleCopy}
             style={{
               padding: '2px 8px',
               fontSize: '10px',
-              background: '#333',
+              background: colors.surface.border,
               border: 'none',
               borderRadius: 3,
-              color: '#aaa',
+              color: colors.text.secondary,
               cursor: 'pointer',
             }}
           >
@@ -46,7 +49,7 @@ export function GraphQLPreview() {
           <pre
             style={{
               margin: 0,
-              color: '#81c784',
+              color: colors.status.successLight,
               fontSize: '12px',
               fontFamily: 'JetBrains Mono, Fira Code, monospace',
               lineHeight: 1.5,
@@ -56,7 +59,14 @@ export function GraphQLPreview() {
             {sdl}
           </pre>
         ) : (
-          <div style={{ color: '#555', fontSize: '12px', textAlign: 'center', padding: 20 }}>
+          <div
+            style={{
+              color: colors.text.disabled,
+              fontSize: '12px',
+              textAlign: 'center',
+              padding: 20,
+            }}
+          >
             Validate your pipeline to generate a GraphQL schema preview.
           </div>
         )}

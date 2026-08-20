@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useDiscovery } from '../../hooks/useDiscovery.js';
 import type { ConsumerInfo } from '../../services/discovery-service.js';
+import { colors, fontFamily } from '../../tokens.js';
 
 interface ContextualPaletteProps {
   semanticType: string;
@@ -40,35 +41,39 @@ export function ContextualPalette({
         left: position.x,
         top: position.y,
         zIndex: 1000,
-        background: '#1e1e2e',
-        border: '1px solid #444',
+        background: colors.surface.raised,
+        border: `1px solid ${colors.surface.borderLight}`,
         borderRadius: 8,
         minWidth: 220,
         maxWidth: 280,
         boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-        fontFamily: 'Inter, system-ui, sans-serif',
+        fontFamily,
       }}
     >
       <div
         style={{
           padding: '8px 12px',
-          borderBottom: '1px solid #333',
+          borderBottom: `1px solid ${colors.surface.border}`,
           fontSize: '11px',
           fontWeight: 600,
-          color: '#aaa',
+          color: colors.text.secondary,
         }}
       >
         Connect to...
       </div>
 
       {isLoading && (
-        <div style={{ padding: '12px', fontSize: '11px', color: '#666', textAlign: 'center' }}>
+        <div
+          style={{ padding: '12px', fontSize: '11px', color: colors.text.dim, textAlign: 'center' }}
+        >
           Loading...
         </div>
       )}
 
       {!isLoading && consumers.length === 0 && (
-        <div style={{ padding: '12px', fontSize: '11px', color: '#666', textAlign: 'center' }}>
+        <div
+          style={{ padding: '12px', fontSize: '11px', color: colors.text.dim, textAlign: 'center' }}
+        >
           No compatible capabilities found
         </div>
       )}
@@ -84,21 +89,21 @@ export function ContextualPalette({
               padding: '8px 12px',
               background: 'transparent',
               border: 'none',
-              borderBottom: '1px solid #2a2a3a',
+              borderBottom: `1px solid ${colors.surface.overlay}`,
               cursor: 'pointer',
               textAlign: 'left',
-              color: '#e0e0e0',
+              color: colors.text.primary,
               fontSize: '12px',
             }}
             onMouseEnter={(e) => {
-              (e.target as HTMLElement).style.background = '#252535';
+              (e.target as HTMLElement).style.background = colors.surface.overlay;
             }}
             onMouseLeave={(e) => {
               (e.target as HTMLElement).style.background = 'transparent';
             }}
           >
             <div style={{ fontWeight: 600 }}>{consumer.name}</div>
-            <div style={{ fontSize: '10px', color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: '10px', color: colors.text.muted, marginTop: 2 }}>
               {consumer.description}
             </div>
           </button>

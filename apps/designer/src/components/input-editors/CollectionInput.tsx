@@ -1,3 +1,5 @@
+import { colors } from '../../tokens.js';
+
 interface CollectionInputProps {
   portName: string;
   isConnected: boolean;
@@ -18,7 +20,7 @@ export function CollectionInput({ isConnected, sourceName }: CollectionInputProp
           border: '1px solid rgba(124, 77, 255, 0.3)',
           borderRadius: 4,
           fontSize: '11px',
-          color: '#b39ddb',
+          color: colors.source.DERIVED,
         }}
       >
         <span>&#9664;</span>
@@ -33,10 +35,10 @@ export function CollectionInput({ isConnected, sourceName }: CollectionInputProp
       style={{
         padding: '3px 8px',
         background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px dashed #444',
+        border: `1px dashed ${colors.surface.borderLight}`,
         borderRadius: 4,
         fontSize: '10px',
-        color: '#666',
+        color: colors.text.dim,
       }}
     >
       Connect from upstream output
