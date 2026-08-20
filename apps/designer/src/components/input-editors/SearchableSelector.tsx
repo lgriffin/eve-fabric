@@ -5,6 +5,7 @@ import {
   searchSystems,
   type ReferenceDataItem,
 } from '../../services/reference-data-service.js';
+import { colors } from '../../tokens.js';
 
 interface SearchableSelectorProps {
   semanticType: string;
@@ -119,10 +120,10 @@ export function SearchableSelector({
           justifyContent: 'space-between',
           alignItems: 'center',
           padding: '4px 8px',
-          background: '#13131d',
-          border: '1px solid #444',
+          background: colors.surface.base,
+          border: `1px solid ${colors.surface.borderLight}`,
           borderRadius: 4,
-          color: value != null ? '#e0e0e0' : '#666',
+          color: value != null ? colors.text.primary : colors.text.dim,
           fontSize: '11px',
           cursor: 'pointer',
           textAlign: 'left',
@@ -142,8 +143,8 @@ export function SearchableSelector({
             top: '100%',
             left: 0,
             right: 0,
-            background: '#1a1a2e',
-            border: '1px solid #444',
+            background: colors.surface.base,
+            border: `1px solid ${colors.surface.borderLight}`,
             borderRadius: 4,
             zIndex: 100,
             maxHeight: 200,
@@ -159,16 +160,18 @@ export function SearchableSelector({
             autoFocus
             style={{
               padding: '4px 8px',
-              background: '#13131d',
+              background: colors.surface.base,
               border: 'none',
-              borderBottom: '1px solid #333',
-              color: '#e0e0e0',
+              borderBottom: `1px solid ${colors.surface.border}`,
+              color: colors.text.primary,
               fontSize: '11px',
               outline: 'none',
             }}
           />
           {isLoading && (
-            <div style={{ padding: '6px 8px', color: '#666', fontSize: '10px' }}>Loading...</div>
+            <div style={{ padding: '6px 8px', color: colors.text.dim, fontSize: '10px' }}>
+              Loading...
+            </div>
           )}
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {filteredOptions.map((item) => (
@@ -180,26 +183,28 @@ export function SearchableSelector({
                   display: 'block',
                   width: '100%',
                   padding: '4px 8px',
-                  background: item.id === value ? '#2a2a45' : 'transparent',
+                  background: item.id === value ? colors.surface.overlay : 'transparent',
                   border: 'none',
-                  color: '#e0e0e0',
+                  color: colors.text.primary,
                   fontSize: '11px',
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLButtonElement).style.background = '#2a2a45';
+                  (e.currentTarget as HTMLButtonElement).style.background = colors.surface.overlay;
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLButtonElement).style.background =
-                    item.id === value ? '#2a2a45' : 'transparent';
+                    item.id === value ? colors.surface.overlay : 'transparent';
                 }}
               >
                 {item.name}
               </button>
             ))}
             {!isLoading && filteredOptions.length === 0 && searchText.length >= 2 && (
-              <div style={{ padding: '6px 8px', color: '#666', fontSize: '10px' }}>No results</div>
+              <div style={{ padding: '6px 8px', color: colors.text.dim, fontSize: '10px' }}>
+                No results
+              </div>
             )}
           </div>
         </div>

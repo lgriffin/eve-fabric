@@ -1,3 +1,5 @@
+import { colors } from '../../tokens.js';
+
 interface EnumSelectorProps {
   options: Array<{ value: string; label: string }>;
   value: unknown;
@@ -19,7 +21,7 @@ export function EnumSelector({ options, value, onChange }: EnumSelectorProps) {
             gap: 3,
             cursor: 'pointer',
             fontSize: '11px',
-            color: value === option.value ? '#e0e0e0' : '#888',
+            color: value === option.value ? colors.text.primary : colors.text.muted,
           }}
         >
           <input
@@ -28,7 +30,7 @@ export function EnumSelector({ options, value, onChange }: EnumSelectorProps) {
             value={option.value}
             checked={value === option.value}
             onChange={() => onChange(option.value, option.label)}
-            style={{ accentColor: '#7c4dff' }}
+            style={{ accentColor: colors.accent }}
           />
           <span>{option.label}</span>
         </label>
