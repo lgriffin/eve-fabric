@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Executor } from '../src/executor.js';
+import { CapabilityCatalog } from '@eve-fabric/domain';
 import type {
   ExecutionPlan,
   ExecutionStep,
@@ -10,6 +11,31 @@ import type {
 } from '@eve-fabric/domain';
 
 // ── Test helpers ──────────────────────────────────────────────
+
+function makeTestCatalog(capabilityIds: string[], source = 'ESI'): CapabilityCatalog {
+  const catalog = new CapabilityCatalog();
+  for (const id of capabilityIds) {
+    catalog.register({
+      id,
+      version: 1,
+      name: id,
+      description: `Test capability ${id}`,
+      inputs: { input: { name: 'input', semanticType: 'eve.type.reference', required: false } },
+      outputs: { result: { name: 'result', semanticType: 'eve.type.reference', required: true } },
+      source,
+      dependencies: [],
+      auth: { required: false, scopes: [] },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
+    });
+  }
+  return catalog;
+}
 
 function makeStep(id: string, overrides?: Partial<ExecutionStep>): ExecutionStep {
   return {
@@ -104,9 +130,19 @@ function makeTestCache(): CachePort & {
 
 describe('Executor', () => {
   let adapter: SourceAdapter;
+  let catalog: CapabilityCatalog;
 
   beforeEach(() => {
     adapter = makeTestAdapter('TEST');
+    catalog = makeTestCatalog([
+      'test.step1',
+      'test.step2',
+      'test.a',
+      'test.b',
+      'test.c',
+      'test.d',
+      'test.x',
+    ]);
   });
 
   describe('basic execution', () => {
@@ -115,7 +151,7 @@ describe('Executor', () => {
         steps: [makeStep('step1')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.outputs.has('step1')).toBe(true);
@@ -127,7 +163,7 @@ describe('Executor', () => {
         steps: [makeStep('a'), makeStep('b'), makeStep('c')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.outputs.size).toBe(3);
@@ -163,7 +199,7 @@ describe('Executor', () => {
         ],
       });
 
-      const executor = new Executor({ adapters: [orderedAdapter] });
+      const executor = new Executor({ adapters: [orderedAdapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.outputs.size).toBe(3);
@@ -176,7 +212,7 @@ describe('Executor', () => {
         steps: [makeStep('step1')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.metrics.totalDurationMs).toBeGreaterThanOrEqual(0);
@@ -187,7 +223,7 @@ describe('Executor', () => {
         steps: [makeStep('step1'), makeStep('step2')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.metrics.stepDurations.has('step1')).toBe(true);
@@ -199,7 +235,7 @@ describe('Executor', () => {
         steps: [makeStep('step1')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.metrics.cacheMisses).toBe(1);
@@ -217,7 +253,7 @@ describe('Executor', () => {
         steps: [makeStep('step1', { cacheKey: 'cache-key-1' })],
       });
 
-      const executor = new Executor({ adapters: [adapter], cache });
+      const executor = new Executor({ adapters: [adapter], catalog, cache });
       const result = await executor.execute(plan, new Map());
 
       expect(result.outputs.get('step1')).toEqual({ cached: true });
@@ -237,7 +273,7 @@ describe('Executor', () => {
         ],
       });
 
-      const executor = new Executor({ adapters: [adapter], cache });
+      const executor = new Executor({ adapters: [adapter], catalog, cache });
       await executor.execute(plan, new Map());
 
       expect(cache.set).toHaveBeenCalledWith('cache-key-1', { result: 'ok' }, 120);
@@ -250,7 +286,7 @@ describe('Executor', () => {
         steps: [makeStep('step1')], // no cacheKey
       });
 
-      const executor = new Executor({ adapters: [adapter], cache });
+      const executor = new Executor({ adapters: [adapter], catalog, cache });
       await executor.execute(plan, new Map());
 
       expect(cache.get).not.toHaveBeenCalled();
@@ -263,7 +299,7 @@ describe('Executor', () => {
         steps: [makeStep('step1')],
       });
 
-      const executor = new Executor({ adapters: [adapter] });
+      const executor = new Executor({ adapters: [adapter], catalog });
       const result = await executor.execute(plan, new Map());
 
       expect(result.provenance.has('step1')).toBe(true);
@@ -279,7 +315,7 @@ describe('Executor', () => {
         steps: [makeStep('step1', { cacheKey: 'key1' })],
       });
 
-      const executor = new Executor({ adapters: [adapter], cache });
+      const executor = new Executor({ adapters: [adapter], catalog, cache });
       const result = await executor.execute(plan, new Map());
 
       const prov = result.provenance.get('step1') as Record<string, unknown>;
@@ -294,6 +330,48 @@ describe('Executor', () => {
       const esiAdapter = makeTestAdapter('ESI', { esi: true });
       const sdeAdapter = makeTestAdapter('SDE', { sde: true });
 
+      const routingCatalog = new CapabilityCatalog();
+      routingCatalog.register({
+        id: 'market.orders',
+        version: 1,
+        name: 'Market Orders',
+        description: 'test',
+        inputs: {
+          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
+        },
+        outputs: {
+          orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true },
+        },
+        source: 'ESI',
+        dependencies: [],
+        auth: { required: false, scopes: [] },
+        cache: {
+          cacheable: false,
+          defaultTtlSeconds: 0,
+          stalePermitted: false,
+          identityInKey: false,
+        },
+        cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
+      });
+      routingCatalog.register({
+        id: 'sde.types',
+        version: 1,
+        name: 'SDE Types',
+        description: 'test',
+        inputs: { query: { name: 'query', semanticType: 'eve.type.reference', required: true } },
+        outputs: { type: { name: 'type', semanticType: 'eve.type.reference', required: true } },
+        source: 'SDE',
+        dependencies: [],
+        auth: { required: false, scopes: [] },
+        cache: {
+          cacheable: false,
+          defaultTtlSeconds: 0,
+          stalePermitted: false,
+          identityInKey: false,
+        },
+        cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
+      });
+
       const plan = makePlan({
         steps: [
           makeStep('a', { capability: { id: 'market.orders' as never } }),
@@ -305,7 +383,10 @@ describe('Executor', () => {
         ],
       });
 
-      const executor = new Executor({ adapters: [esiAdapter, sdeAdapter] });
+      const executor = new Executor({
+        adapters: [esiAdapter, sdeAdapter],
+        catalog: routingCatalog,
+      });
       const result = await executor.execute(plan, new Map());
 
       expect(result.outputs.get('a')).toEqual({ esi: true });
@@ -318,7 +399,8 @@ describe('Executor', () => {
         sourceRequirements: [{ source: 'UNKNOWN', capabilities: [{ id: 'test.step1' }] }],
       });
 
-      const executor = new Executor({ adapters: [] });
+      const emptyCatalog = makeTestCatalog(['test.step1'], 'DERIVED');
+      const executor = new Executor({ adapters: [], catalog: emptyCatalog });
       await expect(executor.execute(plan, new Map())).rejects.toThrow(/[Nn]o adapter/);
     });
   });
@@ -355,6 +437,7 @@ describe('Executor', () => {
 
       const executor = new Executor({
         adapters: [slowAdapter],
+        catalog,
         maxConcurrency: 2,
       });
       const result = await executor.execute(plan, new Map());
@@ -401,7 +484,7 @@ describe('Executor', () => {
       });
 
       const pipelineInputs = new Map<string, unknown>([['regionId', 10000002]]);
-      const executor = new Executor({ adapters: [capturingAdapter] });
+      const executor = new Executor({ adapters: [capturingAdapter], catalog });
       await executor.execute(plan, pipelineInputs);
 
       expect(receivedInputs).toBeDefined();

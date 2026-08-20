@@ -29,8 +29,7 @@
     },
     "packages/esi-adapter": {
       "entry": ["src/index.ts!"],
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["@lgriffin/esi.ts"]
+      "project": ["src/**/*.ts"]
     },
     "packages/persistence": {
       "entry": ["src/index.ts!"],
@@ -40,15 +39,7 @@
     "apps/gateway": {
       "entry": ["src/server.ts!", "tests/**/*.test.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": [
-        "@eve-fabric/cache",
-        "@eve-fabric/compiler",
-        "@eve-fabric/esi-adapter",
-        "@eve-fabric/executor",
-        "@eve-fabric/graphql",
-        "@eve-fabric/planner",
-        "@eve-fabric/sde-adapter"
-      ]
+      "ignoreDependencies": ["@eve-fabric/cache", "@eve-fabric/graphql", "@eve-fabric/planner"]
     },
     "apps/designer": {
       "entry": ["src/main.tsx!"],
@@ -56,6 +47,6 @@
       "ignoreDependencies": ["@eve-fabric/planner", "@eve-fabric/executor", "@eve-fabric/graphql"]
     }
   },
-  "ignore": ["cucumber.cjs", "examples/**", ".husky/**"],
+  "ignore": [".husky/**"],
   "ignoreBinaries": ["lint-staged"]
 }

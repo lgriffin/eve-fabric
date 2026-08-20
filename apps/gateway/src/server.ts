@@ -2,6 +2,16 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
 import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
+import { EsiClient } from '@lgriffin/esi.ts';
+import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
+import { EsiAdapter } from '@eve-fabric/esi-adapter';
+import { SdeAdapter } from '@eve-fabric/sde-adapter';
+import { Executor, DerivedAdapter } from '@eve-fabric/executor';
+import { compile } from '@eve-fabric/compiler';
+// GraphQL schema builder available for future pipeline-backed GraphQL endpoints
+// import { buildSchema as buildGraphQLSchema } from '@eve-fabric/graphql';
+// import type { PipelineRegistration } from '@eve-fabric/graphql';
 import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
@@ -16,9 +26,47 @@ export interface ServerOptions {
   readonly schema?: GraphQLSchema | undefined;
   readonly typeDefs?: string | undefined;
   readonly resolvers?: Record<string, Record<string, unknown>> | undefined;
+  readonly sdeDataPath?: string | undefined;
+  readonly esiClient?: EsiClient | undefined;
+}
+
+async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
+  const { MemorySdeProvider, SdeDataProvider } = await import('@lgriffin/esi.ts/sde');
+  if (sdeDataPath) {
+    try {
+      return SdeDataProvider.fromDirectory(sdeDataPath);
+    } catch {
+      return new MemorySdeProvider();
+    }
+  }
+  return new MemorySdeProvider();
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
+  const app = Fastify({ logger: true });
+
+  void app.register(tracingPlugin);
+
+  // Fabric Registry
+  const registry = new InMemoryFabricRegistry();
+  seedPrebuiltCapabilities(registry);
+  seedDemoCapabilities(registry);
+
+  // Adapters — SDE provider loads async to avoid CJS require issues in test
+  const esiClient = options?.esiClient ?? new EsiClient();
+  const esiAdapter = new EsiAdapter({ client: esiClient });
+  const derivedAdapter = new DerivedAdapter();
+  let sdeAdapterPromise: Promise<SdeAdapter> | undefined;
+  function getSdeAdapter(): Promise<SdeAdapter> {
+    if (sdeAdapterPromise === undefined) {
+      sdeAdapterPromise = createSdeProvider(
+        options?.sdeDataPath ?? process.env['SDE_DATA_PATH'],
+      ).then((provider) => new SdeAdapter({ provider }));
+    }
+    return sdeAdapterPromise;
+  }
+
+  // Build GraphQL schema
   let schema: GraphQLSchema;
   if (options?.schema !== undefined) {
     schema = options.schema;
@@ -34,10 +82,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     });
   }
 
-  const app = Fastify({ logger: true });
-
-  void app.register(tracingPlugin);
-
   const yoga = createYoga({
     schema,
     graphqlEndpoint: '/graphql',
@@ -51,8 +95,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   });
 
   // Mount GraphQL Yoga as a Fastify route.
-  // Uses yoga.fetch() with the Fastify-parsed body to avoid
-  // handleNodeRequest re-reading the raw stream (which hangs under inject).
   app.route({
     url: '/graphql',
     method: ['GET', 'POST', 'OPTIONS'],
@@ -94,11 +136,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     { yaml: string; name: string; version: number; savedAt: string }
   >();
 
-  // Fabric Registry
-  const registry = new InMemoryFabricRegistry();
-  seedPrebuiltCapabilities(registry);
-  seedDemoCapabilities(registry);
-
   void app.register(createRegistryRoutes(registry));
   void app.register(createDiscoveryRoutes(registry.getCatalog()));
   void app.register(
@@ -106,14 +143,14 @@ export function createServer(options?: ServerOptions): FastifyInstance {
       const saved = savedPipelines.get(id);
       if (!saved || saved.version !== version) return undefined;
       try {
-        return JSON.parse(saved.yaml) as import('@eve-fabric/domain').PipelineDefinition;
+        return JSON.parse(saved.yaml) as PipelineDefinition;
       } catch {
         return undefined;
       }
     }),
   );
 
-  // Pipeline execution endpoint
+  // Pipeline execution endpoint — real compilation and execution
   app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
     '/api/pipelines/execute',
     async (req, reply) => {
@@ -129,27 +166,67 @@ export function createServer(options?: ServerOptions): FastifyInstance {
           });
         }
 
-        const stepStatuses: Record<string, string> = {};
+        const pipelineDef = pipeline as PipelineDefinition;
+        const catalog = registry.getCatalog();
+
+        let compileResult: ReturnType<typeof compile>;
+        try {
+          compileResult = compile(pipelineDef, catalog);
+        } catch (compileErr) {
+          return reply.status(400).send({
+            error: {
+              code: 'COMPILE_ERROR',
+              message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
+              details: null,
+            },
+          });
+        }
+        if (!compileResult.success || !compileResult.plan) {
+          return reply.status(400).send({
+            error: {
+              code: 'COMPILE_ERROR',
+              message: 'Pipeline compilation failed',
+              details: compileResult.diagnostics,
+            },
+          });
+        }
+
+        const sdeAdapter = await getSdeAdapter();
+        const executor = new Executor({
+          adapters: [esiAdapter, sdeAdapter, derivedAdapter],
+          catalog,
+        });
+
+        const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+        // The compiler produces structurally compatible plans with plain string IDs;
+        // cast to the domain's branded ExecutionPlan type.
+        const plan = compileResult.plan as unknown as ExecutionPlan;
+        const result = await executor.execute(plan, inputMap);
+
+        const outputs: Record<string, unknown> = {};
+        for (const [key, value] of result.outputs) {
+          outputs[key] = value;
+        }
+
+        const provenance: Record<string, unknown> = {};
+        for (const [key, value] of result.provenance) {
+          provenance[key] = value;
+        }
+
         const stepDurations: Record<string, number> = {};
-        const pipelineDef = pipeline as { nodes?: Array<{ id: string }> };
-        if (pipelineDef.nodes) {
-          for (const node of pipelineDef.nodes) {
-            stepStatuses[node.id] = 'completed';
-            stepDurations[node.id] = 100;
-          }
+        for (const [key, value] of result.metrics.stepDurations) {
+          stepDurations[key] = value;
         }
 
         return reply.status(200).send({
-          outputs: inputs,
-          provenance: {},
+          outputs,
+          provenance,
           metrics: {
-            totalDurationMs: Object.values(stepDurations).reduce((a, b) => a + b, 0),
+            totalDurationMs: result.metrics.totalDurationMs,
             stepDurations,
-            cacheHits: 0,
-            cacheMisses: pipelineDef.nodes?.length ?? 0,
+            cacheHits: result.metrics.cacheHits,
+            cacheMisses: result.metrics.cacheMisses,
           },
-          stepStatuses,
-          errors: [],
         });
       } catch (err) {
         return reply.status(500).send({
@@ -211,9 +288,6 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   return app;
 }
 
-/**
- * Start the server when run directly.
- */
 async function start(): Promise<void> {
   const port = Number(process.env['PORT'] ?? 3456);
   const host = process.env['HOST'] ?? '0.0.0.0';

@@ -33,6 +33,8 @@ export default tseslint.config(
       'sonarjs/cognitive-complexity': ['warn', 20],
       'sonarjs/todo-tag': 'warn',
       'sonarjs/no-hardcoded-passwords': 'off',
+      'sonarjs/prefer-specific-assertions': 'warn',
+      'sonarjs/parameterized-tests': 'warn',
     },
   },
 

@@ -5,7 +5,9 @@ import type {
   SourceAdapterResult,
   CachePort,
   ProvenanceRecord,
+  CapabilityDefinition,
 } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/domain';
 import { planExecution } from '@eve-fabric/planner';
 import { aggregateProvenance } from './aggregate-provenance.js';
 
@@ -24,6 +26,7 @@ export interface ExecutionResult {
 
 export interface ExecutorConfig {
   readonly adapters: readonly SourceAdapter[];
+  readonly catalog: CapabilityCatalog;
   readonly cache?: CachePort | undefined;
   readonly maxConcurrency?: number | undefined;
 }
@@ -60,11 +63,13 @@ async function runWithConcurrency<T>(
 
 export class Executor {
   private readonly adapters: readonly SourceAdapter[];
+  private readonly catalog: CapabilityCatalog;
   private readonly cache: CachePort | undefined;
   private readonly maxConcurrency: number;
 
   constructor(config: ExecutorConfig) {
     this.adapters = config.adapters;
+    this.catalog = config.catalog;
     this.cache = config.cache;
     this.maxConcurrency = config.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
   }
@@ -232,18 +237,18 @@ export class Executor {
       }
     }
 
+    // Resolve CapabilityRef → CapabilityDefinition via catalog
+    const definition: CapabilityDefinition = this.catalog.get(
+      step.capability.id,
+      step.capability.version,
+    );
+
     // Find the right adapter
     const source = capabilityToSource.get(step.capability.id);
-    const adapter = this.findAdapter(source);
+    const adapter = this.findAdapter(source, definition);
 
     // Execute via adapter
-    const result: SourceAdapterResult = await adapter.execute(
-      // The adapter expects CapabilityDefinition but we have CapabilityRef.
-      // In a full implementation, the executor would resolve the ref through a catalog.
-      // For now, pass the ref as the capability; adapters handle accordingly.
-      step.capability as never,
-      resolvedInputs,
-    );
+    const result: SourceAdapterResult = await adapter.execute(definition, resolvedInputs);
 
     // Store in cache
     if (this.cache !== undefined && step.cacheKey !== undefined) {
@@ -268,7 +273,7 @@ export class Executor {
     };
   }
 
-  private findAdapter(source: string | undefined): SourceAdapter {
+  private findAdapter(source: string | undefined, definition: CapabilityDefinition): SourceAdapter {
     if (source !== undefined) {
       for (const adapter of this.adapters) {
         if (adapter.name === source) {
@@ -277,8 +282,12 @@ export class Executor {
       }
     }
 
-    // Fall back to checking supports() on each adapter
-    // (requires CapabilityDefinition, so may not work with CapabilityRef)
+    for (const adapter of this.adapters) {
+      if (adapter.supports(definition)) {
+        return adapter;
+      }
+    }
+
     throw new Error(`No adapter found for source "${source ?? 'unknown'}"`);
   }
 }
