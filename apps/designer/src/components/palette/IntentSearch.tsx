@@ -12,10 +12,11 @@ interface IntentSearchProps {
 
 const EXAMPLE_QUERIES = [
   'Market prices',
-  'Find an item',
+  'Find item type',
   'Route between systems',
-  'Manufacturing cost',
-  'Find cheap Tritanium near Jita',
+  'Manufacturing cost profit',
+  'Trade profit margin',
+  'Hauling freight shipping',
 ];
 
 export function IntentSearch({ onAddToFlow }: IntentSearchProps) {

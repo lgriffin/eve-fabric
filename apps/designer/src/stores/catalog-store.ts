@@ -54,6 +54,9 @@ function deriveCategory(id: string): string {
     market: 'Market',
     route: 'Navigation',
     collection: 'Collection',
+    industry: 'Industry',
+    analysis: 'Analysis',
+    logistics: 'Logistics',
   };
   return categories[prefix] ?? 'Other';
 }

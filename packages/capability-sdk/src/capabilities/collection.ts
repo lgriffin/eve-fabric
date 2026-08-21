@@ -4,7 +4,8 @@ export const filter = defineCapability({
   id: 'collection.filter',
   version: '1.0.0',
   name: 'Filter Collection',
-  description: "Filter them — remove items that don't match your conditions",
+  description:
+    'Filter market orders — remove orders that do not match criteria like price threshold, buy/sell type, or volume',
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to filter' },
     threshold: { type: 'eve.route.distance', description: 'Maximum value threshold' },
@@ -22,7 +23,8 @@ export const sort = defineCapability({
   id: 'collection.sort',
   version: '1.0.0',
   name: 'Sort Collection',
-  description: 'Sort them — order results by price, volume, or other fields',
+  description:
+    'Sort market orders by price, volume, or other fields — organize and rank results for analysis',
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to sort' },
   },
@@ -39,7 +41,8 @@ export const limit = defineCapability({
   id: 'collection.limit',
   version: '1.0.0',
   name: 'Limit Collection',
-  description: 'Take the top results — limit to a specific count',
+  description:
+    'Limit results to a specific count — take the top N cheapest, most expensive, or highest volume orders',
   inputs: {
     collection: { type: 'eve.market.order.collection', description: 'Collection to limit' },
   },

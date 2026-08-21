@@ -4,7 +4,8 @@ export const resolveType = defineCapability({
   id: 'universe.resolve.type',
   version: '1.0.0',
   name: 'Resolve Type',
-  description: 'Resolve an EVE item type by name or ID',
+  description:
+    'Find and resolve an EVE item type by name or ID — look up ships, modules, minerals like Tritanium, and other items',
   inputs: {
     query: { type: 'eve.type.reference', description: 'Type ID or name to resolve' },
   },
@@ -21,7 +22,8 @@ export const resolveRegion = defineCapability({
   id: 'universe.resolve.region',
   version: '1.0.0',
   name: 'Resolve Region',
-  description: 'Resolve an EVE region by name or ID',
+  description:
+    'Find and resolve an EVE region by name or ID — look up trade hub regions like The Forge (Jita) or Domain (Amarr)',
   inputs: {
     query: { type: 'eve.region.reference', description: 'Region ID or name' },
   },
@@ -38,7 +40,8 @@ export const resolveSolarSystem = defineCapability({
   id: 'universe.resolve.solar.system',
   version: '1.0.0',
   name: 'Resolve Solar System',
-  description: 'Resolve an EVE solar system by name or ID',
+  description:
+    'Find and resolve an EVE solar system by name or ID — look up systems like Jita, Amarr, Dodixie, or Rens',
   inputs: {
     query: { type: 'eve.system.reference', description: 'System ID or name' },
   },

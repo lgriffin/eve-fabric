@@ -102,39 +102,43 @@ export class DiscoveryEngine {
   }
 
   search(query: string, flowContext?: FlowContext): DiscoverySuggestion[] {
-    const lower = query.toLowerCase();
+    const tokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t.length >= 2);
+    if (tokens.length === 0) return [];
+
     const results: DiscoverySuggestion[] = [];
 
     for (const cap of this.catalog.list()) {
-      const matchesName = cap.name.toLowerCase().includes(lower);
-      const matchesDesc = cap.description.toLowerCase().includes(lower);
-      const matchesId = (cap.id as string).toLowerCase().includes(lower);
-      const matchesType = this.matchesSemanticType(cap, lower);
+      const corpus = this.buildSearchCorpus(cap);
+      const matchCount = tokens.filter((token) => corpus.includes(token)).length;
+      if (matchCount === 0) continue;
 
-      if (matchesName || matchesDesc || matchesId || matchesType) {
-        let satisfaction: SatisfactionResult | undefined;
-        if (flowContext) {
-          const analyzer = new SatisfactionAnalyzer(this.graph);
-          satisfaction = analyzer.analyze(cap, flowContext);
-        }
-
-        const readiness = this.computeReadiness(satisfaction);
-
-        results.push(
-          this.buildSuggestion(
-            cap,
-            'search_match',
-            readiness,
-            [],
-            satisfaction ? [...satisfaction.satisfiedPorts.keys()] : [],
-            satisfaction
-              ? [...satisfaction.unsatisfiedPorts.keys()]
-              : [...cap.inputs.entries()].filter(([, p]) => p.required).map(([k]) => k),
-          ),
-        );
+      let satisfaction: SatisfactionResult | undefined;
+      if (flowContext) {
+        const analyzer = new SatisfactionAnalyzer(this.graph);
+        satisfaction = analyzer.analyze(cap, flowContext);
       }
+
+      const readiness = this.computeReadiness(satisfaction);
+
+      results.push(
+        this.buildSuggestion(
+          cap,
+          'search_match',
+          readiness,
+          [],
+          satisfaction ? [...satisfaction.satisfiedPorts.keys()] : [],
+          satisfaction
+            ? [...satisfaction.unsatisfiedPorts.keys()]
+            : [...cap.inputs.entries()].filter(([, p]) => p.required).map(([k]) => k),
+          matchCount / tokens.length,
+        ),
+      );
     }
 
+    results.sort((a, b) => b.relevance - a.relevance);
     return results;
   }
 
@@ -279,14 +283,21 @@ export class DiscoveryEngine {
     return suggestions;
   }
 
-  private matchesSemanticType(cap: CapabilityDefinition, query: string): boolean {
+  private buildSearchCorpus(cap: CapabilityDefinition): string {
+    const parts = [
+      cap.name.toLowerCase(),
+      cap.description.toLowerCase(),
+      (cap.id as string).toLowerCase(),
+    ];
     for (const port of cap.inputs.values()) {
-      if ((port.semanticType as string).toLowerCase().includes(query)) return true;
+      parts.push((port.semanticType as string).toLowerCase());
+      if (port.description) parts.push(port.description.toLowerCase());
     }
     for (const port of cap.outputs.values()) {
-      if ((port.semanticType as string).toLowerCase().includes(query)) return true;
+      parts.push((port.semanticType as string).toLowerCase());
+      if (port.description) parts.push(port.description.toLowerCase());
     }
-    return false;
+    return parts.join(' ');
   }
 
   private findPortName(
