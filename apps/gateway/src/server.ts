@@ -179,19 +179,43 @@ export function createServer(options?: ServerOptions): FastifyInstance {
         });
       }
 
-      const pipelineDef = pipeline as PipelineDefinition;
+      const rawDef = pipeline as PipelineDefinition;
       const catalog = registry.getCatalog();
 
+      const mutableEdges = [...(rawDef.edges ?? [])];
+      const mutableInputs = [...(rawDef.inputs ?? [])];
       const configuredInputs: Record<string, Record<string, unknown>> = {};
+      const extraInputValues: Record<string, unknown> = {};
       if (nodeConfiguredValues) {
         for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
           const portValues: Record<string, unknown> = {};
           for (const [portName, cv] of Object.entries(ports)) {
             portValues[portName] = cv.value;
+            const pipelineInputKey = `${nodeId}_${portName}`;
+            extraInputValues[pipelineInputKey] = cv.value;
+            const edgeExists = mutableEdges.some(
+              (e) => e.to === `${nodeId}.${portName}` && e.from.startsWith('input.'),
+            );
+            if (!edgeExists) {
+              mutableEdges.push({
+                from: `input.${pipelineInputKey}`,
+                to: `${nodeId}.${portName}`,
+              });
+              mutableInputs.push({
+                name: pipelineInputKey,
+                semanticType: '' as PipelineDefinition['inputs'][0]['semanticType'],
+                required: false,
+              });
+            }
           }
           configuredInputs[nodeId] = portValues;
         }
       }
+      const pipelineDef: PipelineDefinition = {
+        ...rawDef,
+        edges: mutableEdges,
+        inputs: mutableInputs,
+      };
 
       let compileResult: ReturnType<typeof compile>;
       try {
@@ -222,6 +246,11 @@ export function createServer(options?: ServerOptions): FastifyInstance {
       });
 
       const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+      for (const [key, val] of Object.entries(extraInputValues)) {
+        if (!inputMap.has(key)) {
+          inputMap.set(key, val);
+        }
+      }
       const plan = compileResult.plan as unknown as ExecutionPlan;
       const result = await executor.execute(plan, inputMap);
 
