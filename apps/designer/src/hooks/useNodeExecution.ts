@@ -47,13 +47,22 @@ export function useNodeExecution() {
         const result = (await res.json()) as Record<string, unknown>;
 
         if (result.status === 'error') {
+          const errorMsg = (result.error as string) ?? 'Execution failed';
+          const debug = result.debug as Record<string, unknown> | undefined;
+          console.error(
+            `[useNodeExecution] ${node.data.capabilityId} execution failed:`,
+            errorMsg,
+            debug
+              ? `\nCatalog has ${String(debug.catalogSize)} capabilities: ${JSON.stringify(debug.registeredIds)}`
+              : '',
+          );
           setNodeExecutionState(nodeId, {
             status: 'error',
             resultCount: null,
             durationMs: null,
             source: null,
             cached: false,
-            error: (result.error as string) ?? 'Execution failed',
+            error: errorMsg,
             preview: null,
           });
           return;

@@ -98,7 +98,12 @@ export function enrichNodesWithCatalog(
 ): CapabilityFlowNode[] {
   return nodes.map((node) => {
     const cap = catalog.get(node.data.capabilityId);
-    if (!cap) return node;
+    if (!cap) {
+      console.warn(
+        `[enrichNodesWithCatalog] Capability '${node.data.capabilityId}' not found in local catalog (${catalog.size} entries: ${[...catalog.keys()].join(', ')})`,
+      );
+      return node;
+    }
     return {
       ...node,
       data: {

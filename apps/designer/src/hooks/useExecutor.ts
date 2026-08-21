@@ -128,9 +128,19 @@ export function useExecutor() {
             const errorData = (await res
               .json()
               .catch(() => ({ error: { message: `HTTP ${res.status}` } }))) as {
-              error?: { message?: string };
+              error?: {
+                message?: string;
+                code?: string;
+                details?: Array<{ code: string; message: string; severity: string }>;
+              };
             };
             const errorMsg = errorData.error?.message ?? `Execution failed: ${res.status}`;
+            console.error('[useExecutor] Pipeline execution failed:', {
+              status: res.status,
+              code: errorData.error?.code,
+              message: errorMsg,
+              diagnostics: errorData.error?.details,
+            });
             addToast('error', 'Execution failed', errorMsg);
             setExecutionSession({
               id: sessionId,

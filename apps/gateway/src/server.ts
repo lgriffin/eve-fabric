@@ -191,10 +191,18 @@ export function createServer(options?: ServerOptions): FastifyInstance {
           });
         }
         if (!compileResult.success || !compileResult.plan) {
+          const diagMessages = compileResult.diagnostics.map(
+            (d: { severity: string; code: string; message: string }) =>
+              `[${d.severity}] ${d.code}: ${d.message}`,
+          );
+          req.log.error(
+            { diagnostics: compileResult.diagnostics, nodeCount: pipelineDef.nodes?.length },
+            `Pipeline compile failed: ${diagMessages.join('; ')}`,
+          );
           return reply.status(400).send({
             error: {
               code: 'COMPILE_ERROR',
-              message: 'Pipeline compilation failed',
+              message: `Pipeline compilation failed: ${diagMessages.join('; ')}`,
               details: compileResult.diagnostics,
             },
           });
@@ -246,6 +254,21 @@ export function createServer(options?: ServerOptions): FastifyInstance {
       }
     },
   );
+
+  // Debug endpoint — shows all registered capability IDs
+  app.get('/api/debug/catalog', async (_req, reply) => {
+    const catalog = registry.getCatalog();
+    const all = catalog.list();
+    return reply.status(200).send({
+      count: all.length,
+      capabilities: all.map((c) => ({
+        id: c.id,
+        version: c.version,
+        name: c.name,
+        source: c.source,
+      })),
+    });
+  });
 
   // Pipeline CRUD endpoints
   app.post('/api/pipelines', async (req, reply) => {
