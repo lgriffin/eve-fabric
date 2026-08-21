@@ -8,6 +8,8 @@ interface ResultInspectorProps {
 
 type InspectorTab = 'config' | 'input' | 'output' | 'execution' | 'preview';
 
+const EMPTY_CONFIGURED: Record<string, { value: unknown; displayLabel: string }> = {};
+
 const TABS: Array<{ key: InspectorTab; label: string }> = [
   { key: 'config', label: 'Config' },
   { key: 'input', label: 'Input' },
@@ -29,7 +31,8 @@ function statusColor(status: string): string {
 export function ResultInspector({ nodeId }: ResultInspectorProps) {
   const [activeTab, setActiveTab] = useState<InspectorTab>('config');
   const node = usePipelineStore((s) => s.nodes.find((n) => n.id === nodeId));
-  const configuredValues = usePipelineStore((s) => s.nodeConfiguredValues[nodeId] ?? {});
+  const configuredValues =
+    usePipelineStore((s) => s.nodeConfiguredValues[nodeId]) ?? EMPTY_CONFIGURED;
   const execState = usePipelineStore((s) => s.nodeExecutionStates[nodeId]);
   const session = usePipelineStore((s) => s.executionSession);
   const stepMetrics = session?.stepMetrics[nodeId];
