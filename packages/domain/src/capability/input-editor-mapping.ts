@@ -12,6 +12,8 @@ const EDITOR_TYPE_MAP: ReadonlyMap<string, EditorType> = new Map([
   ['eve.currency.isk', 'numeric'],
   ['eve.route.distance', 'numeric'],
   ['eve.security.status', 'numeric'],
+  ['eve.percentage', 'numeric'],
+  ['eve.quantity', 'numeric'],
   ['eve.timestamp', 'text'],
 ]);
 

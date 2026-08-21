@@ -18,6 +18,8 @@ export {
   EveRouteDistance,
   EveSecurityStatus,
   EveTimestamp,
+  EvePercentage,
+  EveQuantity,
   EVE_SEMANTIC_TYPES,
   registerEveTypes,
 } from './eve-types.js';

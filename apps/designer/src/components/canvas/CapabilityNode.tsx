@@ -6,6 +6,15 @@ import { NodeInputEditor } from './NodeInputEditor.js';
 import { useNodeExecution } from '../../hooks/useNodeExecution.js';
 import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
 
+function formatPreviewValue(val: unknown): string {
+  if (val === null || val === undefined) return '—';
+  if (typeof val === 'number') {
+    return val >= 1000 ? val.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(val);
+  }
+  if (typeof val === 'string') return val;
+  return JSON.stringify(val);
+}
+
 const pulseKeyframes = `
 @keyframes unconnected-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.4); }
@@ -405,17 +414,32 @@ export const CapabilityNode = memo(function CapabilityNode({
             borderRadius: '0 0 6px 6px',
             fontSize: fontSize.xs,
             color: colors.status.successLight,
-            display: 'flex',
-            gap: 8,
           }}
         >
-          {nodeExecState.resultCount != null && (
-            <span>
-              {'✓'} {nodeExecState.resultCount} results
-            </span>
-          )}
-          {nodeExecState.durationMs != null && <span>{nodeExecState.durationMs}ms</span>}
-          {nodeExecState.source && <span>{nodeExecState.source}</span>}
+          <div style={{ display: 'flex', gap: 8, marginBottom: nodeExecState.preview ? 3 : 0 }}>
+            {nodeExecState.resultCount != null && (
+              <span>
+                {'✓'} {nodeExecState.resultCount} results
+              </span>
+            )}
+            {nodeExecState.durationMs != null && <span>{nodeExecState.durationMs}ms</span>}
+          </div>
+          {nodeExecState.preview != null &&
+            typeof nodeExecState.preview === 'object' &&
+            !Array.isArray(nodeExecState.preview) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                {Object.entries(nodeExecState.preview as Record<string, unknown>).map(
+                  ([key, val]) => (
+                    <div key={key} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: colors.text.dim }}>{key}</span>
+                      <span style={{ color: colors.text.primary, fontWeight: 600 }}>
+                        {formatPreviewValue(val)}
+                      </span>
+                    </div>
+                  ),
+                )}
+              </div>
+            )}
         </div>
       )}
 

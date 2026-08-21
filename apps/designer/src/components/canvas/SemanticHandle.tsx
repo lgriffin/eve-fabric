@@ -7,8 +7,11 @@ const TYPE_COLORS: Record<string, string> = {
   'eve.location': '#ff8a65',
   'eve.route': '#ba68c8',
   'eve.market': '#f06292',
-  'eve.isk': '#ffd54f',
-  'eve.collection': '#90a4ae',
+  'eve.currency': '#ffd54f',
+  'eve.security': '#66bb6a',
+  'eve.timestamp': '#78909c',
+  'eve.percentage': '#26a69a',
+  'eve.quantity': '#7986cb',
 };
 
 function colorForType(semanticType: string): string {

@@ -106,8 +106,8 @@ describe('EVE semantic types', () => {
   });
 
   describe('EVE_SEMANTIC_TYPES array', () => {
-    it('contains exactly 10 types', () => {
-      expect(EVE_SEMANTIC_TYPES).toHaveLength(10);
+    it('contains exactly 12 types', () => {
+      expect(EVE_SEMANTIC_TYPES).toHaveLength(12);
     });
   });
 
@@ -118,10 +118,10 @@ describe('EVE semantic types', () => {
       registry = new SemanticTypeRegistry();
     });
 
-    it('registers all 10 types into the registry', () => {
+    it('registers all 12 types into the registry', () => {
       registerEveTypes(registry);
 
-      expect(registry.list()).toHaveLength(10);
+      expect(registry.list()).toHaveLength(12);
     });
 
     it('makes every EVE type findable by id', () => {

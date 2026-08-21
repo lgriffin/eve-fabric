@@ -86,6 +86,20 @@ export const EveTimestamp = createSemanticType({
   category: 'common',
 });
 
+export const EvePercentage = createSemanticType({
+  id: 'eve.percentage',
+  description: 'A percentage value (0–100)',
+  schema: z.number().min(0).max(100),
+  category: 'common',
+});
+
+export const EveQuantity = createSemanticType({
+  id: 'eve.quantity',
+  description: 'A count or quantity of items',
+  schema: z.number().int().nonnegative(),
+  category: 'common',
+});
+
 export const EVE_SEMANTIC_TYPES: ReadonlyArray<SemanticTypeDefinition> = [
   EveTypeReference,
   EveRegionReference,
@@ -97,6 +111,8 @@ export const EVE_SEMANTIC_TYPES: ReadonlyArray<SemanticTypeDefinition> = [
   EveRouteDistance,
   EveSecurityStatus,
   EveTimestamp,
+  EvePercentage,
+  EveQuantity,
 ];
 
 export function registerEveTypes(registry: SemanticTypeRegistry): void {

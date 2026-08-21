@@ -53,9 +53,32 @@ export function createExecutionRoutes(catalog: CapabilityCatalog): (app: Fastify
               outputEntries.push([name, mockOrders]);
               resultCount = mockOrders.length;
             } else if (semanticType === 'eve.currency.isk') {
-              outputEntries.push([name, 4.52]);
+              outputEntries.push([name, 4520000.75]);
             } else if (semanticType === 'eve.route.distance') {
-              outputEntries.push([name, 3]);
+              outputEntries.push([name, 12]);
+            } else if (semanticType === 'eve.percentage') {
+              outputEntries.push([name, 8.5]);
+            } else if (semanticType === 'eve.quantity') {
+              outputEntries.push([name, 1500]);
+            } else if (semanticType === 'eve.security.status') {
+              outputEntries.push([name, 0.945]);
+            } else if (semanticType === 'eve.market.order') {
+              outputEntries.push([
+                name,
+                {
+                  order_id: 6200000001,
+                  type_id: (inputs['item']?.value as number) ?? 34,
+                  price: 4.52,
+                  volume_remain: 50000,
+                  is_buy_order: false,
+                },
+              ]);
+            } else if (
+              semanticType === 'eve.type.reference' ||
+              semanticType === 'eve.region.reference' ||
+              semanticType === 'eve.system.reference'
+            ) {
+              outputEntries.push([name, inputs['item']?.value ?? 34]);
             } else {
               outputEntries.push([name, null]);
             }
@@ -64,8 +87,15 @@ export function createExecutionRoutes(catalog: CapabilityCatalog): (app: Fastify
           // eslint-disable-next-line sonarjs/pseudo-random -- mock data for demo
           const durationMs = Date.now() - startTime + Math.floor(Math.random() * 200) + 100;
 
-          let preview: unknown = null;
-          if (outputEntries.length > 0) {
+          const outputMap: Record<string, unknown> = {};
+          for (const [name, value] of outputEntries) {
+            outputMap[name] = Array.isArray(value)
+              ? `[${(value as unknown[]).length} items]`
+              : value;
+          }
+
+          let preview: unknown = outputMap;
+          if (outputEntries.length === 1) {
             const firstOutput = outputEntries[0]![1];
             preview = Array.isArray(firstOutput) ? firstOutput.slice(0, 10) : firstOutput;
           }
@@ -78,6 +108,7 @@ export function createExecutionRoutes(catalog: CapabilityCatalog): (app: Fastify
             cached: false,
             resultCount,
             preview,
+            outputs: outputMap,
             provenance: {
               source: capability.source,
               retrievedAt: new Date().toISOString(),

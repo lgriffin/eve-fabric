@@ -69,8 +69,8 @@ describe('defineCapability', () => {
 });
 
 describe('allCapabilities', () => {
-  it('exports 13 capabilities (10 primitives + 3 demos)', () => {
-    expect(allCapabilities).toHaveLength(13);
+  it('exports 30 capabilities (10 primitives + 3 demos + 17 extended)', () => {
+    expect(allCapabilities).toHaveLength(30);
   });
 
   it('includes all expected capability IDs', () => {

@@ -4,7 +4,8 @@ export const orders = defineCapability({
   id: 'market.orders',
   version: '1.0.0',
   name: 'Market Orders',
-  description: 'Fetch market orders for an item in a region',
+  description:
+    'Fetch live market orders for an item in a region — get current buy and sell prices, volumes, and order details',
   inputs: {
     region: { type: 'eve.region.reference', description: 'Target region' },
     item: { type: 'eve.type.reference', description: 'Item type to look up' },
@@ -23,7 +24,8 @@ export const aggregate = defineCapability({
   id: 'market.aggregate',
   version: '1.0.0',
   name: 'Aggregate Market Data',
-  description: 'Calculate statistics — find lowest sell and highest buy prices',
+  description:
+    'Calculate market price statistics — find the lowest sell price, highest buy price, and price spread from market orders',
   inputs: {
     orders: { type: 'eve.market.order.collection', description: 'Orders to aggregate' },
   },
