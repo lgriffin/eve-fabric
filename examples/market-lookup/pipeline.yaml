@@ -1,0 +1,43 @@
+id: market.lookup
+version: 1
+name: Market Lookup
+description: >
+  Simple two-step pipeline: fetch market orders for an item in a region,
+  then aggregate to find lowest sell and highest buy prices.
+
+inputs:
+  - name: region
+    semanticType: eve.region.reference
+    description: Market region to query
+    required: true
+  - name: item
+    semanticType: eve.type.reference
+    description: Item type to look up
+    required: true
+
+nodes:
+  - id: fetchOrders
+    capability:
+      id: market.orders
+      version: 1.0.0
+
+  - id: aggregateMarket
+    capability:
+      id: market.aggregate
+      version: 1.0.0
+
+edges:
+  - from: input.region
+    to: fetchOrders.region
+  - from: input.item
+    to: fetchOrders.item
+  - from: fetchOrders.orders
+    to: aggregateMarket.orders
+
+outputs:
+  - name: orders
+    source: fetchOrders.orders
+  - name: lowestSell
+    source: aggregateMarket.lowestSell
+  - name: highestBuy
+    source: aggregateMarket.highestBuy
