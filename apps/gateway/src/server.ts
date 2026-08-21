@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
-import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import { InMemoryFabricRegistry, capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
 import { EsiClient } from '@lgriffin/esi.ts';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
@@ -169,6 +169,15 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   }>('/api/pipelines/execute', async (req, reply) => {
     try {
       const { pipeline, inputs, nodeConfiguredValues } = req.body;
+      req.log.info(
+        {
+          hasPipeline: !!pipeline,
+          inputKeys: inputs ? Object.keys(inputs) : [],
+          configuredNodeIds: nodeConfiguredValues ? Object.keys(nodeConfiguredValues) : [],
+        },
+        'execute request received',
+      );
+
       if (!pipeline) {
         return reply.status(400).send({
           error: {
@@ -187,8 +196,22 @@ export function createServer(options?: ServerOptions): FastifyInstance {
       const configuredInputs: Record<string, Record<string, unknown>> = {};
       const extraInputValues: Record<string, unknown> = {};
       if (nodeConfiguredValues) {
+        const nodeMap = new Map(rawDef.nodes.map((n) => [n.id, n]));
         for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
           const portValues: Record<string, unknown> = {};
+          const node = nodeMap.get(nodeId);
+          let capInputs: ReadonlyMap<string, { semanticType: unknown }> | undefined;
+          if (node?.capability) {
+            try {
+              const cap = catalog.get(
+                capabilityId(node.capability.id),
+                node.capability.version ? capabilityVersion(node.capability.version) : undefined,
+              );
+              capInputs = cap.inputs;
+            } catch {
+              // capability not found — fall through with no type info
+            }
+          }
           for (const [portName, cv] of Object.entries(ports)) {
             portValues[portName] = cv.value;
             const pipelineInputKey = `${nodeId}_${portName}`;
@@ -197,13 +220,15 @@ export function createServer(options?: ServerOptions): FastifyInstance {
               (e) => e.to === `${nodeId}.${portName}` && e.from.startsWith('input.'),
             );
             if (!edgeExists) {
+              const portDef = capInputs?.get(portName);
               mutableEdges.push({
                 from: `input.${pipelineInputKey}`,
                 to: `${nodeId}.${portName}`,
               });
               mutableInputs.push({
                 name: pipelineInputKey,
-                semanticType: '' as PipelineDefinition['inputs'][0]['semanticType'],
+                semanticType: (portDef?.semanticType ??
+                  '') as PipelineDefinition['inputs'][0]['semanticType'],
                 required: false,
               });
             }
@@ -217,10 +242,22 @@ export function createServer(options?: ServerOptions): FastifyInstance {
         inputs: mutableInputs,
       };
 
+      req.log.info(
+        {
+          nodeCount: pipelineDef.nodes.length,
+          edgeCount: pipelineDef.edges.length,
+          inputCount: pipelineDef.inputs.length,
+          extraInputKeys: Object.keys(extraInputValues),
+          configuredInputs,
+        },
+        'pipeline prepared for compilation',
+      );
+
       let compileResult: ReturnType<typeof compile>;
       try {
         compileResult = compile(pipelineDef, catalog, { configuredInputs });
       } catch (compileErr) {
+        req.log.error({ err: compileErr }, 'compile threw');
         return reply.status(400).send({
           error: {
             code: 'COMPILE_ERROR',
@@ -229,6 +266,16 @@ export function createServer(options?: ServerOptions): FastifyInstance {
           },
         });
       }
+
+      req.log.info(
+        {
+          success: compileResult.success,
+          diagnosticCount: compileResult.diagnostics.length,
+          diagnostics: compileResult.diagnostics,
+        },
+        'compilation result',
+      );
+
       if (!compileResult.success || !compileResult.plan) {
         return reply.status(400).send({
           error: {

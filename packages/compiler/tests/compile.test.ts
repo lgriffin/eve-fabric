@@ -383,6 +383,56 @@ describe('compile', () => {
     expect(result.diagnostics.some((d) => d.code === 'SEMANTIC_SUGGESTION')).toBe(true);
   });
 
+  it('compiles successfully when configuredInputs satisfy required ports', () => {
+    const pipeline: PipelineDefinition = {
+      id: 'test.pipeline',
+      version: 1,
+      name: 'Test Pipeline',
+      inputs: [
+        { name: 'fetch_regionId', semanticType: 'eve.region.reference' as any, required: false },
+      ],
+      nodes: [
+        { id: 'fetch', capability: { id: 'market.orders' as any } },
+        { id: 'agg', capability: { id: 'price.aggregator' as any } },
+      ],
+      edges: [
+        { from: 'input.fetch_regionId', to: 'fetch.regionId' },
+        { from: 'fetch.orders', to: 'agg.orders' },
+      ],
+      outputs: [{ name: 'price', source: 'agg.price' }],
+    };
+
+    const result = compile(pipeline, catalog, {
+      configuredInputs: { fetch: { regionId: 10000002 } },
+    });
+    expect(result.success).toBe(true);
+    expect(result.plan).toBeDefined();
+  });
+
+  it('fails when synthetic input edges have mismatched semantic types', () => {
+    const pipeline: PipelineDefinition = {
+      id: 'test.pipeline',
+      version: 1,
+      name: 'Test Pipeline',
+      inputs: [{ name: 'fetch_regionId', semanticType: '' as any, required: false }],
+      nodes: [
+        { id: 'fetch', capability: { id: 'market.orders' as any } },
+        { id: 'agg', capability: { id: 'price.aggregator' as any } },
+      ],
+      edges: [
+        { from: 'input.fetch_regionId', to: 'fetch.regionId' },
+        { from: 'fetch.orders', to: 'agg.orders' },
+      ],
+      outputs: [{ name: 'price', source: 'agg.price' }],
+    };
+
+    const result = compile(pipeline, catalog, {
+      configuredInputs: { fetch: { regionId: 10000002 } },
+    });
+    expect(result.success).toBe(false);
+    expect(result.diagnostics.some((d) => d.code === 'SEMANTIC_TYPE_MISMATCH')).toBe(true);
+  });
+
   it('sets createdAt on the plan', () => {
     const pipeline: PipelineDefinition = {
       id: 'test.pipeline',
