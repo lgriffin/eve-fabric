@@ -1,10 +1,9 @@
-id: trade.opportunity
+id: market.lookup
 version: 1
-name: Trade Opportunity
+name: Market Lookup
 description: >
-  Finds market data for an item in a region and calculates the route
-  distance between two trade hubs. Uses only capabilities registered
-  in the gateway catalog.
+  Simple two-step pipeline: fetch market orders for an item in a region,
+  then aggregate to find lowest sell and highest buy prices.
 
 inputs:
   - name: region
@@ -14,14 +13,6 @@ inputs:
   - name: item
     semanticType: eve.type.reference
     description: Item type to look up
-    required: true
-  - name: origin
-    semanticType: eve.system.reference
-    description: Origin solar system
-    required: true
-  - name: destination
-    semanticType: eve.system.reference
-    description: Destination solar system
     required: true
 
 nodes:
@@ -42,18 +33,6 @@ nodes:
       id: market.aggregate
       version: 1.0.0
 
-  - id: routeCalc
-    capability:
-      id: route.distance
-      version: 1.0.0
-    defaults:
-      origin:
-        value: 30000142
-        label: Jita
-      destination:
-        value: 30002187
-        label: Amarr
-
 edges:
   - from: input.region
     to: fetchOrders.region
@@ -61,10 +40,6 @@ edges:
     to: fetchOrders.item
   - from: fetchOrders.orders
     to: aggregateMarket.orders
-  - from: input.origin
-    to: routeCalc.origin
-  - from: input.destination
-    to: routeCalc.destination
 
 outputs:
   - name: orders
@@ -73,5 +48,3 @@ outputs:
     source: aggregateMarket.lowestSell
   - name: highestBuy
     source: aggregateMarket.highestBuy
-  - name: routeDistance
-    source: routeCalc.distance

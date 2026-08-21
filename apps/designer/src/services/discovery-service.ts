@@ -1,3 +1,13 @@
+export interface ExplanationStep {
+  fromType: string;
+  toType: string;
+  viaCapabilityId: string;
+  viaCapabilityName: string;
+  inputPortName: string;
+  outputPortName: string;
+  description: string;
+}
+
 export interface DiscoverySuggestion {
   capabilityId: string;
   capabilityName: string;
@@ -6,7 +16,7 @@ export interface DiscoverySuggestion {
   unsatisfiedInputs: string[];
   relevance?: number;
   matchReason: string;
-  explanation: string[];
+  explanation: ExplanationStep[];
 }
 
 export interface SearchResultItem {
@@ -17,7 +27,7 @@ export interface SearchResultItem {
   satisfiedInputs: string[];
   unsatisfiedInputs: string[];
   matchReason: string;
-  explanation: string[];
+  explanation: ExplanationStep[];
 }
 
 interface SearchResult {
@@ -37,7 +47,7 @@ export interface ConsumerInfo {
   name: string;
   description: string;
   source: string;
-  explanation: string[];
+  explanation: ExplanationStep[];
 }
 
 export async function searchCapabilities(

@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, type MouseEvent, type KeyboardEvent } from 'react';
 import { getEditorType } from '@eve-fabric/domain';
 import type { SemanticTypeId } from '@eve-fabric/domain';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
@@ -9,6 +9,10 @@ import { BooleanToggle } from '../input-editors/BooleanToggle.js';
 import { CollectionInput } from '../input-editors/CollectionInput.js';
 import { ConnectedInputIndicator } from './ConnectedInputIndicator.js';
 import { colors } from '../../tokens.js';
+
+function stopEvent(e: MouseEvent | KeyboardEvent) {
+  e.stopPropagation();
+}
 
 interface NodeInputEditorProps {
   nodeId: string;
@@ -39,9 +43,11 @@ export function NodeInputEditor(props: NodeInputEditorProps) {
     return <ConnectedInputIndicator sourceName={sourceName ?? 'Connected'} />;
   }
 
+  let editor: React.ReactNode;
+
   switch (editorType) {
     case 'searchable-selector':
-      return (
+      editor = (
         <SearchableSelector
           semanticType={semanticType}
           value={configured?.value ?? null}
@@ -50,8 +56,9 @@ export function NodeInputEditor(props: NodeInputEditorProps) {
           placeholder={`Select ${portName}...`}
         />
       );
+      break;
     case 'enum':
-      return (
+      editor = (
         <EnumSelector
           options={[
             { value: 'sell', label: 'Sell' },
@@ -62,15 +69,19 @@ export function NodeInputEditor(props: NodeInputEditorProps) {
           onChange={handleChange}
         />
       );
+      break;
     case 'numeric':
-      return <NumericInput value={configured?.value ?? null} onChange={handleChange} />;
+      editor = <NumericInput value={configured?.value ?? null} onChange={handleChange} />;
+      break;
     case 'boolean':
-      return <BooleanToggle value={configured?.value ?? false} onChange={handleChange} />;
+      editor = <BooleanToggle value={configured?.value ?? false} onChange={handleChange} />;
+      break;
     case 'collection':
-      return <CollectionInput portName={portName} isConnected={false} />;
+      editor = <CollectionInput portName={portName} isConnected={false} />;
+      break;
     case 'text':
     default:
-      return (
+      editor = (
         <input
           type="text"
           className="text-input nopan nodrag"
@@ -91,4 +102,16 @@ export function NodeInputEditor(props: NodeInputEditorProps) {
         />
       );
   }
+
+  return (
+    <div
+      className="nopan nodrag nowheel"
+      onMouseDown={stopEvent}
+      onClick={stopEvent}
+      onKeyDown={stopEvent}
+      onPointerDown={stopEvent}
+    >
+      {editor}
+    </div>
+  );
 }

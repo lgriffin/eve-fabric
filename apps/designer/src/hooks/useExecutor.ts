@@ -128,8 +128,9 @@ export function useExecutor() {
             const errorData = (await res
               .json()
               .catch(() => ({ error: { message: `HTTP ${res.status}` } }))) as {
-              error?: { message?: string };
+              error?: { message?: string; code?: string; details?: unknown };
             };
+            console.error('[execute] Gateway error:', res.status, errorData);
             const errorMsg = errorData.error?.message ?? `Execution failed: ${res.status}`;
             addToast('error', 'Execution failed', errorMsg);
             setExecutionSession({

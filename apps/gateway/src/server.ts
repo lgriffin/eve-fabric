@@ -1,7 +1,7 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
-import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import { InMemoryFabricRegistry, capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
 import { EsiClient } from '@lgriffin/esi.ts';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
@@ -160,92 +160,182 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   );
 
   // Pipeline execution endpoint — real compilation and execution
-  app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
-    '/api/pipelines/execute',
-    async (req, reply) => {
-      try {
-        const { pipeline, inputs } = req.body;
-        if (!pipeline) {
-          return reply.status(400).send({
-            error: {
-              code: 'PARSE_ERROR',
-              message: 'Missing pipeline in request body',
-              details: null,
-            },
-          });
-        }
+  app.post<{
+    Body: {
+      pipeline: unknown;
+      inputs: Record<string, unknown>;
+      nodeConfiguredValues?: Record<string, Record<string, { value: unknown }>>;
+    };
+  }>('/api/pipelines/execute', async (req, reply) => {
+    try {
+      const { pipeline, inputs, nodeConfiguredValues } = req.body;
+      req.log.info(
+        {
+          hasPipeline: !!pipeline,
+          inputKeys: inputs ? Object.keys(inputs) : [],
+          configuredNodeIds: nodeConfiguredValues ? Object.keys(nodeConfiguredValues) : [],
+        },
+        'execute request received',
+      );
 
-        const pipelineDef = pipeline as PipelineDefinition;
-        const catalog = registry.getCatalog();
-
-        let compileResult: ReturnType<typeof compile>;
-        try {
-          compileResult = compile(pipelineDef, catalog);
-        } catch (compileErr) {
-          return reply.status(400).send({
-            error: {
-              code: 'COMPILE_ERROR',
-              message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
-              details: null,
-            },
-          });
-        }
-        if (!compileResult.success || !compileResult.plan) {
-          return reply.status(400).send({
-            error: {
-              code: 'COMPILE_ERROR',
-              message: 'Pipeline compilation failed',
-              details: compileResult.diagnostics,
-            },
-          });
-        }
-
-        const sdeAdapter = await getSdeAdapter();
-        const executor = new Executor({
-          adapters: [esiAdapter, sdeAdapter, derivedAdapter],
-          catalog,
-        });
-
-        const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
-        const plan = compileResult.plan as unknown as ExecutionPlan;
-        const result = await executor.execute(plan, inputMap);
-
-        const outputs: Record<string, unknown> = {};
-        for (const [key, value] of result.outputs) {
-          outputs[key] = value;
-        }
-
-        const provenance: Record<string, unknown> = {};
-        for (const [key, value] of result.provenance) {
-          provenance[key] = value;
-        }
-
-        const stepDurations: Record<string, number> = {};
-        for (const [key, value] of result.metrics.stepDurations) {
-          stepDurations[key] = value;
-        }
-
-        return reply.status(200).send({
-          outputs,
-          provenance,
-          metrics: {
-            totalDurationMs: result.metrics.totalDurationMs,
-            stepDurations,
-            cacheHits: result.metrics.cacheHits,
-            cacheMisses: result.metrics.cacheMisses,
-          },
-        });
-      } catch (err) {
-        return reply.status(500).send({
+      if (!pipeline) {
+        return reply.status(400).send({
           error: {
-            code: 'EXECUTION_FAILED',
-            message: err instanceof Error ? err.message : 'Unknown error',
+            code: 'PARSE_ERROR',
+            message: 'Missing pipeline in request body',
             details: null,
           },
         });
       }
-    },
-  );
+
+      const rawDef = pipeline as PipelineDefinition;
+      const catalog = registry.getCatalog();
+
+      const mutableEdges = [...(rawDef.edges ?? [])];
+      const mutableInputs = [...(rawDef.inputs ?? [])];
+      const configuredInputs: Record<string, Record<string, unknown>> = {};
+      const extraInputValues: Record<string, unknown> = {};
+      if (nodeConfiguredValues) {
+        const nodeMap = new Map(rawDef.nodes.map((n) => [n.id, n]));
+        for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
+          const portValues: Record<string, unknown> = {};
+          const node = nodeMap.get(nodeId);
+          let capInputs: ReadonlyMap<string, { semanticType: unknown }> | undefined;
+          if (node?.capability) {
+            try {
+              const cap = catalog.get(
+                capabilityId(node.capability.id),
+                node.capability.version ? capabilityVersion(node.capability.version) : undefined,
+              );
+              capInputs = cap.inputs;
+            } catch {
+              // capability not found — fall through with no type info
+            }
+          }
+          for (const [portName, cv] of Object.entries(ports)) {
+            portValues[portName] = cv.value;
+            const pipelineInputKey = `${nodeId}_${portName}`;
+            extraInputValues[pipelineInputKey] = cv.value;
+            const edgeExists = mutableEdges.some(
+              (e) => e.to === `${nodeId}.${portName}` && e.from.startsWith('input.'),
+            );
+            if (!edgeExists) {
+              const portDef = capInputs?.get(portName);
+              mutableEdges.push({
+                from: `input.${pipelineInputKey}`,
+                to: `${nodeId}.${portName}`,
+              });
+              mutableInputs.push({
+                name: pipelineInputKey,
+                semanticType: (portDef?.semanticType ??
+                  '') as PipelineDefinition['inputs'][0]['semanticType'],
+                required: false,
+              });
+            }
+          }
+          configuredInputs[nodeId] = portValues;
+        }
+      }
+      const pipelineDef: PipelineDefinition = {
+        ...rawDef,
+        edges: mutableEdges,
+        inputs: mutableInputs,
+      };
+
+      req.log.info(
+        {
+          nodeCount: pipelineDef.nodes.length,
+          edgeCount: pipelineDef.edges.length,
+          inputCount: pipelineDef.inputs.length,
+          extraInputKeys: Object.keys(extraInputValues),
+          configuredInputs,
+        },
+        'pipeline prepared for compilation',
+      );
+
+      let compileResult: ReturnType<typeof compile>;
+      try {
+        compileResult = compile(pipelineDef, catalog, { configuredInputs });
+      } catch (compileErr) {
+        req.log.error({ err: compileErr }, 'compile threw');
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
+            details: null,
+          },
+        });
+      }
+
+      req.log.info(
+        {
+          success: compileResult.success,
+          diagnosticCount: compileResult.diagnostics.length,
+          diagnostics: compileResult.diagnostics,
+        },
+        'compilation result',
+      );
+
+      if (!compileResult.success || !compileResult.plan) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: 'Pipeline compilation failed',
+            details: compileResult.diagnostics,
+          },
+        });
+      }
+
+      const sdeAdapter = await getSdeAdapter();
+      const executor = new Executor({
+        adapters: [esiAdapter, sdeAdapter, derivedAdapter],
+        catalog,
+      });
+
+      const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+      for (const [key, val] of Object.entries(extraInputValues)) {
+        if (!inputMap.has(key)) {
+          inputMap.set(key, val);
+        }
+      }
+      const plan = compileResult.plan as unknown as ExecutionPlan;
+      const result = await executor.execute(plan, inputMap);
+
+      const outputs: Record<string, unknown> = {};
+      for (const [key, value] of result.outputs) {
+        outputs[key] = value;
+      }
+
+      const provenance: Record<string, unknown> = {};
+      for (const [key, value] of result.provenance) {
+        provenance[key] = value;
+      }
+
+      const stepDurations: Record<string, number> = {};
+      for (const [key, value] of result.metrics.stepDurations) {
+        stepDurations[key] = value;
+      }
+
+      return reply.status(200).send({
+        outputs,
+        provenance,
+        metrics: {
+          totalDurationMs: result.metrics.totalDurationMs,
+          stepDurations,
+          cacheHits: result.metrics.cacheHits,
+          cacheMisses: result.metrics.cacheMisses,
+        },
+      });
+    } catch (err) {
+      return reply.status(500).send({
+        error: {
+          code: 'EXECUTION_FAILED',
+          message: err instanceof Error ? err.message : 'Unknown error',
+          details: null,
+        },
+      });
+    }
+  });
 
   // Pipeline CRUD endpoints
   app.post('/api/pipelines', async (req, reply) => {

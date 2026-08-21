@@ -9,6 +9,7 @@ import {
   yamlToPipeline,
   pipelineToFlow,
   enrichNodesWithCatalog,
+  extractDefaultsFromYaml,
 } from '../services/pipeline-serializer.js';
 import { applyAutoLayout } from '../services/layout-engine.js';
 
@@ -60,6 +61,7 @@ export function useYamlImportExport() {
     (yaml: string) => {
       try {
         const definition = yamlToPipeline(yaml);
+        const defaults = extractDefaultsFromYaml(yaml);
         const { nodes: flowNodes, edges: flowEdges } = pipelineToFlow(definition);
         const catalogMap = new Map(
           capabilities.map((c) => [
@@ -69,11 +71,12 @@ export function useYamlImportExport() {
         );
         const enriched = enrichNodesWithCatalog(flowNodes, catalogMap);
         const laid = applyAutoLayout(enriched, flowEdges);
-        loadPipeline(laid, flowEdges, {
-          id: definition.id,
-          name: definition.name,
-          version: definition.version,
-        });
+        loadPipeline(
+          laid,
+          flowEdges,
+          { id: definition.id, name: definition.name, version: definition.version },
+          Object.keys(defaults).length > 0 ? defaults : undefined,
+        );
       } catch (err) {
         addToast(
           'error',

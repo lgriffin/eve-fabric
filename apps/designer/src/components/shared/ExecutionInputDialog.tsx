@@ -46,13 +46,15 @@ export function collectUnconnectedInputs(
     };
   }>,
   edges: Array<{ target: string; targetHandle?: string | null }>,
+  configuredValues?: Record<string, Record<string, unknown>>,
 ): PipelineInput[] {
   const result: PipelineInput[] = [];
   for (const node of nodes) {
     for (const input of node.data.inputs) {
       if (!input.required) continue;
       const isConnected = edges.some((e) => e.target === node.id && e.targetHandle === input.name);
-      if (!isConnected) {
+      const isConfigured = configuredValues?.[node.id]?.[input.name] != null;
+      if (!isConnected && !isConfigured) {
         result.push({
           nodeId: node.id,
           nodeName: node.data.label,

@@ -11,7 +11,7 @@ import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionPlan } from './execution-types.js';
 import type { CompilerDiagnostic } from './diagnostics.js';
 import { SEMANTIC_TYPE_MISMATCH } from './diagnostics.js';
-import { resolveCapabilities } from './resolve-capabilities.js';
+import { resolveCapabilities, type ResolveOptions } from './resolve-capabilities.js';
 import { validateSemanticWiring } from './validate-semantic-wiring.js';
 import { detectCycles } from './detect-cycles.js';
 import { buildCapabilityGraph } from './build-capability-graph.js';
@@ -49,7 +49,13 @@ function hasErrors(diagnostics: CompilerDiagnostic[]): boolean {
  * 10. suggestIntermediates for any semantic mismatches (append as info diagnostics)
  * 11. Return { success: true, plan, diagnostics }
  */
-export function compile(pipeline: PipelineDefinition, catalog: CapabilityCatalog): CompileResult {
+export type CompileOptions = ResolveOptions;
+
+export function compile(
+  pipeline: PipelineDefinition,
+  catalog: CapabilityCatalog,
+  options?: CompileOptions,
+): CompileResult {
   const allDiagnostics: CompilerDiagnostic[] = [];
 
   // Step 1: Validate structure
@@ -74,7 +80,7 @@ export function compile(pipeline: PipelineDefinition, catalog: CapabilityCatalog
   }
 
   // Step 2: Resolve capabilities
-  const resolveDiags = resolveCapabilities(pipeline, catalog);
+  const resolveDiags = resolveCapabilities(pipeline, catalog, options);
   allDiagnostics.push(...resolveDiags);
 
   // Step 3: Validate semantic wiring

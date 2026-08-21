@@ -8,6 +8,7 @@ import type {
 import type { Edge } from '@xyflow/react';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
+import type { ConfiguredValue } from '../stores/types.js';
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 120;
@@ -35,19 +36,27 @@ export function pipelineToFlow(definition: PipelineDefinition): {
     },
   }));
 
-  const edges: Edge[] = definition.edges.map((edge, index) => {
-    const fromParts = parsePortRef(edge.from);
-    const toParts = parsePortRef(edge.to);
+  const nodeIds = new Set(nodes.map((n) => n.id));
 
-    return {
-      id: `e-${index}`,
-      source: fromParts.nodeId,
-      sourceHandle: fromParts.portName,
-      target: toParts.nodeId,
-      targetHandle: toParts.portName,
-      type: 'default',
-    };
-  });
+  const edges: Edge[] = definition.edges
+    .filter((edge) => {
+      const from = parsePortRef(edge.from).nodeId;
+      const to = parsePortRef(edge.to).nodeId;
+      return nodeIds.has(from) && nodeIds.has(to);
+    })
+    .map((edge, index) => {
+      const fromParts = parsePortRef(edge.from);
+      const toParts = parsePortRef(edge.to);
+
+      return {
+        id: `e-${index}`,
+        source: fromParts.nodeId,
+        sourceHandle: fromParts.portName,
+        target: toParts.nodeId,
+        targetHandle: toParts.portName,
+        type: 'default',
+      };
+    });
 
   return { nodes, edges };
 }
@@ -209,4 +218,33 @@ export function pipelineToYaml(definition: PipelineDefinition): string {
     source: output.source,
   }));
   return stringifyYaml(doc);
+}
+
+export function extractDefaultsFromYaml(
+  yaml: string,
+): Record<string, Record<string, ConfiguredValue>> {
+  const doc = parseYaml(yaml) as Record<string, unknown>;
+  const rawNodes = Array.isArray(doc.nodes) ? (doc.nodes as Record<string, unknown>[]) : [];
+  const result: Record<string, Record<string, ConfiguredValue>> = {};
+
+  for (const node of rawNodes) {
+    const nodeId = str(node.id);
+    const defaults = node.defaults as Record<string, Record<string, unknown>> | undefined;
+    if (!nodeId || !defaults || typeof defaults !== 'object') continue;
+
+    const portValues: Record<string, ConfiguredValue> = {};
+    for (const [portName, def] of Object.entries(defaults)) {
+      if (def && typeof def === 'object' && 'value' in def) {
+        portValues[portName] = {
+          value: def.value,
+          displayLabel: typeof def.label === 'string' ? def.label : String(def.value),
+        };
+      }
+    }
+    if (Object.keys(portValues).length > 0) {
+      result[nodeId] = portValues;
+    }
+  }
+
+  return result;
 }
