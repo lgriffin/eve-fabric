@@ -29,6 +29,13 @@ nodes:
     capability:
       id: market.orders
       version: 1.0.0
+    defaults:
+      region:
+        value: 10000002
+        label: The Forge
+      item:
+        value: 34
+        label: Tritanium
 
   - id: aggregateMarket
     capability:
@@ -39,6 +46,13 @@ nodes:
     capability:
       id: route.distance
       version: 1.0.0
+    defaults:
+      origin:
+        value: 30000142
+        label: Jita
+      destination:
+        value: 30002187
+        label: Amarr
 
 edges:
   - from: input.region

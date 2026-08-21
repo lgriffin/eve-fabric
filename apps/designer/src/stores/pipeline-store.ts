@@ -108,6 +108,7 @@ interface PipelineActions {
     nodes: CapabilityFlowNode[],
     edges: Edge[],
     meta: { id: string; name: string; version: number },
+    configuredValues?: Record<string, Record<string, ConfiguredValue>>,
   ) => void;
   openComposite: (entry: DrilldownEntry) => void;
   closeComposite: () => void;
@@ -254,7 +255,7 @@ export const usePipelineStore = create<PipelineState & PipelineActions & History
         });
       },
 
-      loadPipeline: (nodes, edges, meta) => {
+      loadPipeline: (nodes, edges, meta, configuredValues) => {
         set({
           nodes,
           edges,
@@ -267,6 +268,8 @@ export const usePipelineStore = create<PipelineState & PipelineActions & History
           graphqlSdl: null,
           executionSession: null,
           bridgingSuggestions: [],
+          nodeConfiguredValues: configuredValues ?? {},
+          nodeExecutionStates: {},
         });
       },
 

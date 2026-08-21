@@ -222,7 +222,9 @@ edges:
       const pipeline = yamlToPipeline(yaml);
       const { nodes, edges } = pipelineToFlow(pipeline);
       expect(nodes).toHaveLength(2);
-      expect(edges).toHaveLength(3);
+      expect(edges).toHaveLength(1);
+      expect(edges[0]!.source).toBe('fetchOrders');
+      expect(edges[0]!.target).toBe('aggregate');
       expect(nodes[0]!.data.capabilityId).toBe('market.orders');
     });
 
