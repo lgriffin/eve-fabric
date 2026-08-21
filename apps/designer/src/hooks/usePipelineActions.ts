@@ -17,6 +17,8 @@ export function usePipelineActions() {
   const loadPipeline = usePipelineStore((s) => s.loadPipeline);
   const closeComposite = usePipelineStore((s) => s.closeComposite);
 
+  const nodeConfiguredValues = usePipelineStore((s) => s.nodeConfiguredValues);
+
   const { compileNow } = useCompiler();
   const { execute, validate } = useExecutor();
   useAutoCompile(true);
@@ -44,7 +46,7 @@ export function usePipelineActions() {
     const result = compileNow();
     if (!result?.success) return;
 
-    const unconnected = collectUnconnectedInputs(nodes, edges);
+    const unconnected = collectUnconnectedInputs(nodes, edges, nodeConfiguredValues);
     if (unconnected.length > 0) {
       setPendingInputs(unconnected);
       setInputDialogOpen(true);
@@ -53,7 +55,7 @@ export function usePipelineActions() {
 
     setActiveTab('results');
     await execute();
-  }, [compileNow, execute, validate, nodes, edges]);
+  }, [compileNow, execute, validate, nodes, edges, nodeConfiguredValues]);
 
   const handleInputSubmit = useCallback(
     async (values: Record<string, Record<string, string>>) => {

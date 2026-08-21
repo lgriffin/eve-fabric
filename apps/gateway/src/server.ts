@@ -160,92 +160,106 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   );
 
   // Pipeline execution endpoint — real compilation and execution
-  app.post<{ Body: { pipeline: unknown; inputs: Record<string, unknown> } }>(
-    '/api/pipelines/execute',
-    async (req, reply) => {
-      try {
-        const { pipeline, inputs } = req.body;
-        if (!pipeline) {
-          return reply.status(400).send({
-            error: {
-              code: 'PARSE_ERROR',
-              message: 'Missing pipeline in request body',
-              details: null,
-            },
-          });
-        }
-
-        const pipelineDef = pipeline as PipelineDefinition;
-        const catalog = registry.getCatalog();
-
-        let compileResult: ReturnType<typeof compile>;
-        try {
-          compileResult = compile(pipelineDef, catalog);
-        } catch (compileErr) {
-          return reply.status(400).send({
-            error: {
-              code: 'COMPILE_ERROR',
-              message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
-              details: null,
-            },
-          });
-        }
-        if (!compileResult.success || !compileResult.plan) {
-          return reply.status(400).send({
-            error: {
-              code: 'COMPILE_ERROR',
-              message: 'Pipeline compilation failed',
-              details: compileResult.diagnostics,
-            },
-          });
-        }
-
-        const sdeAdapter = await getSdeAdapter();
-        const executor = new Executor({
-          adapters: [esiAdapter, sdeAdapter, derivedAdapter],
-          catalog,
-        });
-
-        const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
-        const plan = compileResult.plan as unknown as ExecutionPlan;
-        const result = await executor.execute(plan, inputMap);
-
-        const outputs: Record<string, unknown> = {};
-        for (const [key, value] of result.outputs) {
-          outputs[key] = value;
-        }
-
-        const provenance: Record<string, unknown> = {};
-        for (const [key, value] of result.provenance) {
-          provenance[key] = value;
-        }
-
-        const stepDurations: Record<string, number> = {};
-        for (const [key, value] of result.metrics.stepDurations) {
-          stepDurations[key] = value;
-        }
-
-        return reply.status(200).send({
-          outputs,
-          provenance,
-          metrics: {
-            totalDurationMs: result.metrics.totalDurationMs,
-            stepDurations,
-            cacheHits: result.metrics.cacheHits,
-            cacheMisses: result.metrics.cacheMisses,
-          },
-        });
-      } catch (err) {
-        return reply.status(500).send({
+  app.post<{
+    Body: {
+      pipeline: unknown;
+      inputs: Record<string, unknown>;
+      nodeConfiguredValues?: Record<string, Record<string, { value: unknown }>>;
+    };
+  }>('/api/pipelines/execute', async (req, reply) => {
+    try {
+      const { pipeline, inputs, nodeConfiguredValues } = req.body;
+      if (!pipeline) {
+        return reply.status(400).send({
           error: {
-            code: 'EXECUTION_FAILED',
-            message: err instanceof Error ? err.message : 'Unknown error',
+            code: 'PARSE_ERROR',
+            message: 'Missing pipeline in request body',
             details: null,
           },
         });
       }
-    },
-  );
+
+      const pipelineDef = pipeline as PipelineDefinition;
+      const catalog = registry.getCatalog();
+
+      const configuredInputs: Record<string, Record<string, unknown>> = {};
+      if (nodeConfiguredValues) {
+        for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
+          const portValues: Record<string, unknown> = {};
+          for (const [portName, cv] of Object.entries(ports)) {
+            portValues[portName] = cv.value;
+          }
+          configuredInputs[nodeId] = portValues;
+        }
+      }
+
+      let compileResult: ReturnType<typeof compile>;
+      try {
+        compileResult = compile(pipelineDef, catalog, { configuredInputs });
+      } catch (compileErr) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
+            details: null,
+          },
+        });
+      }
+      if (!compileResult.success || !compileResult.plan) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: 'Pipeline compilation failed',
+            details: compileResult.diagnostics,
+          },
+        });
+      }
+
+      const sdeAdapter = await getSdeAdapter();
+      const executor = new Executor({
+        adapters: [esiAdapter, sdeAdapter, derivedAdapter],
+        catalog,
+      });
+
+      const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+      const plan = compileResult.plan as unknown as ExecutionPlan;
+      const result = await executor.execute(plan, inputMap);
+
+      const outputs: Record<string, unknown> = {};
+      for (const [key, value] of result.outputs) {
+        outputs[key] = value;
+      }
+
+      const provenance: Record<string, unknown> = {};
+      for (const [key, value] of result.provenance) {
+        provenance[key] = value;
+      }
+
+      const stepDurations: Record<string, number> = {};
+      for (const [key, value] of result.metrics.stepDurations) {
+        stepDurations[key] = value;
+      }
+
+      return reply.status(200).send({
+        outputs,
+        provenance,
+        metrics: {
+          totalDurationMs: result.metrics.totalDurationMs,
+          stepDurations,
+          cacheHits: result.metrics.cacheHits,
+          cacheMisses: result.metrics.cacheMisses,
+        },
+      });
+    } catch (err) {
+      return reply.status(500).send({
+        error: {
+          code: 'EXECUTION_FAILED',
+          message: err instanceof Error ? err.message : 'Unknown error',
+          details: null,
+        },
+      });
+    }
+  });
 
   // Pipeline CRUD endpoints
   app.post('/api/pipelines', async (req, reply) => {
