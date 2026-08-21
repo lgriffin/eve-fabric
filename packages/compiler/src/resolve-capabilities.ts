@@ -20,11 +20,17 @@ import { type CompilerDiagnostic, capabilityNotFound, missingInput } from './dia
  *
  * Returns diagnostics for CAPABILITY_NOT_FOUND and MISSING_INPUT errors.
  */
+export interface ResolveOptions {
+  readonly configuredInputs?: Record<string, Record<string, unknown>>;
+}
+
 export function resolveCapabilities(
   pipeline: PipelineDefinition,
   catalog: CapabilityCatalog,
+  options?: ResolveOptions,
 ): CompilerDiagnostic[] {
   const diagnostics: CompilerDiagnostic[] = [];
+  const configured = options?.configuredInputs ?? {};
 
   // Build a map of wired input ports per node
   const wiredInputs = new Map<string, Set<string>>();
@@ -52,10 +58,12 @@ export function resolveCapabilities(
           : undefined;
       const def = catalog.get(capId, capVer);
 
-      // Check that all required inputs have incoming edges
+      // Check that all required inputs have incoming edges or configured values
       const nodeWired = wiredInputs.get(node.id) ?? new Set<string>();
+      const nodeConfigured = configured[node.id] ?? {};
+      const configuredPorts = new Set(Object.keys(nodeConfigured));
       for (const [portName, port] of def.inputs) {
-        if (port.required && !nodeWired.has(portName)) {
+        if (port.required && !nodeWired.has(portName) && !configuredPorts.has(portName)) {
           diagnostics.push(missingInput(node.capability.id, portName));
         }
       }

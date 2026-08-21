@@ -98,6 +98,7 @@ export function useCompiler() {
   const setCompiledPlan = usePipelineStore((s) => s.setCompiledPlan);
   const setGraphqlSdl = usePipelineStore((s) => s.setGraphqlSdl);
   const capabilities = useCatalogStore((s) => s.capabilities);
+  const nodeConfiguredValues = usePipelineStore((s) => s.nodeConfiguredValues);
 
   const compileNow = useCallback((): CompileResult | null => {
     if (nodes.length === 0) {
@@ -132,7 +133,17 @@ export function useCompiler() {
     );
 
     const catalog = buildCatalog(capabilities);
-    const result = compile(definition, catalog);
+
+    const configuredInputs: Record<string, Record<string, unknown>> = {};
+    for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
+      const portValues: Record<string, unknown> = {};
+      for (const [portName, cv] of Object.entries(ports)) {
+        portValues[portName] = cv.value;
+      }
+      configuredInputs[nodeId] = portValues;
+    }
+
+    const result = compile(definition, catalog, { configuredInputs });
 
     setDiagnostics(result.diagnostics);
     setCompiledPlan(result.plan ?? null);
@@ -173,6 +184,7 @@ export function useCompiler() {
     pipelineName,
     pipelineVersion,
     capabilities,
+    nodeConfiguredValues,
     setDiagnostics,
     setCompiledPlan,
     setGraphqlSdl,

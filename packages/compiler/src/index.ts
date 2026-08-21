@@ -23,7 +23,7 @@ export { determineSources } from './determine-sources.js';
 export { determineAuth } from './determine-auth.js';
 export { determineCache } from './determine-cache.js';
 export { estimateCost } from './estimate-cost.js';
-export { compile, type CompileResult } from './compile.js';
+export { compile, type CompileResult, type CompileOptions } from './compile.js';
 export {
   resolveComposites,
   expandCompositeNode,
