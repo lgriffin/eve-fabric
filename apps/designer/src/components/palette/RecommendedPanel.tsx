@@ -88,7 +88,7 @@ export function RecommendedPanel({ onAddToFlow }: RecommendedPanelProps) {
             if (cap) onAddToFlow(cap);
           }}
           style={{
-            background: '#252535',
+            background: colors.surface.overlay,
             border: `1px solid ${colors.surface.border}`,
             borderRadius: borderRadius.lg,
             padding: `${spacing.sm}px 10px`,
@@ -117,8 +117,8 @@ export function RecommendedPanel({ onAddToFlow }: RecommendedPanelProps) {
               {suggestion.readiness.toUpperCase()}
             </span>
           </div>
-          <div style={{ color: '#999', fontSize: fs.xs, marginTop: 3 }}>
-            {suggestion.explanation[0] ?? ''}
+          <div style={{ color: colors.text.muted, fontSize: fs.xs, marginTop: 3 }}>
+            {suggestion.explanation[0]?.description ?? ''}
           </div>
         </div>
       ))}
