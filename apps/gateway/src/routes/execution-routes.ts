@@ -1,154 +1,274 @@
 import type { FastifyInstance } from 'fastify';
-import type { CapabilityCatalog } from '@eve-fabric/domain';
+import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
+import { capabilityId as toCapabilityId, capabilityVersion } from '@eve-fabric/domain';
+import { compile } from '@eve-fabric/compiler';
+import type { GatewayRuntime } from '../runtime.js';
 
-interface ExecuteCapabilityBody {
-  inputs: Record<string, { value: unknown; semanticType: string }>;
-}
-
-export function createExecutionRoutes(catalog: CapabilityCatalog): (app: FastifyInstance) => void {
+export function createExecutionRoutes(runtime: GatewayRuntime): (app: FastifyInstance) => void {
   return (app: FastifyInstance) => {
-    app.post<{ Params: { id: string }; Body: ExecuteCapabilityBody }>(
-      '/api/capabilities/:id/execute',
-      async (req, reply) => {
-        try {
-          const capabilityId = req.params.id;
-          const { inputs } = req.body ?? { inputs: {} };
+    // Single-capability execution via compile -> execute
+    app.post<{
+      Params: { id: string };
+      Body: { inputs: Record<string, { value: unknown; semanticType: string }> };
+    }>('/api/capabilities/:id/execute', async (req, reply) => {
+      const capId = req.params.id;
+      const { inputs } = req.body ?? { inputs: {} };
 
-          const capabilities = catalog.list();
-          const capability = capabilities.find((c) => (c.id as string) === capabilityId);
+      const capabilities = runtime.catalog.list();
+      const capability = capabilities.find((c) => (c.id as string) === capId);
 
-          if (!capability) {
-            return reply.status(404).send({
-              status: 'error',
-              capabilityId,
-              error: `Capability '${capabilityId}' not found`,
-              code: 'CAPABILITY_NOT_FOUND',
-            });
-          }
+      if (!capability) {
+        return reply.status(404).send({
+          error: {
+            code: 'CAPABILITY_NOT_FOUND',
+            message: `Capability '${capId}' not found`,
+            details: null,
+          },
+        });
+      }
 
-          const missingInputs: string[] = [];
-          for (const [name, port] of capability.inputs) {
-            if (port.required && !(name in inputs)) {
-              missingInputs.push(name);
-            }
-          }
+      const missingInputs: string[] = [];
+      for (const [name, port] of capability.inputs) {
+        if (port.required && !(name in inputs)) {
+          missingInputs.push(name);
+        }
+      }
 
-          if (missingInputs.length > 0) {
-            return reply.status(400).send({
-              status: 'error',
-              capabilityId,
-              error: `Missing required input(s): ${missingInputs.join(', ')}`,
-              code: 'MISSING_INPUT',
-            });
-          }
+      if (missingInputs.length > 0) {
+        return reply.status(400).send({
+          error: {
+            code: 'MISSING_INPUT',
+            message: `Missing required input(s): ${missingInputs.join(', ')}`,
+            details: { missingInputs },
+          },
+        });
+      }
 
-          const startTime = Date.now();
-          const outputEntries: Array<[string, unknown]> = [];
-          let resultCount: number | null = null;
+      const pipeline: PipelineDefinition = {
+        id: `exec-${capId}`,
+        version: 1,
+        name: `Execute ${capability.name}`,
+        inputs: [...capability.inputs.values()].map((p) => ({
+          name: p.name,
+          semanticType: p.semanticType,
+          required: p.required,
+        })),
+        nodes: [
+          {
+            id: 'node-1',
+            capability: { id: capability.id, version: capability.version },
+          },
+        ],
+        edges: [...capability.inputs.values()].map((p) => ({
+          from: `input.${p.name}`,
+          to: `node-1.${p.name}`,
+        })),
+        outputs: [...capability.outputs.values()].map((p) => ({
+          name: p.name,
+          source: `node-1.${p.name}`,
+        })),
+      };
 
-          for (const [name, port] of capability.outputs) {
-            const semanticType = port.semanticType as string;
-            if (semanticType === 'eve.market.order.collection') {
-              const mockOrders = generateMockOrders(inputs);
-              outputEntries.push([name, mockOrders]);
-              resultCount = mockOrders.length;
-            } else if (semanticType === 'eve.currency.isk') {
-              outputEntries.push([name, 4520000.75]);
-            } else if (semanticType === 'eve.route.distance') {
-              outputEntries.push([name, 12]);
-            } else if (semanticType === 'eve.percentage') {
-              outputEntries.push([name, 8.5]);
-            } else if (semanticType === 'eve.quantity') {
-              outputEntries.push([name, 1500]);
-            } else if (semanticType === 'eve.security.status') {
-              outputEntries.push([name, 0.945]);
-            } else if (semanticType === 'eve.market.order') {
-              outputEntries.push([
-                name,
-                {
-                  order_id: 6200000001,
-                  type_id: (inputs['item']?.value as number) ?? 34,
-                  price: 4.52,
-                  volume_remain: 50000,
-                  is_buy_order: false,
-                },
-              ]);
-            } else if (
-              semanticType === 'eve.type.reference' ||
-              semanticType === 'eve.region.reference' ||
-              semanticType === 'eve.system.reference'
-            ) {
-              outputEntries.push([name, inputs['item']?.value ?? 34]);
-            } else {
-              outputEntries.push([name, null]);
-            }
-          }
+      const compileResult = compile(pipeline, runtime.catalog);
+      if (!compileResult.success || !compileResult.plan) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: 'Capability compilation failed',
+            details: compileResult.diagnostics,
+          },
+        });
+      }
 
-          // eslint-disable-next-line sonarjs/pseudo-random -- mock data for demo
-          const durationMs = Date.now() - startTime + Math.floor(Math.random() * 200) + 100;
+      const plan = compileResult.plan as unknown as ExecutionPlan;
 
-          const outputMap: Record<string, unknown> = {};
-          for (const [name, value] of outputEntries) {
-            outputMap[name] = Array.isArray(value)
-              ? `[${(value as unknown[]).length} items]`
-              : value;
-          }
-
-          let preview: unknown = outputMap;
-          if (outputEntries.length === 1) {
-            const firstOutput = outputEntries[0]![1];
-            preview = Array.isArray(firstOutput) ? firstOutput.slice(0, 10) : firstOutput;
-          }
-
-          return reply.status(200).send({
-            status: 'success',
-            capabilityId,
-            durationMs,
-            source: capability.source,
-            cached: false,
-            resultCount,
-            preview,
-            outputs: outputMap,
-            provenance: {
-              source: capability.source,
-              retrievedAt: new Date().toISOString(),
-              cached: false,
+      if (plan.authRequirements.required) {
+        const hasScopes = await runtime.tokenProvider.hasScopes(plan.authRequirements.scopes);
+        if (!hasScopes) {
+          return reply.status(403).send({
+            error: {
+              code: 'GATEWAY_AUTH_MISSING_SCOPE',
+              message: `Missing required auth scopes: ${plan.authRequirements.scopes.join(', ')}`,
+              details: { requiredScopes: plan.authRequirements.scopes },
             },
           });
-        } catch (err) {
-          return reply.status(500).send({
-            status: 'error',
-            capabilityId: req.params.id,
-            error: err instanceof Error ? err.message : 'Unknown error',
-            code: 'EXECUTION_FAILED',
+        }
+      }
+
+      const inputMap = new Map<string, unknown>();
+      for (const [key, val] of Object.entries(inputs)) {
+        inputMap.set(key, val.value);
+      }
+
+      const result = await runtime.executor.execute(plan, inputMap);
+
+      const outputs: Record<string, unknown> = {};
+      for (const [key, value] of result.outputs) {
+        outputs[key] = value;
+      }
+
+      const provenance: Record<string, unknown> = {};
+      for (const [key, value] of result.provenance) {
+        provenance[key] = value;
+      }
+
+      return reply.status(200).send({
+        status: 'success',
+        capabilityId: capId,
+        outputs,
+        metrics: {
+          totalDurationMs: result.metrics.totalDurationMs,
+          cacheHits: result.metrics.cacheHits,
+          cacheMisses: result.metrics.cacheMisses,
+        },
+        provenance,
+      });
+    });
+
+    // Full pipeline execution via compile -> execute
+    app.post<{
+      Body: {
+        pipeline: unknown;
+        inputs: Record<string, unknown>;
+        nodeConfiguredValues?: Record<string, Record<string, { value: unknown }>>;
+      };
+    }>('/api/pipelines/execute', async (req, reply) => {
+      const { pipeline, inputs, nodeConfiguredValues } = req.body;
+      if (!pipeline) {
+        return reply.status(400).send({
+          error: {
+            code: 'PARSE_ERROR',
+            message: 'Missing pipeline in request body',
+            details: null,
+          },
+        });
+      }
+
+      const rawDef = pipeline as PipelineDefinition;
+      const catalog = runtime.catalog;
+
+      const mutableEdges = [...(rawDef.edges ?? [])];
+      const mutableInputs = [...(rawDef.inputs ?? [])];
+      const configuredInputs: Record<string, Record<string, unknown>> = {};
+      const extraInputValues: Record<string, unknown> = {};
+      if (nodeConfiguredValues) {
+        const nodeMap = new Map(rawDef.nodes.map((n) => [n.id, n]));
+        for (const [nodeId, ports] of Object.entries(nodeConfiguredValues)) {
+          const portValues: Record<string, unknown> = {};
+          const node = nodeMap.get(nodeId);
+          let capInputs: ReadonlyMap<string, { semanticType: unknown }> | undefined;
+          if (node?.capability) {
+            try {
+              const cap = catalog.get(
+                toCapabilityId(node.capability.id),
+                node.capability.version ? capabilityVersion(node.capability.version) : undefined,
+              );
+              capInputs = cap.inputs;
+            } catch {
+              // capability not found — fall through with no type info
+            }
+          }
+          for (const [portName, cv] of Object.entries(ports)) {
+            portValues[portName] = cv.value;
+            const pipelineInputKey = `${nodeId}_${portName}`;
+            extraInputValues[pipelineInputKey] = cv.value;
+            const edgeExists = mutableEdges.some(
+              (e) => e.to === `${nodeId}.${portName}` && e.from.startsWith('input.'),
+            );
+            if (!edgeExists) {
+              const portDef = capInputs?.get(portName);
+              mutableEdges.push({
+                from: `input.${pipelineInputKey}`,
+                to: `${nodeId}.${portName}`,
+              });
+              mutableInputs.push({
+                name: pipelineInputKey,
+                semanticType: (portDef?.semanticType ??
+                  '') as PipelineDefinition['inputs'][0]['semanticType'],
+                required: false,
+              });
+            }
+          }
+          configuredInputs[nodeId] = portValues;
+        }
+      }
+
+      const pipelineDef: PipelineDefinition = {
+        ...rawDef,
+        edges: mutableEdges,
+        inputs: mutableInputs,
+      };
+
+      let compileResult: ReturnType<typeof compile>;
+      try {
+        compileResult = compile(pipelineDef, catalog, { configuredInputs });
+      } catch (compileErr) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: compileErr instanceof Error ? compileErr.message : 'Compilation failed',
+            details: null,
+          },
+        });
+      }
+      if (!compileResult.success || !compileResult.plan) {
+        return reply.status(400).send({
+          error: {
+            code: 'COMPILE_ERROR',
+            message: 'Pipeline compilation failed',
+            details: compileResult.diagnostics,
+          },
+        });
+      }
+
+      const plan = compileResult.plan as unknown as ExecutionPlan;
+
+      if (plan.authRequirements.required) {
+        const hasScopes = await runtime.tokenProvider.hasScopes(plan.authRequirements.scopes);
+        if (!hasScopes) {
+          return reply.status(403).send({
+            error: {
+              code: 'GATEWAY_AUTH_MISSING_SCOPE',
+              message: `Missing required auth scopes: ${plan.authRequirements.scopes.join(', ')}`,
+              details: { requiredScopes: plan.authRequirements.scopes },
+            },
           });
         }
-      },
-    );
-  };
-}
+      }
 
-function generateMockOrders(
-  inputs: Record<string, { value: unknown; semanticType: string }>,
-): unknown[] {
-  /* eslint-disable sonarjs/pseudo-random -- mock data for demo */
-  const count = 20 + Math.floor(Math.random() * 80);
-  const orders: unknown[] = [];
-  for (let i = 0; i < count; i++) {
-    orders.push({
-      order_id: 6200000000 + i,
-      type_id: (inputs['item']?.value as number) ?? 34,
-      location_id: 60003760 + Math.floor(Math.random() * 10),
-      price: 3.5 + Math.random() * 3,
-      volume_remain: Math.floor(Math.random() * 100000),
-      volume_total: 100000,
-      is_buy_order: Math.random() > 0.5,
-      issued: new Date().toISOString(),
-      duration: 90,
-      range: 'station',
-      min_volume: 1,
+      const inputMap = new Map<string, unknown>(Object.entries(inputs ?? {}));
+      for (const [key, val] of Object.entries(extraInputValues)) {
+        if (!inputMap.has(key)) {
+          inputMap.set(key, val);
+        }
+      }
+      const result = await runtime.executor.execute(plan, inputMap);
+
+      const outputs: Record<string, unknown> = {};
+      for (const [key, value] of result.outputs) {
+        outputs[key] = value;
+      }
+
+      const prov: Record<string, unknown> = {};
+      for (const [key, value] of result.provenance) {
+        prov[key] = value;
+      }
+
+      const stepDurations: Record<string, number> = {};
+      for (const [key, value] of result.metrics.stepDurations) {
+        stepDurations[key] = value;
+      }
+
+      return reply.status(200).send({
+        outputs,
+        provenance: prov,
+        metrics: {
+          totalDurationMs: result.metrics.totalDurationMs,
+          stepDurations,
+          cacheHits: result.metrics.cacheHits,
+          cacheMisses: result.metrics.cacheMisses,
+        },
+      });
     });
-  }
-  /* eslint-enable sonarjs/pseudo-random */
-  return orders;
+  };
 }

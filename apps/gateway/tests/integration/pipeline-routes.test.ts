@@ -2,6 +2,20 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createServer } from '../../src/server.js';
 
+let counter = 0;
+function validPipeline(overrides: Record<string, unknown> = {}) {
+  return {
+    id: `test-pipeline-${String.fromCharCode(97 + (counter++ % 26))}`,
+    name: 'test-pipeline',
+    version: 1,
+    inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
+    nodes: [{ id: 'n1', capability: { id: 'market.orders' } }],
+    edges: [{ from: 'input.region', to: 'n1.region' }],
+    outputs: [{ name: 'orders', source: 'n1.orders' }],
+    ...overrides,
+  };
+}
+
 describe('Pipeline CRUD and execute routes', () => {
   let app: FastifyInstance;
 
@@ -14,29 +28,40 @@ describe('Pipeline CRUD and execute routes', () => {
     await app.close();
   });
 
-  it('POST /api/pipelines with YAML body returns 201 with id', async () => {
-    const yaml = 'name: test-pipeline\nversion: 1\nnodes: []\nedges: []';
+  it('POST /api/pipelines returns 201 with id', async () => {
+    const pipeline = validPipeline();
     const response = await app.inject({
       method: 'POST',
       url: '/api/pipelines',
-      headers: { 'content-type': 'text/plain' },
-      payload: yaml,
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify(pipeline),
     });
     expect(response.statusCode).toBe(201);
     const body = JSON.parse(response.body);
-    expect(body.id).toBeDefined();
+    expect(body.id).toBe(pipeline.id);
     expect(body.version).toBe(1);
     expect(body.savedAt).toBeDefined();
   });
 
+  it('POST /api/pipelines returns 400 for invalid pipeline', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/pipelines',
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify({ name: 'bad' }),
+    });
+    expect(response.statusCode).toBe(400);
+    const body = JSON.parse(response.body);
+    expect(body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   it('GET /api/pipelines returns 200 with array including saved pipeline', async () => {
-    // Save a pipeline first
-    const yaml = 'name: list-test\nversion: 1';
+    const pipeline = validPipeline({ id: 'list-test' });
     const postResponse = await app.inject({
       method: 'POST',
       url: '/api/pipelines',
-      headers: { 'content-type': 'text/plain' },
-      payload: yaml,
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify(pipeline),
     });
     const { id } = JSON.parse(postResponse.body);
 
@@ -51,13 +76,13 @@ describe('Pipeline CRUD and execute routes', () => {
     expect(found).toBeDefined();
   });
 
-  it('GET /api/pipelines/:id with saved id returns 200 with YAML body', async () => {
-    const yaml = 'name: get-test\nversion: 1';
+  it('GET /api/pipelines/:id returns 200 with pipeline definition', async () => {
+    const pipeline = validPipeline({ id: 'get-test' });
     const postResponse = await app.inject({
       method: 'POST',
       url: '/api/pipelines',
-      headers: { 'content-type': 'text/plain' },
-      payload: yaml,
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify(pipeline),
     });
     const { id } = JSON.parse(postResponse.body);
 
@@ -66,7 +91,10 @@ describe('Pipeline CRUD and execute routes', () => {
       url: `/api/pipelines/${id}`,
     });
     expect(response.statusCode).toBe(200);
-    expect(response.body).toBe(yaml);
+    const body = JSON.parse(response.body);
+    expect(body.id).toBe(id);
+    expect(body.name).toBe('test-pipeline');
+    expect(body.version).toBe(1);
   });
 
   it('GET /api/pipelines/fake-id returns 404', async () => {
@@ -80,18 +108,17 @@ describe('Pipeline CRUD and execute routes', () => {
   });
 
   it('DELETE /api/pipelines/:id returns 204', async () => {
-    const yaml = 'name: delete-test\nversion: 1';
-    const postResponse = await app.inject({
+    const pipeline = validPipeline({ id: 'delete-test' });
+    await app.inject({
       method: 'POST',
       url: '/api/pipelines',
-      headers: { 'content-type': 'text/plain' },
-      payload: yaml,
+      headers: { 'content-type': 'application/json' },
+      payload: JSON.stringify(pipeline),
     });
-    const { id } = JSON.parse(postResponse.body);
 
     const response = await app.inject({
       method: 'DELETE',
-      url: `/api/pipelines/${id}`,
+      url: `/api/pipelines/${pipeline.id}`,
     });
     expect(response.statusCode).toBe(204);
   });

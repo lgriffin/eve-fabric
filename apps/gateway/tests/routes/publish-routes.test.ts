@@ -27,9 +27,9 @@ describe('Publish routes', () => {
           config: {},
         },
       ],
-      edges: [],
-      inputs: [{ name: 'region_id', semanticType: 'eve.region.reference', required: true }],
-      outputs: [{ name: 'orders', semanticType: 'eve.market.order', required: true }],
+      edges: [{ from: 'input.region', to: 'node1.region' }],
+      inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
+      outputs: [{ name: 'orders', source: 'node1.orders' }],
     };
 
     return app.inject({
@@ -62,7 +62,7 @@ describe('Publish routes', () => {
           description: 'Duplicate',
           pipelineId: 'some-pipeline',
           pipelineVersion: 1,
-          selectedInputs: ['region_id'],
+          selectedInputs: ['region'],
           selectedOutputs: ['orders'],
         },
       });
@@ -136,7 +136,7 @@ describe('Publish routes', () => {
           description: 'Test',
           pipelineId: saved.id,
           pipelineVersion: 1,
-          selectedInputs: ['region_id'],
+          selectedInputs: ['region'],
           selectedOutputs: ['nonexistent_output'],
         },
       });
@@ -161,7 +161,7 @@ describe('Publish routes', () => {
           description: 'A test composite capability',
           pipelineId: saved.id,
           pipelineVersion: 1,
-          selectedInputs: ['region_id'],
+          selectedInputs: ['region'],
           selectedOutputs: ['orders'],
         },
       });

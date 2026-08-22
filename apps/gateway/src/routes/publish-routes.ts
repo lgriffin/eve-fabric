@@ -21,7 +21,11 @@ const publishRequestSchema = z.object({
 
 export function createPublishRoutes(
   registry: FabricRegistry,
-  getPipeline: (id: string, version: number) => PipelineDefinition | undefined,
+  getPipeline: (
+    id: string,
+    version: number,
+  ) => PipelineDefinition | undefined | Promise<PipelineDefinition | undefined>,
+  onPublished?: () => Promise<void>,
 ) {
   return async function publishRoutes(app: FastifyInstance): Promise<void> {
     app.post('/api/registry/publish', async (req, reply) => {
@@ -56,7 +60,7 @@ export function createPublishRoutes(
         });
       }
 
-      const pipeline = getPipeline(data.pipelineId, data.pipelineVersion);
+      const pipeline = await getPipeline(data.pipelineId, data.pipelineVersion);
       if (!pipeline) {
         return reply.status(400).send({
           success: false,
@@ -164,6 +168,7 @@ export function createPublishRoutes(
         };
 
         registry.register(rawDef as never);
+        await onPublished?.();
 
         const capability = registry.get(capId, capVer);
 
