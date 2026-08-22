@@ -34,7 +34,7 @@
     "apps/gateway": {
       "entry": ["tests/**/*.test.ts"],
       "project": ["src/**/*.ts", "tests/**/*.ts"],
-      "ignoreDependencies": ["@eve-fabric/cache", "@eve-fabric/graphql", "@eve-fabric/planner"]
+      "ignoreDependencies": ["@eve-fabric/planner"]
     },
     "apps/designer": {
       "project": ["src/**/*.{ts,tsx}"],
