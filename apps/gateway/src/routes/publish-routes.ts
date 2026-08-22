@@ -25,6 +25,7 @@ export function createPublishRoutes(
     id: string,
     version: number,
   ) => PipelineDefinition | undefined | Promise<PipelineDefinition | undefined>,
+  onPublished?: () => Promise<void>,
 ) {
   return async function publishRoutes(app: FastifyInstance): Promise<void> {
     app.post('/api/registry/publish', async (req, reply) => {
@@ -167,6 +168,7 @@ export function createPublishRoutes(
         };
 
         registry.register(rawDef as never);
+        await onPublished?.();
 
         const capability = registry.get(capId, capVer);
 

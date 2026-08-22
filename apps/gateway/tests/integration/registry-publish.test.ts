@@ -64,15 +64,17 @@ describe('Registry + Publish integration', () => {
           {
             id: 'node-1',
             capability: { id: 'market.orders', version: '1.0.0' },
-            position: { x: 0, y: 0 },
           },
         ],
-        edges: [],
+        edges: [
+          { from: 'input.region', to: 'node-1.region' },
+          { from: 'input.item', to: 'node-1.item' },
+        ],
         inputs: [
           { name: 'region', semanticType: 'eve.region.reference', required: true },
           { name: 'item', semanticType: 'eve.type.reference', required: true },
         ],
-        outputs: [{ name: 'orders', semanticType: 'eve.market.order.collection' }],
+        outputs: [{ name: 'orders', source: 'node-1.orders' }],
       },
     });
     expect(pipelineRes.statusCode).toBe(201);
@@ -115,10 +117,10 @@ describe('Registry + Publish integration', () => {
         id: 'dup-pipeline',
         name: 'Dup Pipeline',
         version: 1,
-        nodes: [],
-        edges: [],
+        nodes: [{ id: 'node-1', capability: { id: 'market.orders', version: '1.0.0' } }],
+        edges: [{ from: 'input.in', to: 'node-1.region' }],
         inputs: [{ name: 'in', semanticType: 'eve.type.reference', required: true }],
-        outputs: [{ name: 'out', semanticType: 'eve.type.reference' }],
+        outputs: [{ name: 'out', source: 'node-1.orders' }],
       },
     });
     const pipeline = JSON.parse(pipelineRes.payload) as { id: string };

@@ -24,7 +24,7 @@ export default defineConfig({
         '**/index.ts',
         'scripts/**',
         'apps/designer/**',
-        'apps/gateway/src/server.ts',
+        'apps/gateway/**',
         'cucumber.cjs',
         'vitest.workspace.ts',
         'examples/**',

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { pipelineDefinitionSchema } from '@eve-fabric/domain';
 import type { PipelineDefinition } from '@eve-fabric/domain';
 import type { GatewayRuntime } from '../runtime.js';
 
@@ -7,36 +8,41 @@ export function createPipelineRoutes(runtime: GatewayRuntime) {
 
   return async function pipelineRoutes(app: FastifyInstance): Promise<void> {
     app.post('/api/pipelines', async (req, reply) => {
-      let body: Record<string, unknown>;
+      let raw: unknown;
       if (typeof req.body === 'string') {
         try {
-          body = JSON.parse(req.body) as Record<string, unknown>;
+          raw = JSON.parse(req.body);
         } catch {
           return reply.status(400).send({
             error: { code: 'PARSE_ERROR', message: 'Invalid JSON body', details: null },
           });
         }
       } else {
-        body = req.body as Record<string, unknown>;
+        raw = req.body;
       }
-      const id = (body['id'] as string) || `pipeline-${Date.now()}`;
-      const pipeline: PipelineDefinition = {
-        id,
-        version: (body['version'] as number) ?? 1,
-        name: (body['name'] as string) ?? id,
-        description: body['description'] as string | undefined,
-        inputs: (body['inputs'] as PipelineDefinition['inputs']) ?? [],
-        nodes: (body['nodes'] as PipelineDefinition['nodes']) ?? [],
-        edges: (body['edges'] as PipelineDefinition['edges']) ?? [],
-        outputs: (body['outputs'] as PipelineDefinition['outputs']) ?? [],
-      };
+
+      const parsed = pipelineDefinitionSchema.safeParse(raw);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid pipeline definition',
+            details: parsed.error.issues.map((i) => ({
+              path: i.path.join('.'),
+              message: i.message,
+            })),
+          },
+        });
+      }
+
+      const pipeline = parsed.data as unknown as PipelineDefinition;
       const savedAt = new Date().toISOString();
-      metadata.set(id, savedAt);
+      metadata.set(pipeline.id, savedAt);
       await runtime.pipelineRepository.save(pipeline);
       await runtime.rebuildRegistrations();
       return reply
         .status(201)
-        .send({ id, version: pipeline.version, name: pipeline.name, savedAt });
+        .send({ id: pipeline.id, version: pipeline.version, name: pipeline.name, savedAt });
     });
 
     app.get('/api/pipelines', async (_req, reply) => {

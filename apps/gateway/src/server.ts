@@ -95,11 +95,15 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(createExecutionRoutes(runtime));
   void app.register(createPipelineRoutes(runtime));
   void app.register(
-    createPublishRoutes(runtime.registry, (id, version) => {
-      return runtime.pipelineRepository
-        .getById(id)
-        .then((p) => (p && p.version === version ? p : undefined));
-    }),
+    createPublishRoutes(
+      runtime.registry,
+      (id, version) => {
+        return runtime.pipelineRepository
+          .getById(id)
+          .then((p) => (p && p.version === version ? p : undefined));
+      },
+      () => runtime.rebuildRegistrations(),
+    ),
   );
 
   return app;

@@ -33,17 +33,23 @@ function extractDetails(error: Error): unknown {
 
 export function gatewayErrorHandler(
   error: Error,
-  _request: FastifyRequest,
+  request: FastifyRequest,
   reply: FastifyReply,
 ): void {
   const status = statusForError(error);
   const code = isGatewayError(error) ? error.code : 'INTERNAL_ERROR';
   const details = extractDetails(error);
 
+  if (status >= 500) {
+    request.log.error({ err: error }, 'Gateway request failed');
+  } else {
+    request.log.warn({ err: error }, 'Gateway request error');
+  }
+
   const body: ErrorResponse = {
     error: {
       code,
-      message: error.message,
+      message: isGatewayError(error) ? error.message : 'Internal server error',
       details,
     },
   };
