@@ -11,6 +11,7 @@
         "@eve-fabric/planner",
         "@eve-fabric/schema-package",
         "@eve-fabric/esi-adapter",
+        "@eve-fabric/executor",
         "@eve-fabric/sde-adapter",
         "lint-staged"
       ],

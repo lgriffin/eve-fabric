@@ -18,7 +18,7 @@
     "mutate": "stryker run",
     "test:mutation": "stryker run",
     "scan:secrets": "tsx scripts/scan-secrets.ts",
-    "benchmark": "tsx scripts/benchmark.ts",
+    "benchmark": "tsx examples/benchmark.ts",
     "demo": "tsx examples/e2e-demo/demo.ts",
     "demo:esi": "tsx examples/esi-live.ts",
     "validate": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",

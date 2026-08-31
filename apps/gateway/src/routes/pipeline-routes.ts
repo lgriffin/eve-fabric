@@ -64,7 +64,7 @@ export function createPipelineRoutes(runtime: GatewayRuntime) {
           .status(404)
           .send({ error: { code: 'NOT_FOUND', message: 'Pipeline not found', details: null } });
       }
-      return reply.status(200).send(pipeline);
+      return reply.status(200).header('content-type', 'application/json').send(pipeline);
     });
 
     app.delete<{ Params: { id: string } }>('/api/pipelines/:id', async (req, reply) => {

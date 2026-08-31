@@ -10,6 +10,7 @@ import type {
 import type { GraphQLSchema } from 'graphql';
 import { EsiClient } from '@lgriffin/esi.ts';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
+import { MemorySdeProvider } from '@lgriffin/esi.ts/sde/memory';
 import { EsiAdapter } from '@eve-fabric/esi-adapter';
 import { SdeAdapter } from '@eve-fabric/sde-adapter';
 import { Executor, DerivedAdapter } from '@eve-fabric/executor';
@@ -58,20 +59,16 @@ class LazySdeAdapter implements SourceAdapter {
 }
 
 async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
-  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
-    MemorySdeProvider: new () => IStaticDataProvider;
-  };
   if (sdeDataPath) {
     try {
-      const sdeModule = (await import('@lgriffin/esi.ts/sde')) as {
-        SdeDataProvider: { fromDirectory: (path: string) => IStaticDataProvider };
-      };
-      return sdeModule.SdeDataProvider.fromDirectory(sdeDataPath);
+      // Dynamic import: @lgriffin/esi.ts/sde depends on adm-zip, only load when needed
+      const { SdeDataProvider } = await import('@lgriffin/esi.ts/sde');
+      return SdeDataProvider.fromDirectory(sdeDataPath);
     } catch {
-      return new memoryModule.MemorySdeProvider();
+      return new MemorySdeProvider();
     }
   }
-  return new memoryModule.MemorySdeProvider();
+  return new MemorySdeProvider();
 }
 
 export class GatewayRuntime {
