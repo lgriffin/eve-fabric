@@ -38,6 +38,7 @@ export default defineConfig({
         'packages/domain/src/provenance/provenance-record.ts',
         'packages/domain/src/registry/registry-types.ts',
         'packages/domain/src/discovery/discovery-types.ts',
+        'packages/codegen/src/cli.ts',
       ],
     },
   },
