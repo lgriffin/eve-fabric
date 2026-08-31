@@ -256,18 +256,18 @@ This project follows a [constitution](.specify/memory/constitution.md) with 26 p
 
 ## Tech Stack
 
-| Layer         | Technology                                      |
-| ------------- | ----------------------------------------------- |
-| Language      | TypeScript 5.x (strict mode)                    |
-| Runtime       | Node.js 20 LTS                                  |
-| Server        | Fastify + GraphQL Yoga                          |
-| Schema        | graphql-js type construction                    |
-| Validation    | Zod                                             |
-| EVE Data      | @lgriffin/esi.ts 9.4.0                          |
-| Frontend      | React 18 + React Flow + Zustand                 |
-| Persistence   | Drizzle ORM + SQLite                            |
-| Testing       | Vitest + Cucumber.js + Stryker                  |
-| Observability | OpenTelemetry (instrumented, exporter-agnostic) |
+| Layer         | Technology                                     |
+| ------------- | ---------------------------------------------- |
+| Language      | TypeScript 5.x (strict mode)                   |
+| Runtime       | Node.js 20 LTS                                 |
+| Server        | Fastify + GraphQL Yoga                         |
+| Schema        | graphql-js type construction                   |
+| Validation    | Zod                                            |
+| EVE Data      | @lgriffin/esi.ts 9.4.0                         |
+| Frontend      | React 18 + React Flow + Zustand                |
+| Persistence   | Drizzle ORM + SQLite                           |
+| Testing       | Vitest + Cucumber.js + Stryker                 |
+| Observability | Structured request/response tracing middleware |
 
 ## License
 
