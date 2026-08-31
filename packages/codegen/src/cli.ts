@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { z } from 'zod';
 import {
   CapabilityCatalog,
   capabilityId,
@@ -10,33 +11,47 @@ import {
 import type { CapabilityDefinition, SemanticPort } from '@eve-fabric/domain';
 import { generate } from './generator.js';
 
-interface BundleSpec {
-  pipeline: Record<string, unknown>;
-  plan: Record<string, unknown>;
-  capabilities: Array<{
-    id: string;
-    version: string;
-    name: string;
-    description: string;
-    source: string;
-    inputs: Record<string, { name: string; semanticType: string; required: boolean }>;
-    outputs: Record<string, { name: string; semanticType: string; required: boolean }>;
-    dependencies: Array<{ id: string; version?: string }>;
-    auth: { required: boolean; scopes: string[] };
-    cache: {
-      cacheable: boolean;
-      defaultTtlSeconds: number;
-      stalePermitted: boolean;
-      identityInKey: boolean;
-    };
-    cost: { estimatedLatencyMs: number; esiCallCount: number };
-  }>;
-  packageName: string;
-  packageScope?: string;
-  version?: string;
-  description?: string;
-  graphqlSdl?: string;
-}
+const portSchema = z.object({
+  name: z.string().min(1),
+  semanticType: z.string().min(1),
+  required: z.boolean(),
+});
+
+const capabilitySchema = z.object({
+  id: z.string().min(1),
+  version: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+  source: z.string().min(1),
+  inputs: z.record(portSchema),
+  outputs: z.record(portSchema),
+  dependencies: z.array(z.object({ id: z.string().min(1), version: z.string().optional() })),
+  auth: z.object({ required: z.boolean(), scopes: z.array(z.string()) }),
+  cache: z.object({
+    cacheable: z.boolean(),
+    defaultTtlSeconds: z.number(),
+    stalePermitted: z.boolean(),
+    identityInKey: z.boolean(),
+  }),
+  cost: z.object({ estimatedLatencyMs: z.number(), esiCallCount: z.number() }),
+});
+
+const bundleSpecSchema = z.object({
+  pipeline: z.record(z.unknown()),
+  plan: z
+    .record(z.unknown())
+    .refine((p) => typeof p['createdAt'] === 'string' || p['createdAt'] instanceof Date, {
+      message: 'plan.createdAt must be a date string or Date',
+    }),
+  capabilities: z.array(capabilitySchema).min(1),
+  packageName: z.string().min(1),
+  packageScope: z.string().optional(),
+  version: z.string().optional(),
+  description: z.string().optional(),
+  graphqlSdl: z.string().optional(),
+});
+
+type BundleSpec = z.infer<typeof bundleSpecSchema>;
 
 function toCapabilityDefinition(raw: BundleSpec['capabilities'][number]): CapabilityDefinition {
   const inputs = new Map<string, SemanticPort>();
@@ -73,16 +88,23 @@ function toCapabilityDefinition(raw: BundleSpec['capabilities'][number]): Capabi
   };
 }
 
-function usage(): never {
-  process.stderr.write(
-    `Usage: eve-codegen <spec.json> [--out <dir>]\n\nSpec JSON must contain: pipeline, plan, capabilities, packageName\n`,
-  );
-  process.exit(1);
+function revivePlanDates(plan: Record<string, unknown>): Record<string, unknown> {
+  if (typeof plan['createdAt'] === 'string') {
+    return { ...plan, createdAt: new Date(plan['createdAt']) };
+  }
+  return plan;
 }
 
+const USAGE = `Usage: eve-codegen <spec.json> [--out <dir>]\n\nSpec JSON must contain: pipeline, plan, capabilities, packageName\n`;
+
 const args = process.argv.slice(2);
-if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
-  usage();
+if (args.includes('--help') || args.includes('-h')) {
+  process.stdout.write(USAGE);
+  process.exit(0);
+}
+if (args.length === 0) {
+  process.stderr.write(USAGE);
+  process.exit(1);
 }
 
 const specPath = args[0]!;
@@ -92,8 +114,16 @@ if (outIdx !== -1 && args[outIdx + 1]) {
   outDir = args[outIdx + 1]!;
 }
 
-const raw = readFileSync(resolve(specPath), 'utf-8');
-const spec = JSON.parse(raw) as BundleSpec;
+const rawJson = readFileSync(resolve(specPath), 'utf-8');
+const parsed = bundleSpecSchema.safeParse(JSON.parse(rawJson));
+if (!parsed.success) {
+  process.stderr.write(`Invalid spec file:\n`);
+  for (const issue of parsed.error.issues) {
+    process.stderr.write(`  ${issue.path.join('.')}: ${issue.message}\n`);
+  }
+  process.exit(1);
+}
+const spec = parsed.data;
 
 const catalog = new CapabilityCatalog();
 for (const cap of spec.capabilities) {
@@ -102,7 +132,7 @@ for (const cap of spec.capabilities) {
 
 const bundle = generate({
   pipeline: spec.pipeline as never,
-  plan: spec.plan as never,
+  plan: revivePlanDates(spec.plan) as never,
   catalog,
   packageName: spec.packageName,
   packageScope: spec.packageScope,
