@@ -296,7 +296,7 @@ Open http://localhost:5173. The designer provides:
 | -------------------- | ----- | ------------------------- |
 | `market-schema/`     | 2     | Market orders → aggregate |
 | `route-schema/`      | 3     | Route distance calculator |
-| `trade-opportunity/` | 4     | Multi-region trade finder |
+| `trade-opportunity/` | 3     | Market + route trade view |
 
 Import any of these via the designer's **Import YAML** button or load them
 programmatically through the pipeline API.

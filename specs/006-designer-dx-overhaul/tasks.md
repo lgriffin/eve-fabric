@@ -65,7 +65,7 @@
 
 **Goal**: Example pipeline YAML files import correctly with directed graph layout (not flat grid). Malformed YAML shows parse error.
 
-**Independent Test**: Import `examples/market-schema/pipeline.yaml` → 2 nodes with 3 edges in LR layout. Import `examples/trade-opportunity/pipeline.yaml` → 4 nodes with 9 edges. Import malformed YAML → error notification, canvas unchanged.
+**Independent Test**: Import `examples/market-schema/pipeline.yaml` → 2 nodes with 3 edges in LR layout. Import `examples/trade-opportunity/pipeline.yaml` → 3 nodes with 5 edges. Import malformed YAML → error notification, canvas unchanged.
 
 ### Tests for User Story 2
 
@@ -178,7 +178,7 @@
 - [x] T039 [US7] Replace inline styles with token references across palette components — update `apps/designer/src/components/palette/CapabilityPalette.tsx`, `apps/designer/src/components/palette/CapabilityCard.tsx`, `apps/designer/src/components/palette/IntentSearch.tsx`, `apps/designer/src/components/palette/RecommendedPanel.tsx`
 - [x] T040 [US7] Replace inline styles with token references across canvas and detail components — update `apps/designer/src/components/canvas/CapabilityNode.tsx`, `apps/designer/src/components/canvas/PipelineCanvas.tsx`, `apps/designer/src/components/detail/NodeDetailPanel.tsx`, `apps/designer/src/components/detail/ResultInspector.tsx`
 - [x] T041 [US7] Replace inline styles with token references in shared components and App.tsx — update `apps/designer/src/components/shared/Toolbar.tsx`, `apps/designer/src/App.tsx` (now slim after extractions). Remove all remaining inline `style={}` objects and bare hex color literals.
-- [ ] T042 [US7] Split pipeline store into focused slices — decompose `apps/designer/src/stores/pipeline-store.ts` (353 lines) into: `canvas-store.ts` (nodes/edges/selection), `compilation-store.ts` (diagnostics/plan/SDL), `execution-store.ts` (session/states/outputs), `persistence-store.ts` (save/load/dirty). Use Zustand slice pattern or combined store. Update all imports across the codebase.
+- [x] T042 [US7] Split pipeline store into focused slices — decompose `apps/designer/src/stores/pipeline-store.ts` (353 lines) into: `canvas-store.ts` (nodes/edges/selection), `compilation-store.ts` (diagnostics/plan/SDL), `execution-store.ts` (session/states/outputs), `persistence-store.ts` (save/load/dirty). Use Zustand slice pattern or combined store. Update all imports across the codebase.
 
 **Checkpoint**: All existing tests pass with zero modifications. No inline styles remain. No duplicated constants. App.tsx contains only composition. Pipeline store is split into focused slices.
 
