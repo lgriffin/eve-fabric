@@ -209,11 +209,11 @@ edges:
       expect(pipeline.id).toBe('route.info');
     });
 
-    it('imports trade-opportunity pipeline with 4 nodes and 9 edges', () => {
+    it('imports trade-opportunity pipeline with 3 nodes and 5 edges', () => {
       const yaml = readFileSync(resolve(examplesDir, 'trade-opportunity/pipeline.yaml'), 'utf-8');
       const pipeline = yamlToPipeline(yaml);
-      expect(pipeline.nodes).toHaveLength(4);
-      expect(pipeline.edges).toHaveLength(9);
+      expect(pipeline.nodes).toHaveLength(3);
+      expect(pipeline.edges).toHaveLength(5);
       expect(pipeline.id).toBe('trade.opportunity');
     });
 

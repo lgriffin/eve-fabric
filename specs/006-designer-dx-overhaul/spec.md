@@ -36,7 +36,7 @@ A user clicks "Import YAML" and selects one of the example pipeline files. The p
 **Acceptance Scenarios**:
 
 1. **Given** a loaded catalog and the `market-schema/pipeline.yaml` file, **When** the user imports it, **Then** 2 nodes appear (fetchOrders, aggregate) with 3 edges and zero diagnostics errors.
-2. **Given** a loaded catalog and the `trade-opportunity/pipeline.yaml` file, **When** the user imports it, **Then** 4 nodes appear (sourceSellOrders, destBuyOrders, routeCalc, profitCalc) with 9 edges and zero diagnostics errors.
+2. **Given** a loaded catalog and the `trade-opportunity/pipeline.yaml` file, **When** the user imports it, **Then** 3 nodes appear (fetchOrders, aggregateMarket, routeCalc) with 5 edges and zero diagnostics errors.
 3. **Given** imported nodes, **When** the canvas renders, **Then** nodes are laid out as a directed graph where upstream nodes appear to the left of downstream nodes, with no overlapping.
 4. **Given** a malformed YAML file (e.g., missing `nodes:` key), **When** the user imports it, **Then** a notification shows the parse error and the canvas is unchanged.
 5. **Given** a valid YAML referencing a capability not in the catalog, **When** the user imports it, **Then** the node renders with a warning badge and the diagnostics panel explains which capability was not found.
