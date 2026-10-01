@@ -176,6 +176,20 @@ export const JITA_TO_AMARR = [
   SYSTEM.amarr,
 ] as const;
 
+/** One incursion over The Forge and Domain: two high-sec systems and one low-sec. */
+export const INCURSIONS = [
+  {
+    constellation_id: 20000020,
+    faction_id: 500019,
+    has_boss: true,
+    infested_solar_systems: [SYSTEM.urlen, SYSTEM.sivala, SYSTEM.perimeter],
+    influence: 0.4,
+    staging_solar_system_id: SYSTEM.urlen,
+    state: 'established',
+    type: 'Incursion',
+  },
+] as const;
+
 /** A mock transport answering the fixture's ESI routes. */
 export function tranquilityTransport(): MockTransport {
   const transport = createMockTransport();
@@ -201,6 +215,7 @@ export function tranquilityTransport(): MockTransport {
     path: `/route/${SYSTEM.jita}/${SYSTEM.amarr}`,
     body: { route: [...JITA_TO_AMARR] },
   });
+  transport.respond({ method: 'GET', path: '/incursions', body: INCURSIONS });
   transport.respond({
     method: 'POST',
     path: `/route/${SYSTEM.amarr}/${SYSTEM.jita}`,

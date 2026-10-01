@@ -52,6 +52,9 @@ export interface PublishCompositeOptions {
   readonly version: string | number;
   readonly name: string;
   readonly description: string;
+  /** Where the composite hangs in the type graph, so drafts offer it as a move. */
+  readonly attach?:
+    { readonly on: string; readonly as: string; readonly subject: string } | undefined;
 }
 
 function errorMessages(diagnostics: readonly CompilerDiagnostic[]): string {
@@ -164,13 +167,32 @@ export class Fabric implements DraftHost {
   install(pack: Pack): void {
     const fresh = (pack.types ?? []).filter((type) => this.checkType(pack, type));
     for (const type of fresh) this.types.register(type);
+    const added: CapabilityDefinition[] = [];
     try {
       // All the pack's capabilities, or none of them.
       this.registry.registerAll(pack.capabilities);
+      added.push(...pack.capabilities);
+      // Then its weaves, which compile against what is now installed.
+      for (const weave of pack.weaves ?? []) {
+        added.push(this.publishComposite(weave.pipeline, weave.capability));
+      }
     } catch (error) {
+      const undo = [...added];
+      undo.reverse();
+      for (const capability of undo) this.withdraw(capability);
       for (const type of fresh) this.types.unregister(type.id);
       throw error;
     }
+  }
+
+  /** Takes back a capability an install added: its entry, its edges, and a weave's pipeline. */
+  private withdraw(capability: CapabilityDefinition): void {
+    this.catalog.unregister(capability.id, capability.version);
+    const graph = this.registry.getGraph();
+    const ref = { id: capability.id, version: capability.version };
+    for (const dep of capability.dependencies) graph.removeDependency(ref, dep);
+    const pipeline = capability.pipelineRef;
+    if (pipeline !== undefined) this.pipelines.delete(`${pipeline.id}@${pipeline.version}`);
   }
 
   /** Whether the type is new here; throws when it conflicts. */
@@ -183,7 +205,8 @@ export class Fabric implements DraftHost {
         `the eve.* namespace is reserved for ${CORE_PACK_ID}`,
       );
     }
-    if (!this.types.has(id)) return true;
+    // A list of an installed type is implied, not registered, so it is new here.
+    if (!this.types.hasRegistered(id)) return true;
     if (this.types.get(id) === type) return false;
     throw new TypeConflictError(pack.id, id, 'another definition is already installed');
   }
@@ -267,17 +290,36 @@ export class Fabric implements DraftHost {
    * `{ type: 'Tritanium' }`. The draft changes only through the moves it
    * offers and the holes it names (constitution XXVIII).
    */
-  draft(subject: Readonly<Record<string, string | number>>): Draft {
+  draft(subject: string | Readonly<Record<string, string | number>>): Draft {
     return Draft.start(this, subject);
   }
 
-  /** Runs a complete draft and gives the value at its cursor. Throws while it has holes. */
+  /**
+   * Runs a complete draft and gives the value at its cursor. Throws while it
+   * has holes. `perItemCap` raises the cap on per-item steps for this query.
+   */
   async query(
     draft: Draft,
+    options: { readonly perItemCap?: number | undefined } = {},
   ): Promise<{ readonly answer: unknown; readonly result: ExecutionResult }> {
     const { plan } = draft.plan();
-    const result = await this.execute(plan, new Map(Object.entries(draft.values)));
-    return { answer: readAt(result, draft.cursor.ref), result };
+    const cap = options.perItemCap;
+    if (cap !== undefined && !(Number.isInteger(cap) && cap > 0)) {
+      throw new RangeError(`perItemCap must be a positive whole number, not ${String(cap)}`);
+    }
+    const capped: ExecutionPlan =
+      cap === undefined
+        ? plan
+        : {
+            ...plan,
+            steps: plan.steps.map((step) =>
+              step.each === undefined ? step : { ...step, each: { ...step.each, cap } },
+            ),
+          };
+    const result = await this.execute(capped, new Map(Object.entries(draft.values)));
+    // A composite at the cursor runs as its inner steps; read the one it names.
+    const answer = this.expand(draft.pipeline()).pipeline.outputs.find((o) => o.name === 'answer');
+    return { answer: readAt(result, answer?.source ?? draft.cursor.ref), result };
   }
 
   /** Runs one capability on its own, its inputs given by port. */

@@ -155,4 +155,22 @@ describe('deduplicateSteps', () => {
     );
     expect(deduplicateSteps([read('a', 'system_id'), read('b', 'system_id')]).mergedCount).toBe(1);
   });
+
+  it('does not merge a step run per item with the same step run once', () => {
+    const inputs: ExecutionStep['inputs'] = [
+      { portName: 'id', source: 'pipeline-input', pipelineInputName: 'ids' },
+    ];
+    const once = makeStep({ id: 'once', inputs });
+    const each = makeStep({ id: 'each', inputs, each: { port: 'id', cap: 100 } });
+    expect(deduplicateSteps([once, each]).mergedCount).toBe(0);
+  });
+
+  it('does not merge per-item steps with different caps', () => {
+    const inputs: ExecutionStep['inputs'] = [
+      { portName: 'id', source: 'pipeline-input', pipelineInputName: 'ids' },
+    ];
+    const small = makeStep({ id: 'small', inputs, each: { port: 'id', cap: 2 } });
+    const large = makeStep({ id: 'large', inputs, each: { port: 'id', cap: 100 } });
+    expect(deduplicateSteps([small, large]).mergedCount).toBe(0);
+  });
 });

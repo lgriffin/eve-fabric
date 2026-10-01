@@ -25,6 +25,9 @@ export function publishAsComposite(
     readonly version: string | number;
     readonly name: string;
     readonly description: string;
+    /** Where the composite hangs in the type graph, as for any capability. */
+    readonly attach?:
+      { readonly on: string; readonly as: string; readonly subject: string } | undefined;
   },
   dependencyGraph?: DependencyGraph,
 ): PublishResult {
@@ -107,9 +110,11 @@ export function publishAsComposite(
       continue;
     }
 
+    // A per-item node gives a list of what its capability gives.
+    const listed = pipeline.nodes.find((node) => node.id === nodeId)?.each !== undefined;
     outputs[output.name] = {
       name: output.name,
-      semanticType: outputPort.semanticType,
+      semanticType: listed ? `${outputPort.semanticType}.collection` : outputPort.semanticType,
       required: true,
     };
   }
@@ -150,6 +155,7 @@ export function publishAsComposite(
     cache,
     cost,
     pipelineRef: { id: pipeline.id, version: pipeline.version },
+    ...(options.attach === undefined ? {} : { attach: options.attach }),
   };
 
   // 8. Register the new capability in the catalog

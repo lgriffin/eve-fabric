@@ -230,6 +230,15 @@ export function resolveComposites(
     }
 
     if (def.source === 'COMPOSITE' && def.pipelineRef) {
+      if (node.each !== undefined) {
+        // A composite expands into several steps; per-item runs one.
+        diagnostics.push({
+          code: 'INVALID_PER_ITEM',
+          severity: 'error',
+          message: `Node "${node.id}" cannot run the composite "${capIdStr}" per item`,
+          location: { nodeId: node.id, field: node.each.port },
+        });
+      }
       compositeNodeIds.add(node.id);
 
       const inputBindings: InputBinding[] = [];
@@ -277,6 +286,7 @@ export function resolveComposites(
             id: prefixed,
             capability: subNode.capability,
             config: subNode.config,
+            ...(subNode.each === undefined ? {} : { each: subNode.each }),
           });
         }
 
@@ -404,8 +414,10 @@ export function resolveComposites(
     // An output read from a composite node now reads the inner port behind it.
     outputs: pipeline.outputs.map((output) => {
       const sourceNode = extractNodeId(output.source);
-      const inner = compositeOutputSources.get(sourceNode)?.get(extractPortName(output.source));
-      return inner === undefined ? output : { ...output, source: inner };
+      // A field read on a composite's output reads the same field inside.
+      const { port, fieldPath } = splitPortPath(extractPortName(output.source));
+      const inner = compositeOutputSources.get(sourceNode)?.get(port);
+      return inner === undefined ? output : { ...output, source: [inner, ...fieldPath].join('.') };
     }),
   };
 

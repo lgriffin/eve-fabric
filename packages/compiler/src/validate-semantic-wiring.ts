@@ -13,6 +13,8 @@ import {
   semanticTypeMismatch,
   capabilityNotFound,
   unknownField,
+  fieldOnInput,
+  invalidPerItem,
 } from './diagnostics.js';
 import { splitPortPath } from './port-path.js';
 
@@ -109,14 +111,18 @@ function resolvePortType(
         : undefined;
     const def = catalog.get(capId, capVer);
 
+    // A per-item node takes a list on its per-item port and gives lists.
+    const listed = (type: string): string => `${type}.collection`;
     // For "from" side, look at capability outputs; for "to" side, look at inputs
-    if (side === 'input') return def.inputs.get(parsed.portName)?.semanticType;
+    if (side === 'input') {
+      const type = def.inputs.get(parsed.portName)?.semanticType;
+      return type !== undefined && node.each?.port === parsed.portName ? listed(type) : type;
+    }
     const { port: portName, fieldPath } = splitPortPath(parsed.portName);
     const port = def.outputs.get(portName);
     if (!port) return undefined;
-    return fieldPath.length === 0
-      ? port.semanticType
-      : fieldType(ref, port.semanticType, fieldPath, catalog, diagnostics);
+    const type = node.each === undefined ? port.semanticType : listed(port.semanticType);
+    return fieldPath.length === 0 ? type : fieldType(ref, type, fieldPath, catalog, diagnostics);
   } catch {
     diagnostics.push(capabilityNotFound(node.capability.id));
     return undefined;
@@ -144,7 +150,25 @@ export function validateSemanticWiring(
     nodeMap.set(node.id, node);
   }
 
+  for (const node of pipeline.nodes) {
+    if (node.each === undefined) continue;
+    try {
+      const def = catalog.get(
+        capabilityId(node.capability.id),
+        node.capability.version !== undefined
+          ? capabilityVersion(node.capability.version)
+          : undefined,
+      );
+      if (!def.inputs.has(node.each.port)) {
+        diagnostics.push(invalidPerItem(node.id, node.each.port, node.capability.id));
+      }
+    } catch {
+      // Reported with the edges.
+    }
+  }
+
   for (const edge of pipeline.edges) {
+    if (parsePortRef(edge.to).portName.includes('.')) diagnostics.push(fieldOnInput(edge.to));
     const fromType = resolvePortType(edge.from, 'output', pipeline, catalog, nodeMap, diagnostics);
 
     const toType = resolvePortType(edge.to, 'input', pipeline, catalog, nodeMap, diagnostics);
@@ -153,6 +177,11 @@ export function validateSemanticWiring(
     if (fromType !== undefined && toType !== undefined && fromType !== toType) {
       diagnostics.push(semanticTypeMismatch(edge.from, edge.to, fromType, toType));
     }
+  }
+
+  // An output may read a field of a record too; the field must exist.
+  for (const output of pipeline.outputs) {
+    resolvePortType(output.source, 'output', pipeline, catalog, nodeMap, diagnostics);
   }
 
   return diagnostics;

@@ -23,6 +23,8 @@ export interface ExecutionStep {
   readonly dependsOn: readonly string[];
   readonly cacheKey?: string | undefined;
   readonly canParallelize: boolean;
+  /** Run once per item of the list on `port`, at most `cap` distinct items. */
+  readonly each?: { readonly port: string; readonly cap: number } | undefined;
 }
 
 export interface StepGroup {

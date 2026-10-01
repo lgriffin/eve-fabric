@@ -7,15 +7,20 @@
  */
 
 import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import { DEFAULT_PER_ITEM_CAP, capabilityId, capabilityVersion } from '@eve-fabric/domain';
+
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { CostEstimate, StepGroup } from './execution-types.js';
+
+/** How many items of a per-item step run at once, as the executor runs them by default. */
+const PER_ITEM_CONCURRENCY = 5;
 
 /**
  * Estimates the total cost of executing a pipeline.
  *
  * - `totalLatencyMs`: sum of all capability latencies (sequential worst case)
- * - `esiCallCount`: total ESI calls across all capabilities
+ * - `esiCallCount`: total ESI calls across all capabilities; a per-item
+ *    step counts its calls once per item up to its cap, an upper bound
  * - `parallelLatencyMs`: realistic latency accounting for parallelism,
  *    computed as the sum of max-latency within each parallel group
  */
@@ -38,9 +43,12 @@ export function estimateCost(
           : undefined;
       const def = catalog.get(capId, capVer);
 
-      latencyMap.set(node.id, def.cost.estimatedLatencyMs);
-      totalLatencyMs += def.cost.estimatedLatencyMs;
-      esiCallCount += def.cost.esiCallCount;
+      const items = node.each === undefined ? 1 : (node.each.cap ?? DEFAULT_PER_ITEM_CAP);
+      const latency = def.cost.estimatedLatencyMs;
+      // Every item runs, a few at a time: the executor's default concurrency.
+      latencyMap.set(node.id, latency * Math.ceil(items / PER_ITEM_CONCURRENCY));
+      totalLatencyMs += latency * items;
+      esiCallCount += def.cost.esiCallCount * items;
     } catch {
       // Capability not found; skip
     }

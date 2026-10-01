@@ -1,6 +1,6 @@
 export { type PipelineInput, type PipelineOutput } from './pipeline-io.js';
 
-export { type PipelineNode } from './pipeline-node.js';
+export { type PipelineNode, type PerItem, DEFAULT_PER_ITEM_CAP } from './pipeline-node.js';
 
 export { type PipelineEdge, parsePortReference } from './pipeline-edge.js';
 

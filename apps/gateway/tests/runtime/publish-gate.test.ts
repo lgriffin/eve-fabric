@@ -26,7 +26,9 @@ describe('GatewayRuntime publishing', () => {
     const fields = Object.keys(runtime.graphqlSchema.getQueryType()?.getFields() ?? {});
     expect(fields.some((f) => f.toLowerCase().includes('works'))).toBe(true);
     expect(fields.some((f) => f.toLowerCase().includes('unwired'))).toBe(false);
-    // The draft that does not compile stays saved.
+    // The draft that does not compile stays saved, and says why it is not published.
     expect((await runtime.pipelineRepository.list()).map((p) => p.id)).toContain('unwired');
+    expect(runtime.unpublished.get('unwired')?.join(' ')).toMatch(/query/);
+    expect(runtime.unpublished.has('works')).toBe(false);
   });
 });

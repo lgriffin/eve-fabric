@@ -20,5 +20,6 @@ export {
   type DraftPlan,
   type Hole,
   type Move,
+  type PerItemPlan,
   type PlannedStep,
 } from './draft.js';

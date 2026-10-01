@@ -219,6 +219,14 @@ describe('SemanticTypeRegistry: references, records and lists', () => {
     );
   });
 
+  it('knows x.collection as a list of x for every registered x', () => {
+    const r = registry();
+    expect(r.has('test.place.collection')).toBe(true);
+    expect(r.get('test.place.collection')).toMatchObject({ kind: 'list', item: 'test.place' });
+    expect(r.has('test.nowhere.collection')).toBe(false);
+    expect(r.check('test.place.reference.collection', [1, '2']).ok).toBe(true);
+  });
+
   it('forgets a type it unregisters', () => {
     const r = registry();
     r.unregister('test.place');

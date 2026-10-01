@@ -52,6 +52,7 @@ export class GatewayRuntime {
 
   private _graphqlSchema: GraphQLSchema | undefined;
   private compiledRegistrations: PipelineRegistration[] = [];
+  private unpublishedPipelines = new Map<string, readonly string[]>();
 
   constructor(config?: GatewayRuntimeConfig) {
     const esi =
@@ -95,17 +96,31 @@ export class GatewayRuntime {
     this._graphqlSchema = undefined;
   }
 
+  /** Saved pipelines that are not published, by id, with why: the errors that stop them compiling. */
+  get unpublished(): ReadonlyMap<string, readonly string[]> {
+    return this.unpublishedPipelines;
+  }
+
   async rebuildRegistrations(): Promise<void> {
     const pipelines = await this.pipelineRepository.list();
     this.compiledRegistrations = [];
+    this.unpublishedPipelines = new Map();
+    const errors = (diagnostics: readonly { severity: string; message: string }[]) =>
+      diagnostics.filter((d) => d.severity === 'error').map((d) => d.message);
     for (const saved of pipelines) {
       // Composites expand first, so outputs read the inner steps that run.
       const expanded = this.fabric.expand(saved);
-      if (expanded.diagnostics.some((d) => d.severity === 'error')) continue;
+      if (errors(expanded.diagnostics).length > 0) {
+        this.unpublishedPipelines.set(saved.id, errors(expanded.diagnostics));
+        continue;
+      }
       const result = this.fabric.compile(expanded.pipeline);
       // Only a pipeline that compiles is published; a saved draft that does
-      // not stays saved, but is not a field anyone can query.
-      if (!result.success || result.plan === undefined) continue;
+      // not stays saved, and says why, but is not a field anyone can query.
+      if (!result.success || result.plan === undefined) {
+        this.unpublishedPipelines.set(saved.id, errors(result.diagnostics));
+        continue;
+      }
       this.compiledRegistrations.push({
         pipeline: expanded.pipeline,
         catalog: this.catalog,

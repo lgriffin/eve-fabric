@@ -12,7 +12,9 @@ function stepSignature(step: ExecutionStep): string {
     })
     .sort((a, b) => a.localeCompare(b))
     .join(',');
-  return `${capKey}|${inputSources}`;
+  // A step run per item is not the same step run once, nor one with another cap.
+  const each = step.each === undefined ? '' : `|each:${step.each.port}:${step.each.cap}`;
+  return `${capKey}|${inputSources}${each}`;
 }
 
 export interface DeduplicationResult {

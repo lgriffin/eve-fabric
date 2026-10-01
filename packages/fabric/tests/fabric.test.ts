@@ -11,7 +11,7 @@ import {
   type PipelineNode,
 } from '@eve-fabric/domain';
 import { z } from 'zod';
-import { defineCapability, defineContract, definePack, defineType } from '@eve-fabric/kit';
+import { defineCapability, defineContract, definePack, defineType, listOf } from '@eve-fabric/kit';
 import { PortValueError, StepExecutionError } from '@eve-fabric/executor';
 import { corePack } from '@eve-fabric/pack-core';
 import { memoryStaticSource } from '@eve-fabric/source-sde';
@@ -76,7 +76,9 @@ const cheapestInRegion: PipelineDefinition = {
 describe('createFabric', () => {
   it('describes the capabilities its packs installed', () => {
     const { fabric } = tranquilityFabric();
-    expect(fabric.describe().capabilities).toHaveLength(corePack.capabilities.length);
+    expect(fabric.describe().capabilities).toHaveLength(
+      corePack.capabilities.length + (corePack.weaves?.length ?? 0),
+    );
   });
 
   it('runs a pipeline over ESI and the SDE, from names to a price', async () => {
@@ -549,6 +551,14 @@ describe('types that can represent a traversal (phase 3)', () => {
     expect(() => fabric.install(definePack({ id: 'y', types: [b], capabilities: [] }))).toThrow(
       /already installed/,
     );
+  });
+
+  it('installs a pack that names a list of a type another pack installed', () => {
+    const a = defineType({ kind: 'value', id: 'someone.a', description: 'A', schema: z.string() });
+    const fabric = createFabric({ packs: [definePack({ id: 'x', types: [a], capabilities: [] })] });
+    const many = listOf(a);
+    fabric.install(definePack({ id: 'y', types: [many], capabilities: [] }));
+    expect(fabric.types.get('someone.a.collection')).toBe(many);
   });
 
   it('refuses a port whose type it does not know', () => {

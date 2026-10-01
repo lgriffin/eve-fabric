@@ -53,6 +53,9 @@ export function createPipelineRoutes(runtime: GatewayRuntime) {
         name: p.name,
         description: p.description ?? '',
         savedAt: metadata.get(p.id) ?? '',
+        // A saved pipeline that does not compile is not published, and says why.
+        published: !runtime.unpublished.has(p.id),
+        problems: runtime.unpublished.get(p.id) ?? [],
       }));
       return reply.status(200).send(list);
     });

@@ -48,6 +48,18 @@ export function unknownField(ref: string, recordType: string, field: string): Co
   };
 }
 
+export const FIELD_ON_INPUT = 'FIELD_ON_INPUT';
+
+/** An edge feeds a field of an input port; an edge feeds a port whole. */
+export function fieldOnInput(ref: string): CompilerDiagnostic {
+  return {
+    code: FIELD_ON_INPUT,
+    severity: 'error',
+    message: `"${ref}" names a field of an input; an edge feeds a whole port`,
+    location: { edgeTo: ref },
+  };
+}
+
 /**
  * Creates a diagnostic for a value configured on a port that is not a value
  * of the port's semantic type.
@@ -103,6 +115,23 @@ export function cycleDetected(cyclePath: string[]): CompilerDiagnostic {
     context: {
       suggestion: `Remove or restructure edges to eliminate the cycle: ${cycle}`,
     },
+  };
+}
+
+export const INVALID_PER_ITEM = 'INVALID_PER_ITEM';
+
+/** A per-item node names a port its capability does not take. */
+export function invalidPerItem(
+  nodeId: string,
+  port: string,
+  capability: string,
+): CompilerDiagnostic {
+  return {
+    code: INVALID_PER_ITEM,
+    severity: 'error',
+    message: `Node "${nodeId}" runs per item of "${port}", which is not an input of "${capability}"`,
+    location: { nodeId, field: port },
+    context: { capability },
   };
 }
 

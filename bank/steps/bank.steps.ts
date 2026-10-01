@@ -10,6 +10,7 @@ import { createFabric, type Draft, type DraftPlan, type Fabric } from '@eve-fabr
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/domain';
 import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { incursionsPack } from '../../examples/incursions-pack/pack.js';
 
 const PENDING = 'pending';
 
@@ -45,7 +46,9 @@ Given('a fabric over the recorded Tranquility fixture', function (this: BankWorl
     clock: fixedClock(Date.UTC(2026, 9, 1)),
   });
 });
-Given('the example incursions pack is installed', () => PENDING);
+Given('the example incursions pack is installed', function (this: BankWorld) {
+  this.theFabric.install(incursionsPack);
+});
 Given('I am a character with the scope {string}', (_scope: string) => PENDING);
 Given('I am a character without the scope {string}', (_scope: string) => PENDING);
 Given('a weave exported from Q3 by another fabric', () => PENDING);
@@ -56,7 +59,9 @@ When('I start a draft from the type {string}', function (this: BankWorld, name: 
 When('I start a draft from the system {string}', function (this: BankWorld, name: string) {
   this.draft = this.theFabric.draft({ system: name });
 });
-When('I start a draft from {string}', (_subject: string) => PENDING);
+When('I start a draft from {string}', function (this: BankWorld, subject: string) {
+  this.draft = this.theFabric.draft(subject);
+});
 When('I start a draft from my character', () => PENDING);
 When('I apply the move {string}', function (this: BankWorld, move: string) {
   this.draft = this.theDraft.apply(move);
@@ -87,16 +92,46 @@ Then('the plan makes {int} ESI call', function (this: BankWorld, n: number) {
 Then('the plan needs no scopes', function (this: BankWorld) {
   assert.deepEqual(this.plan().scopes, []);
 });
-Then('the plan reports a per-item step with a call count', () => PENDING);
-Then('the plan runs the two order lookups in parallel', () => PENDING);
+Then('the plan reports a per-item step with a call count', function (this: BankWorld) {
+  const perItem = this.plan().steps.filter((s) => s.each !== undefined);
+  assert.ok(perItem.length > 0, 'no step runs per item');
+  for (const step of perItem) {
+    assert.equal(typeof step.each!.callsPerItem, 'number');
+    assert.ok(step.each!.cap > 0);
+  }
+});
+Then('the plan runs the two order lookups in parallel', function (this: BankWorld) {
+  const { plan } = this.plan();
+  const lookups = plan.steps
+    .filter((s) => (s.capability.id as string) === 'market.orders')
+    .map((s) => s.id);
+  assert.equal(lookups.length, 2, 'expected two order lookups');
+  assert.ok(
+    plan.parallelGroups.some((g) => lookups.every((id) => g.steps.includes(id))),
+    'the order lookups are not in one parallel group',
+  );
+});
 Then('the answer names a solar system with a security status', function (this: BankWorld) {
   const answer = this.answer as { name?: unknown; security_status?: unknown } | undefined;
   assert.equal(typeof answer?.name, 'string');
   assert.equal(typeof answer?.security_status, 'number');
 });
-Then('the answer is an ISK amount', () => PENDING);
-Then('the answer has a jump count and a security status', () => PENDING);
-Then('the answer is a list of solar systems', () => PENDING);
+Then('the answer is an ISK amount', function (this: BankWorld) {
+  assert.equal(typeof this.answer, 'number');
+  assert.ok(Number.isFinite(this.answer));
+});
+Then('the answer has a jump count and a security status', function (this: BankWorld) {
+  const answer = this.answer as { jumps?: unknown; security_status?: unknown } | undefined;
+  assert.equal(typeof answer?.jumps, 'number');
+  assert.equal(typeof answer?.security_status, 'number');
+});
+Then('the answer is a list of solar systems', function (this: BankWorld) {
+  assert.ok(Array.isArray(this.answer), 'the answer is not a list');
+  for (const system of this.answer as { system_id?: unknown; name?: unknown }[]) {
+    assert.equal(typeof system.system_id, 'number');
+    assert.equal(typeof system.name, 'string');
+  }
+});
 Then('the answer is a list of market orders', () => PENDING);
 Then('the move {string} is unavailable for want of {string}', (_m: string, _s: string) => PENDING);
 Then('the move {string} is offered', (_move: string) => PENDING);
