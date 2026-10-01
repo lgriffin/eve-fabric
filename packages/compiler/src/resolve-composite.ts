@@ -404,8 +404,10 @@ export function resolveComposites(
     // An output read from a composite node now reads the inner port behind it.
     outputs: pipeline.outputs.map((output) => {
       const sourceNode = extractNodeId(output.source);
-      const inner = compositeOutputSources.get(sourceNode)?.get(extractPortName(output.source));
-      return inner === undefined ? output : { ...output, source: inner };
+      // A field read on a composite's output reads the same field inside.
+      const { port, fieldPath } = splitPortPath(extractPortName(output.source));
+      const inner = compositeOutputSources.get(sourceNode)?.get(port);
+      return inner === undefined ? output : { ...output, source: [inner, ...fieldPath].join('.') };
     }),
   };
 

@@ -48,6 +48,18 @@ export function unknownField(ref: string, recordType: string, field: string): Co
   };
 }
 
+export const FIELD_ON_INPUT = 'FIELD_ON_INPUT';
+
+/** An edge feeds a field of an input port; an edge feeds a port whole. */
+export function fieldOnInput(ref: string): CompilerDiagnostic {
+  return {
+    code: FIELD_ON_INPUT,
+    severity: 'error',
+    message: `"${ref}" names a field of an input; an edge feeds a whole port`,
+    location: { edgeTo: ref },
+  };
+}
+
 /**
  * Creates a diagnostic for a value configured on a port that is not a value
  * of the port's semantic type.

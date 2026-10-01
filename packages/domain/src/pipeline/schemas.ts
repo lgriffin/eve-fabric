@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { capabilityIdSchema, capabilityVersionSchema } from '../capability/capability-id.js';
-import { portReference } from '../validation/helpers.js';
+import { portReference, portReferenceWithFields } from '../validation/helpers.js';
 
 const PIPELINE_ID_PATTERN = /^[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*$/;
 
@@ -37,7 +37,7 @@ export const pipelineNodeSchema = z.object({
 });
 
 export const pipelineEdgeSchema = z.object({
-  from: portReference,
+  from: portReferenceWithFields,
   to: portReference,
 });
 

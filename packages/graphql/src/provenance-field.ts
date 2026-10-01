@@ -3,7 +3,6 @@ import {
   GraphQLEnumType,
   GraphQLString,
   GraphQLBoolean,
-  GraphQLInt,
   GraphQLNonNull,
 } from 'graphql';
 
@@ -22,7 +21,7 @@ export const DataProvenanceType = new GraphQLObjectType({
   fields: {
     source: { type: new GraphQLNonNull(DataSourceEnum) },
     capability: { type: new GraphQLNonNull(GraphQLString) },
-    version: { type: new GraphQLNonNull(GraphQLInt) },
+    version: { type: new GraphQLNonNull(GraphQLString) },
     retrievedAt: { type: GraphQLString },
     calculatedAt: { type: GraphQLString },
     cached: { type: new GraphQLNonNull(GraphQLBoolean) },

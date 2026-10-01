@@ -7,6 +7,8 @@ export {
   UNKNOWN_PIPELINE_INPUT,
   INVALID_CONFIGURED_VALUE,
   UNKNOWN_FIELD,
+  FIELD_ON_INPUT,
+  fieldOnInput,
   SEMANTIC_SUGGESTION,
   semanticTypeMismatch,
   cycleDetected,

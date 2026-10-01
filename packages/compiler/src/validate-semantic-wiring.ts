@@ -13,6 +13,7 @@ import {
   semanticTypeMismatch,
   capabilityNotFound,
   unknownField,
+  fieldOnInput,
 } from './diagnostics.js';
 import { splitPortPath } from './port-path.js';
 
@@ -145,6 +146,7 @@ export function validateSemanticWiring(
   }
 
   for (const edge of pipeline.edges) {
+    if (parsePortRef(edge.to).portName.includes('.')) diagnostics.push(fieldOnInput(edge.to));
     const fromType = resolvePortType(edge.from, 'output', pipeline, catalog, nodeMap, diagnostics);
 
     const toType = resolvePortType(edge.to, 'input', pipeline, catalog, nodeMap, diagnostics);
@@ -153,6 +155,11 @@ export function validateSemanticWiring(
     if (fromType !== undefined && toType !== undefined && fromType !== toType) {
       diagnostics.push(semanticTypeMismatch(edge.from, edge.to, fromType, toType));
     }
+  }
+
+  // An output may read a field of a record too; the field must exist.
+  for (const output of pipeline.outputs) {
+    resolvePortType(output.source, 'output', pipeline, catalog, nodeMap, diagnostics);
   }
 
   return diagnostics;

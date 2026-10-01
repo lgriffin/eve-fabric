@@ -158,6 +158,32 @@ describe('resolveComposites', () => {
     expect(nodeIds).not.toContain('snapshot');
   });
 
+  it('carries a field read on a composite output to the inner port', () => {
+    const pipeline: PipelineDefinition = {
+      id: 'trade-field',
+      version: 1,
+      name: 'Trade Field',
+      inputs: [
+        { name: 'item', semanticType: semanticTypeId('eve.type.reference'), required: true },
+        { name: 'region', semanticType: semanticTypeId('eve.region.reference'), required: true },
+      ],
+      nodes: [
+        {
+          id: 'snapshot',
+          capability: { id: capabilityId('market.snapshot'), version: capabilityVersion(1) },
+        },
+      ],
+      edges: [
+        { from: 'input.item', to: 'snapshot.item' },
+        { from: 'input.region', to: 'snapshot.region' },
+      ],
+      outputs: [{ name: 'where', source: 'snapshot.lowestSell.location_id' }],
+    };
+
+    const { expandedPipeline } = resolveComposites(pipeline, catalog, registry);
+    expect(expandedPipeline.outputs[0]!.source).toMatch(/^snapshot\/\w+\.\w+\.location_id$/);
+  });
+
   it('preserves non-composite nodes unchanged', () => {
     const pipeline: PipelineDefinition = {
       id: 'mixed-pipeline',

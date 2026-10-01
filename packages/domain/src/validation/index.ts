@@ -4,6 +4,7 @@ export {
   nonNegativeInt,
   semver,
   portReference,
+  portReferenceWithFields,
   parsePortReference,
   validate,
 } from './helpers.js';

@@ -24,6 +24,14 @@ import type {
 } from '@eve-fabric/domain';
 import { capabilityId, semanticTypeId } from '@eve-fabric/domain';
 import type { CompileResult, CompilerDiagnostic } from '@eve-fabric/compiler';
+import { z } from 'zod';
+
+/** One subject, named by kind: a name (non-empty text) or a positive integer id. */
+const subjectSchema = z
+  .record(z.string(), z.union([z.string().trim().min(1), z.number().int().positive()]))
+  .refine((subject) => Object.keys(subject).length === 1, {
+    message: 'A draft starts from one subject, such as { type: "Tritanium" }',
+  });
 
 /** What a draft needs from the fabric that made it. */
 export interface DraftHost {
@@ -46,8 +54,11 @@ export interface Cursor {
 /** A change the engine offers. Apply it by name. */
 export interface Move {
   readonly name: string;
-  /** `attach`: a capability hung on the cursor's type. `follow`: a reference field, resolved. */
-  readonly kind: 'attach' | 'follow' | 'details';
+  /**
+   * `attach`: a capability hung on the cursor's type. `follow`: a reference field, resolved.
+   * `output`: another output of the step the cursor is on; nothing is added.
+   */
+  readonly kind: 'attach' | 'follow' | 'details' | 'output';
   /** The capability the move adds, as `id@version`. */
   readonly capability: string;
   readonly description: string;
@@ -218,13 +229,13 @@ export class Draft {
 
   /** A draft from a subject picked by name or id: `{ type: 'Tritanium' }`. */
   static start(host: DraftHost, subject: Readonly<Record<string, string | number>>): Draft {
-    const entries = Object.entries(subject);
-    if (entries.length !== 1) {
+    const parsed = subjectSchema.safeParse(subject);
+    if (!parsed.success) {
       throw new UnknownSubjectError(
-        'A draft starts from one subject, such as { type: "Tritanium" }',
+        `A draft starts from one subject named by text or a positive id, such as { type: "Tritanium" }: ${parsed.error.issues.map((i) => i.message).join('; ')}`,
       );
     }
-    const [kind, value] = entries[0]!;
+    const [kind, value] = Object.entries(parsed.data)[0]!;
     const references = host.types
       .list()
       .filter((t): t is ReferenceTypeDefinition => t.kind === 'reference')
@@ -293,7 +304,8 @@ export class Draft {
 
   /** The draft as a pipeline whose one output is the cursor. */
   pipeline(): PipelineDefinition {
-    return {
+    // A copy: changing it never changes the draft.
+    return copyOf({
       id: 'draft',
       version: 1,
       name: 'Draft',
@@ -301,12 +313,12 @@ export class Draft {
       nodes: this.state.nodes,
       edges: this.state.edges,
       outputs: [{ name: 'answer', source: this.state.cursor.ref }],
-    };
+    });
   }
 
-  /** The values filled into the draft, by pipeline input name. */
+  /** The values filled into the draft, by pipeline input name. A copy. */
   get values(): Readonly<Record<string, unknown>> {
-    return this.state.values;
+    return copyOf(this.state.values);
   }
 
   /** The inputs the draft still needs. Empty when it is complete. */
@@ -350,7 +362,11 @@ export class Draft {
       );
     }
     const target = `${hole.node}.${hole.port}`;
-    const lookup = typeof value === 'string' ? Draft.lookupFor(this.host, hole.type) : undefined;
+    // A value of the hole's type (an id, even sent as text) is used as it is;
+    // only text that is not one is a name to look up.
+    const check = this.host.types.check(hole.type, value);
+    const lookup =
+      !check.ok && typeof value === 'string' ? Draft.lookupFor(this.host, hole.type) : undefined;
     let next: DraftState;
     if (lookup !== undefined) {
       const node = freshNodeId(this.state, hole.port);
@@ -367,15 +383,13 @@ export class Draft {
         values: { ...this.state.values, [input]: value },
       };
     } else {
-      const check = this.host.types.check(hole.type, value);
       if (!check.ok) throw new FillRejectedError(name, `not a ${hole.type}: ${check.message}`);
-      const parsed = check.value;
       const input = inputName(this.state, hole.node, hole.port);
       next = {
         ...this.state,
         edges: [...this.state.edges, { from: `input.${input}`, to: target }],
         inputs: [...this.state.inputs, { name: input, semanticType: hole.type, required: true }],
-        values: { ...this.state.values, [input]: parsed },
+        values: { ...this.state.values, [input]: check.value },
       };
     }
     const filled = new Draft(this.host, next);
@@ -423,7 +437,7 @@ export class Draft {
     readonly values: Readonly<Record<string, unknown>>;
   } {
     this.requireComplete('export');
-    return { pipeline: this.pipeline(), values: this.state.values };
+    return { pipeline: this.pipeline(), values: this.values };
   }
 
   /** Throws {@link DraftIncompleteError} while the draft has holes. */
@@ -440,7 +454,11 @@ export class Draft {
 
   private candidates(): Candidate[] {
     const found = new Map<string, Candidate>();
-    for (const candidate of [...this.attachCandidates(), ...this.followCandidates()]) {
+    for (const candidate of [
+      ...this.attachCandidates(),
+      ...this.followCandidates(),
+      ...this.outputCandidates(),
+    ]) {
       if (found.has(candidate.move.name)) continue;
       // The oracle: offered only if the result compiles, holes aside (FAB-VAL-02).
       const compiled = this.host.compile(new Draft(this.host, candidate.state).pipeline());
@@ -526,6 +544,34 @@ export class Draft {
     return candidates;
   }
 
+  /** The other outputs of the step the cursor is on: moving there adds no step. */
+  private outputCandidates(): Candidate[] {
+    const parts = this.state.cursor.ref.split('.');
+    if (parts.length !== 2) return [];
+    const [nodeId, port] = parts as [string, string];
+    const node = this.state.nodes.find((n) => n.id === nodeId);
+    if (node === undefined) return [];
+    const capability = this.host.catalog.get(
+      capabilityId(node.capability.id),
+      node.capability.version,
+    );
+    const candidates: Candidate[] = [];
+    for (const [name, spec] of capability.outputs) {
+      if (name === port) continue;
+      candidates.push({
+        move: {
+          name,
+          kind: 'output',
+          capability: keyOf(capability),
+          description: spec.description ?? `The ${name} output of ${capability.name}`,
+          yields: spec.semanticType,
+        },
+        state: { ...this.state, cursor: { ref: `${nodeId}.${name}`, type: spec.semanticType } },
+      });
+    }
+    return candidates;
+  }
+
   /** A step that resolves a reference, read from `from`, to its record. */
   private resolveCandidate(
     reference: ReferenceTypeDefinition,
@@ -596,4 +642,17 @@ export class Draft {
     const matches = result[output];
     return Array.isArray(matches) ? (matches as Choice[]) : [];
   }
+}
+
+/** A deep copy of plain data: arrays and records copied, anything else shared. */
+function copyOf<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item: unknown) => copyOf(item)) as T;
+  if (
+    value !== null &&
+    typeof value === 'object' &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, copyOf(item)])) as T;
+  }
+  return value;
 }

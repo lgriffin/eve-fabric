@@ -15,11 +15,24 @@ export const semver = z
   .string()
   .regex(/^\d+\.\d+\.\d+$/, 'Must be semantic version format (e.g., "1.0.0")');
 
-export const portReference = z.string().regex(
-  // A port may be followed by record fields: "cheapest.cheapest.location_id".
-  /^[a-zA-Z][a-zA-Z0-9-]*\.[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z_]\w*)*$/,
-  'Must be port reference format (e.g., "nodeId.portName" or "nodeId.portName.field")',
-);
+export const portReference = z
+  .string()
+  .regex(
+    /^[a-zA-Z][a-zA-Z0-9-]*\.[a-zA-Z][a-zA-Z0-9]*$/,
+    'Must be port reference format (e.g., "nodeId.portName")',
+  );
+
+/**
+ * Where an edge reads from: a port, perhaps followed by record fields
+ * ("cheapest.cheapest.location_id"). Only an edge's `from` reads fields; it
+ * feeds a port, and an output names one.
+ */
+export const portReferenceWithFields = z
+  .string()
+  .regex(
+    /^[a-zA-Z][a-zA-Z0-9-]*\.[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z_]\w*)*$/,
+    'Must be port reference format (e.g., "nodeId.portName" or "nodeId.portName.field")',
+  );
 
 export function parsePortReference(ref: string): { source: string; port: string } {
   const dotIndex = ref.indexOf('.');

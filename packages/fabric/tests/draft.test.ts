@@ -110,6 +110,57 @@ describe('a draft', () => {
     expect(compiled.diagnostics.map((d) => d.code)).toContain('UNKNOWN_FIELD');
   });
 
+  it('does not compile an output that reads a field the record does not have', () => {
+    const fabric = tranquilityFabric();
+    const pipeline = cheapestTritanium(fabric).pipeline();
+    const wrong = { ...pipeline, outputs: [{ name: 'x', source: 'cheapest.cheapest.nowhere' }] };
+    expect(fabric.compile(wrong).diagnostics.map((d) => d.code)).toContain('UNKNOWN_FIELD');
+  });
+
+  it('does not compile an edge into a field of an input', () => {
+    const fabric = tranquilityFabric();
+    const pipeline = cheapestTritanium(fabric).pipeline();
+    const wrong = {
+      ...pipeline,
+      edges: pipeline.edges.map((e) =>
+        e.to === 'location.id' ? { ...e, to: 'location.id.x' } : e,
+      ),
+    };
+    expect(fabric.compile(wrong).success).toBe(false);
+  });
+
+  it('takes a reference id written as decimal text', () => {
+    const draft = tranquilityFabric()
+      .draft({ type: 'Tritanium' })
+      .apply('orders')
+      .fill('region', String(REGION.theForge));
+    expect(draft.complete).toBe(true);
+    expect(Object.values(draft.values)).toContain(REGION.theForge);
+  });
+
+  it('moves to another output of the step it is on, adding nothing', () => {
+    const fabric = tranquilityFabric();
+    const cheapest = fabric
+      .draft({ type: 'Tritanium' })
+      .apply('orders')
+      .fill('region', 'The Forge')
+      .apply('cheapest');
+    const price = cheapest.moves().find((m) => m.name === 'price');
+    expect(price?.kind).toBe('output');
+    const moved = cheapest.apply('price');
+    expect(moved.cursor.ref).toBe('cheapest.price');
+    expect(moved.pipeline().nodes).toHaveLength(cheapest.pipeline().nodes.length);
+  });
+
+  it('hands out copies: changing one does not change the draft', () => {
+    const draft = tranquilityFabric().draft({ type: 'Tritanium' });
+    const pipeline = draft.pipeline() as { nodes: unknown[] };
+    pipeline.nodes.length = 0;
+    (draft.values as Record<string, unknown>)['typeQuery'] = 'Pyerite';
+    expect(draft.pipeline().nodes).toHaveLength(1);
+    expect(draft.values).toEqual({ typeQuery: 'Tritanium' });
+  });
+
   it('is immutable: a move gives a new draft', () => {
     const start = tranquilityFabric().draft({ type: 'Tritanium' });
     const next = start.apply('orders');
@@ -140,6 +191,7 @@ describe('a draft', () => {
       const fabric = tranquilityFabric();
       expect(() => fabric.draft({ starship: 'Rifter' })).toThrow(UnknownSubjectError);
       expect(() => fabric.draft({})).toThrow(UnknownSubjectError);
+      expect(() => fabric.draft({ type: { name: 'Tritanium' } } as never)).toThrow();
     });
   });
 

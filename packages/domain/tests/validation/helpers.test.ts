@@ -6,6 +6,7 @@ import {
   nonNegativeInt,
   semver,
   portReference,
+  portReferenceWithFields,
   parsePortReference,
   validate,
 } from '../../src/validation/helpers.js';
@@ -84,9 +85,13 @@ describe('Validation helpers', () => {
       expect(portReference.safeParse('no-dot').success).toBe(false);
     });
 
-    it('accepts record fields after the port', () => {
-      expect(portReference.safeParse('cheapest.cheapest.location_id').success).toBe(true);
-      expect(portReference.safeParse('cheapest.cheapest.').success).toBe(false);
+    it('refuses record fields after the port: a port is fed, or named, whole', () => {
+      expect(portReference.safeParse('cheapest.cheapest.location_id').success).toBe(false);
+    });
+
+    it('takes record fields after the port where an edge reads from', () => {
+      expect(portReferenceWithFields.safeParse('cheapest.cheapest.location_id').success).toBe(true);
+      expect(portReferenceWithFields.safeParse('cheapest.cheapest.').success).toBe(false);
     });
   });
 
