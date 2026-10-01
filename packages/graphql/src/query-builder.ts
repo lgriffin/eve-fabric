@@ -125,6 +125,7 @@ export function buildQueryField(reg: PipelineRegistration): GraphQLFieldConfig<u
       (outputType as unknown as { _fields: Record<string, unknown> })._fields['_provenance'] = {
         type: new GraphQLList(DataProvenanceType),
         description: 'Data provenance for this result',
+        args: [],
         isDeprecated: false,
         deprecationReason: null,
         extensions: {},

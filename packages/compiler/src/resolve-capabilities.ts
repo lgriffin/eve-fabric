@@ -81,7 +81,7 @@ export function resolveCapabilities(
       const configuredPorts = new Set(Object.keys(nodeConfigured));
       for (const [portName, port] of def.inputs) {
         if (port.required && !nodeWired.has(portName) && !configuredPorts.has(portName)) {
-          diagnostics.push(missingInput(node.capability.id, portName));
+          diagnostics.push(missingInput(node.capability.id, portName, node.id));
         }
       }
       diagnostics.push(...checkConfiguredValues(node.id, def, nodeConfigured, catalog));

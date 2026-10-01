@@ -12,7 +12,9 @@ import {
   type CompilerDiagnostic,
   semanticTypeMismatch,
   capabilityNotFound,
+  unknownField,
 } from './diagnostics.js';
+import { splitPortPath } from './port-path.js';
 
 /**
  * Parses a port reference into its node identifier and port name.
@@ -29,6 +31,33 @@ function parsePortRef(ref: string): { nodeId: string; portName: string } {
     nodeId: ref.substring(0, dotIndex),
     portName: ref.substring(dotIndex + 1),
   };
+}
+
+/**
+ * The type of a field read inside a record output. Unchecked (undefined)
+ * when the catalog holds no types; a field the record does not have is an
+ * error.
+ */
+function fieldType(
+  ref: string,
+  portType: string,
+  fieldPath: readonly string[],
+  catalog: CapabilityCatalog,
+  diagnostics: CompilerDiagnostic[],
+): string | undefined {
+  const types = catalog.types;
+  if (types === undefined) return undefined;
+  let current = portType;
+  for (const field of fieldPath) {
+    const type = types.has(current) ? types.get(current) : undefined;
+    const next = type?.kind === 'record' ? type.fields.get(field) : undefined;
+    if (next === undefined) {
+      diagnostics.push(unknownField(ref, current, field));
+      return undefined;
+    }
+    current = next.type;
+  }
+  return current;
 }
 
 /**
@@ -81,12 +110,13 @@ function resolvePortType(
     const def = catalog.get(capId, capVer);
 
     // For "from" side, look at capability outputs; for "to" side, look at inputs
-    const ports = side === 'output' ? def.outputs : def.inputs;
-    const port = ports.get(parsed.portName);
-    if (port) {
-      return port.semanticType;
-    }
-    return undefined;
+    if (side === 'input') return def.inputs.get(parsed.portName)?.semanticType;
+    const { port: portName, fieldPath } = splitPortPath(parsed.portName);
+    const port = def.outputs.get(portName);
+    if (!port) return undefined;
+    return fieldPath.length === 0
+      ? port.semanticType
+      : fieldType(ref, port.semanticType, fieldPath, catalog, diagnostics);
   } catch {
     diagnostics.push(capabilityNotFound(node.capability.id));
     return undefined;

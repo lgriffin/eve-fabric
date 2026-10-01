@@ -28,6 +28,7 @@ import { MemoryCache } from '@eve-fabric/cache';
 import { publishAsComposite, type Pack } from '@eve-fabric/kit';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
+import { Draft, type DraftHost } from './draft.js';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
@@ -113,7 +114,7 @@ function asStaticSource(value: IStaticDataProvider | StaticSource): StaticSource
  * The composition root as a library: sources and packs in, a fabric out.
  * The gateway, the designer's back end and any CLI are transports over this.
  */
-export class Fabric {
+export class Fabric implements DraftHost {
   /** The semantic types every port here is checked against. */
   readonly types: SemanticTypeRegistry;
   readonly catalog: CapabilityCatalog;
@@ -261,6 +262,51 @@ export class Fabric {
     return this.execute(compiled.plan as unknown as ExecutionPlan, new Map(Object.entries(inputs)));
   }
 
+  /**
+   * A draft question from a subject picked by name or id, such as
+   * `{ type: 'Tritanium' }`. The draft changes only through the moves it
+   * offers and the holes it names (constitution XXVIII).
+   */
+  draft(subject: Readonly<Record<string, string | number>>): Draft {
+    return Draft.start(this, subject);
+  }
+
+  /** Runs a complete draft and gives the value at its cursor. Throws while it has holes. */
+  async query(
+    draft: Draft,
+  ): Promise<{ readonly answer: unknown; readonly result: ExecutionResult }> {
+    const { plan } = draft.plan();
+    const result = await this.execute(plan, new Map(Object.entries(draft.values)));
+    return { answer: readAt(result, draft.cursor.ref), result };
+  }
+
+  /** Runs one capability on its own, its inputs given by port. */
+  async runOne(
+    capability: CapabilityDefinition,
+    inputs: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const node = 'one';
+    const names = [...capability.inputs.keys()].filter((port) => port in inputs);
+    const pipeline: PipelineDefinition = {
+      id: `run-one@${capability.id as string}`,
+      version: 1,
+      name: capability.name,
+      inputs: names.map((port) => ({
+        name: port,
+        semanticType: capability.inputs.get(port)!.semanticType,
+        required: true,
+      })),
+      nodes: [{ id: node, capability: { id: capability.id, version: capability.version } }],
+      edges: names.map((port) => ({ from: `input.${port}`, to: `${node}.${port}` })),
+      outputs: [...capability.outputs.keys()].map((port) => ({
+        name: port,
+        source: `${node}.${port}`,
+      })),
+    };
+    const result = await this.run(pipeline, inputs);
+    return result.outputs.get(node) ?? {};
+  }
+
   private expandComposites(pipeline: PipelineDefinition): {
     pipeline: PipelineDefinition;
     diagnostics: CompilerDiagnostic[];
@@ -303,6 +349,17 @@ export class Fabric {
       return false;
     }
   }
+}
+
+/** The value at `node.port[.field...]` in a run's outputs. */
+function readAt(result: ExecutionResult, ref: string): unknown {
+  const [node, port, ...fields] = ref.split('.');
+  let value: unknown = result.outputs.get(node!)?.[port!];
+  for (const field of fields) {
+    if (value === null || typeof value !== 'object') return undefined;
+    value = (value as Record<string, unknown>)[field];
+  }
+  return value;
 }
 
 export function createFabric(options?: FabricOptions): Fabric {

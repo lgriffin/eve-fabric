@@ -12,6 +12,8 @@ export interface InputBinding {
   readonly pipelineInputName?: string | undefined;
   readonly stepId?: string | undefined;
   readonly outputPortName?: string | undefined;
+  /** Fields read inside the output port's value, outermost first (a record's `location_id`). */
+  readonly fieldPath?: readonly string[] | undefined;
 }
 
 export interface ExecutionStep {

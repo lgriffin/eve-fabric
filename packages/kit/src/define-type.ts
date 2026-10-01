@@ -36,6 +36,8 @@ export interface ReferenceTypeConfig extends TypeConfigBase {
   readonly entity: string;
   /** The capability that resolves it. A capability that emits a reference without one will not register. */
   readonly resolver?: ReferenceResolver | undefined;
+  /** The capability that lists values to pick for a hole of this type (text in, `{ id, name }` list out). */
+  readonly choices?: ReferenceResolver | undefined;
   /** What a reference looks like. Defaults to a positive integer id. */
   readonly schema?: z.ZodType<unknown> | undefined;
 }
@@ -110,6 +112,7 @@ export function defineType<T>(config: TypeConfig<T>): SemanticTypeDefinition {
         kind: 'reference',
         entity: semanticTypeId(config.entity),
         resolver: config.resolver,
+        choices: config.choices,
         schema: config.schema ?? idSchema,
       };
     case 'record': {

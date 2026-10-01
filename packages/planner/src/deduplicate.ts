@@ -4,8 +4,11 @@ function stepSignature(step: ExecutionStep): string {
   const capKey = `${step.capability.id}@${step.capability.version ?? 'latest'}`;
   const inputSources = step.inputs
     .map((b) => {
-      if (b.source === 'pipeline-input') return `pi:${b.pipelineInputName ?? b.portName}`;
-      return `so:${b.stepId ?? ''}:${b.outputPortName ?? ''}`;
+      // Which port a value feeds matters: a route from A to B is not one from B to A.
+      if (b.source === 'pipeline-input') {
+        return `${b.portName}=pi:${b.pipelineInputName ?? b.portName}`;
+      }
+      return `${b.portName}=so:${b.stepId ?? ''}:${b.outputPortName ?? ''}:${(b.fieldPath ?? []).join('.')}`;
     })
     .sort((a, b) => a.localeCompare(b))
     .join(',');

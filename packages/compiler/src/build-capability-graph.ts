@@ -9,6 +9,7 @@
 import type { CapabilityCatalog } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
+import { outputBinding } from './port-path.js';
 
 export interface CapabilityGraph {
   readonly steps: ExecutionStep[];
@@ -70,7 +71,7 @@ export function buildCapabilityGraph(
         portName: toPort,
         source: 'step-output' as const,
         stepId: fromNode,
-        outputPortName: fromPort,
+        ...outputBinding(fromPort),
       });
     }
   }
