@@ -26,6 +26,17 @@ import type {
 import { capabilityId, semanticTypeId } from '@eve-fabric/domain';
 import type { CompileResult, CompilerDiagnostic } from '@eve-fabric/compiler';
 import { z } from 'zod';
+import type { Identity } from '@lgriffin/esi.ts/client';
+
+/**
+ * Who a draft is asked as: a character, the ESI scopes its token holds, and
+ * ESI.ts's identity, which the ESI source makes its calls through.
+ */
+export interface FabricIdentity {
+  readonly characterId: number;
+  readonly scopes: readonly string[];
+  readonly esi: Identity;
+}
 
 /** One subject, named by kind: a name (non-empty text) or a positive integer id. */
 const subjectSchema = z
@@ -67,6 +78,11 @@ export interface Move {
   readonly description: string;
   /** The cursor's type once the move is applied. */
   readonly yields: SemanticTypeId;
+  /**
+   * Set when the caller lacks a scope the move needs: the move is shown but
+   * cannot be applied, and these are the scopes it waits for (FAB-VAL-07).
+   */
+  readonly unavailable?: { readonly scopes: readonly string[] } | undefined;
 }
 
 /** A value the person may pick for a hole. */
@@ -133,6 +149,21 @@ export class MoveNotOfferedError extends Error {
     this.name = 'MoveNotOfferedError';
     this.move = move;
     this.offered = offered;
+  }
+}
+
+/** A move offered as unavailable: the caller lacks a scope it needs (FAB-VAL-07). */
+export class MoveUnavailableError extends Error {
+  readonly move: string;
+  readonly scopes: readonly string[];
+
+  constructor(move: string, scopes: readonly string[]) {
+    super(
+      `"${move}" needs the ESI scope ${scopes.join(', ')}; ask as a character whose token holds it`,
+    );
+    this.name = 'MoveUnavailableError';
+    this.move = move;
+    this.scopes = scopes;
   }
 }
 
@@ -244,13 +275,28 @@ export class Draft {
   private constructor(
     private readonly host: DraftHost,
     private readonly state: DraftState,
+    /** Who the draft is asked as; decides which scoped moves are available. */
+    readonly identity?: FabricIdentity | undefined,
   ) {}
+
+  /** The same draft, asked as another identity (or as nobody). */
+  as(identity: FabricIdentity | undefined): Draft {
+    return new Draft(this.host, this.state, identity);
+  }
 
   /**
    * A draft from a subject picked by name or id, `{ type: 'Tritanium' }`, or
    * from a capability that needs nothing, by its name: `'incursions'`.
    */
   static start(
+    host: DraftHost,
+    subject: string | Readonly<Record<string, string | number>>,
+    identity?: FabricIdentity,
+  ): Draft {
+    return Draft.begin(host, subject).as(identity);
+  }
+
+  private static begin(
     host: DraftHost,
     subject: string | Readonly<Record<string, string | number>>,
   ): Draft {
@@ -404,7 +450,10 @@ export class Draft {
         candidates.map((c) => c.move.name),
       );
     }
-    return new Draft(this.host, chosen.state);
+    if (chosen.move.unavailable !== undefined) {
+      throw new MoveUnavailableError(name, chosen.move.unavailable.scopes);
+    }
+    return new Draft(this.host, chosen.state, this.identity);
   }
 
   /**
@@ -450,7 +499,7 @@ export class Draft {
         values: { ...this.state.values, [input]: check.value },
       };
     }
-    const filled = new Draft(this.host, next);
+    const filled = new Draft(this.host, next, this.identity);
     const compiled = this.host.compile(filled.pipeline());
     if (!holesOnly(compiled.diagnostics)) {
       throw new FillRejectedError(
@@ -537,9 +586,30 @@ export class Draft {
       if (found.has(candidate.move.name)) continue;
       // The oracle: offered only if the result compiles, holes aside (FAB-VAL-02).
       const compiled = this.host.compile(new Draft(this.host, candidate.state).pipeline());
-      if (holesOnly(compiled.diagnostics)) found.set(candidate.move.name, candidate);
+      if (!holesOnly(compiled.diagnostics)) continue;
+      const missing = this.missingScopes(candidate.state);
+      found.set(
+        candidate.move.name,
+        missing.length === 0
+          ? candidate
+          : { ...candidate, move: { ...candidate.move, unavailable: { scopes: missing } } },
+      );
     }
     return [...found.values()];
+  }
+
+  /** Scopes the steps a move adds need and the identity's token does not hold. */
+  private missingScopes(next: DraftState): string[] {
+    const held = new Set(this.identity?.scopes ?? []);
+    const missing = new Set<string>();
+    for (const node of next.nodes.slice(this.state.nodes.length)) {
+      const capability = this.host.catalog.get(
+        capabilityId(node.capability.id),
+        node.capability.version,
+      );
+      for (const scope of capability.auth.scopes) if (!held.has(scope)) missing.add(scope);
+    }
+    return [...missing];
   }
 
   /** The reference type that names this record, found among its fields. */

@@ -13,7 +13,14 @@ import {
   searchSystems,
   highSecOnly,
 } from './universe.js';
-import { orders, aggregate } from './market.js';
+import { orders, aggregate, bestRival, undercutOrders } from './market.js';
+import {
+  resolveCharacter,
+  characterDetails,
+  walletJournal,
+  biggestSpendThisWeek,
+  characterOrders,
+} from './character.js';
 import { distance, routePlan, routeSafety } from './routing.js';
 import { filter, sort, limit } from './collection.js';
 import {
@@ -36,6 +43,7 @@ import { freightEstimate, haulingProfit, cargoValue } from './logistics.js';
 
 export * from './universe.js';
 export * from './market.js';
+export * from './character.js';
 export * from './routing.js';
 export * from './collection.js';
 export * from './market-analysis.js';
@@ -58,6 +66,13 @@ export const allCapabilities: readonly CapabilityDefinition[] = [
   highSecOnly,
   orders,
   aggregate,
+  bestRival,
+  undercutOrders,
+  resolveCharacter,
+  characterDetails,
+  walletJournal,
+  biggestSpendThisWeek,
+  characterOrders,
   distance,
   routePlan,
   routeSafety,

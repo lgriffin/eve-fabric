@@ -715,7 +715,7 @@ CI. Statuses move forward as the overhaul phases land.
 | FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                           | draft tests                                             | Enforced          |
 | FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.                      | schema derivation tests                                 | Planned (phase 7) |
 | FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                                 | GraphQL round-trip tests                                | Planned (phase 7) |
-| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                      | bank Q6                                                 | Planned (phase 6) |
+| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                      | bank Q6, identity tests                                 | Enforced          |
 | FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                              | bank Q8                                                 | Planned (phase 8) |
 
 ## Governance

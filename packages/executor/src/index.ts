@@ -4,6 +4,8 @@ export {
   PortValueError,
   PerItemCapError,
   SourceUnavailableError,
+  ScopeMissingError,
+  type ExecuteOptions,
   type ExecutorConfig,
   type ExecutionResult,
   type ExecutionMetrics,

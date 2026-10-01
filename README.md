@@ -176,6 +176,29 @@ A capability that takes a list of records is offered on a list of their referenc
 
 A join is a weave: a pipeline that a pack publishes as a capability. The core pack's `trade profit after tax` looks up orders in two regions side by side and joins them.
 
+#### Asking as a character
+
+A capability that reads a character's own data declares its ESI scope in `uses`. A draft asked as an identity offers such a move only when the identity's token holds the scope. Otherwise the move is still listed, marked unavailable with the scope it needs, and applying it throws. `fabric.query` runs as the draft's identity through `esi.as(identity)`, so one fabric serves many characters, and a fabric-cached step that sees one character's data is keyed by that character.
+
+```ts
+import { identityFromToken } from '@lgriffin/esi.ts/client';
+
+const me = {
+  characterId: 2112000001,
+  scopes: ['esi-wallet.read_character_wallet.v1'],
+  esi: identityFromToken(accessToken),
+};
+const draft = fabric
+  .draft({ character: me.characterId }, { as: me })
+  .apply('wallet journal') // needs esi-wallet.read_character_wallet.v1
+  .apply('biggest spend this week');
+
+draft.plan().scopes; // ['esi-wallet.read_character_wallet.v1']
+await fabric.query(draft); // 2000000, spent on market_transaction
+```
+
+`my orders` then `undercut` checks each open order against its own region's market, one lookup per order.
+
 ### Capabilities
 
 A capability is a versioned, typed data operation. Its contract and the code

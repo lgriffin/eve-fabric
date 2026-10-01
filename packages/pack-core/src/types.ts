@@ -133,6 +133,15 @@ export const EveLocationRef = defineType({
   resolver: { capability: 'universe.location', input: 'id', output: 'location' },
 });
 
+export const EveCharacterRef = defineType({
+  kind: 'reference',
+  id: 'eve.character.reference',
+  description: 'An EVE character, by id',
+  category: 'character',
+  entity: 'eve.character',
+  resolver: { capability: 'character.details', input: 'id', output: 'character' },
+});
+
 // ── Records ───────────────────────────────────────────────────────────────
 
 export const EveType = defineType({
@@ -248,6 +257,57 @@ export const EveRouteSafety = defineType({
   },
 });
 
+export const EveCharacter = defineType({
+  kind: 'record',
+  id: 'eve.character',
+  description: "A character's public record",
+  category: 'character',
+  fields: {
+    character_id: EveCharacterRef,
+    name: EveText,
+    corporation_id: { type: EveId, optional: true },
+  },
+});
+
+export const EveWalletEntry = defineType({
+  kind: 'record',
+  id: 'eve.wallet.entry',
+  description:
+    "One line of a character's wallet journal. A negative amount left the wallet; a positive one arrived",
+  category: 'character',
+  fields: {
+    id: EveId,
+    date: EveTimestamp,
+    ref_type: {
+      type: EveText,
+      description: 'What kind of entry: market_transaction, bounty_prizes',
+    },
+    amount: { type: EveCurrencyIsk, optional: true },
+    description: { type: EveText, optional: true },
+  },
+});
+
+export const EveWalletEntries = listOf(EveWalletEntry);
+
+export const EveCharacterOrder = defineType({
+  kind: 'record',
+  id: 'eve.character.order',
+  description: "One of a character's own open market orders",
+  category: 'market',
+  fields: {
+    order_id: EveId,
+    type_id: EveTypeRef,
+    region_id: EveRegionRef,
+    location_id: EveLocationRef,
+    price: EveCurrencyIsk,
+    volume_remain: EveQuantity,
+    is_buy_order: { type: EveFlag, optional: true },
+    issued: { type: EveTimestamp, optional: true },
+  },
+});
+
+export const EveCharacterOrders = listOf(EveCharacterOrder);
+
 export const coreTypes = [
   EveCurrencyIsk,
   EveQuantity,
@@ -277,4 +337,10 @@ export const coreTypes = [
   EveSystemRefs,
   EveIskAmounts,
   EveRouteSafety,
+  EveCharacterRef,
+  EveCharacter,
+  EveWalletEntry,
+  EveWalletEntries,
+  EveCharacterOrder,
+  EveCharacterOrders,
 ] as const;

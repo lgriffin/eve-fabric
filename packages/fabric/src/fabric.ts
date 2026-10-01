@@ -1,4 +1,5 @@
 import type {
+  Caller,
   CachePort,
   CapabilityDefinition,
   Clock,
@@ -23,12 +24,12 @@ import {
   type CompileResult,
   type CompilerDiagnostic,
 } from '@eve-fabric/compiler';
-import { Executor, type ExecutionResult } from '@eve-fabric/executor';
+import { Executor, ScopeMissingError, type ExecutionResult } from '@eve-fabric/executor';
 import { MemoryCache } from '@eve-fabric/cache';
 import { publishAsComposite, type Pack } from '@eve-fabric/kit';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
-import { Draft, type DraftHost } from './draft.js';
+import { Draft, type DraftHost, type FabricIdentity } from './draft.js';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
@@ -288,10 +289,15 @@ export class Fabric implements DraftHost {
   /**
    * A draft question from a subject picked by name or id, such as
    * `{ type: 'Tritanium' }`. The draft changes only through the moves it
-   * offers and the holes it names (constitution XXVIII).
+   * offers and the holes it names (constitution XXVIII). Asked `as` an
+   * identity, moves needing a scope its token lacks are offered as
+   * unavailable, naming the scope (FAB-VAL-07); `query` runs as it.
    */
-  draft(subject: string | Readonly<Record<string, string | number>>): Draft {
-    return Draft.start(this, subject);
+  draft(
+    subject: string | Readonly<Record<string, string | number>>,
+    options: { readonly as?: FabricIdentity | undefined } = {},
+  ): Draft {
+    return Draft.start(this, subject, options.as);
   }
 
   /**
@@ -300,9 +306,19 @@ export class Fabric implements DraftHost {
    */
   async query(
     draft: Draft,
-    options: { readonly perItemCap?: number | undefined } = {},
+    options: {
+      readonly perItemCap?: number | undefined;
+      /** Run as this identity instead of the draft's own. */
+      readonly as?: FabricIdentity | undefined;
+    } = {},
   ): Promise<{ readonly answer: unknown; readonly result: ExecutionResult }> {
-    const { plan } = draft.plan();
+    const { plan, scopes } = draft.plan();
+    const identity = options.as ?? draft.identity;
+    // Refuse before the first call rather than part way through.
+    const missing = scopes.filter((scope) => !(identity?.scopes ?? []).includes(scope));
+    if (missing.length > 0) {
+      throw new ScopeMissingError(missing, identity !== undefined);
+    }
     const cap = options.perItemCap;
     if (cap !== undefined && !(Number.isInteger(cap) && cap > 0)) {
       throw new RangeError(`perItemCap must be a positive whole number, not ${String(cap)}`);
@@ -316,7 +332,9 @@ export class Fabric implements DraftHost {
               step.each === undefined ? step : { ...step, each: { ...step.each, cap } },
             ),
           };
-    const result = await this.execute(capped, new Map(Object.entries(draft.values)));
+    const result = await this.executor.execute(capped, new Map(Object.entries(draft.values)), {
+      caller: callerOf(identity),
+    });
     // A composite at the cursor runs as its inner steps; read the one it names.
     const answer = this.expand(draft.pipeline()).pipeline.outputs.find((o) => o.name === 'answer');
     return { answer: readAt(result, answer?.source ?? draft.cursor.ref), result };
@@ -391,6 +409,16 @@ export class Fabric implements DraftHost {
       return false;
     }
   }
+}
+
+/** The engine's view of an identity: a cache key, scopes, and ESI.ts's credentials. */
+function callerOf(identity: FabricIdentity | undefined): Caller | undefined {
+  if (identity === undefined) return undefined;
+  return {
+    key: `character:${identity.characterId}`,
+    scopes: identity.scopes,
+    credentials: identity.esi,
+  };
 }
 
 /** The value at `node.port[.field...]` in a run's outputs. */

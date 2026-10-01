@@ -8,6 +8,7 @@ import type {
   RunContext,
   SourcePorts,
   DataSource,
+  Caller,
 } from '@eve-fabric/domain';
 import { CapabilityCatalog, systemClock } from '@eve-fabric/domain';
 import { planExecution } from '@eve-fabric/planner';
@@ -76,6 +77,31 @@ export class SourceUnavailableError extends Error {
     super(`Capability "${capabilityId}" uses ${use}, but this fabric has no such source`);
     this.name = 'SourceUnavailableError';
   }
+}
+
+/** A step needs ESI scopes the caller does not hold, or there is no caller at all. */
+export class ScopeMissingError extends Error {
+  /** The capability that needs the scopes; absent when a whole draft was refused. */
+  readonly capabilityId: string | undefined;
+  readonly scopes: readonly string[];
+
+  constructor(scopes: readonly string[], identified: boolean, capabilityId?: string) {
+    const what = capabilityId === undefined ? 'This question' : `Capability "${capabilityId}"`;
+    const them = scopes.length === 1 ? 'that scope' : 'those scopes';
+    const fix = identified
+      ? "which the caller's token does not hold"
+      : `run it as an identity holding ${them}`;
+    super(`${what} needs ${scopes.join(', ')}; ${fix}`);
+    this.name = 'ScopeMissingError';
+    this.capabilityId = capabilityId;
+    this.scopes = scopes;
+  }
+}
+
+/** Options for one run. */
+export interface ExecuteOptions {
+  /** Who the run is made as; needed by any step whose capability uses an ESI scope. */
+  readonly caller?: Caller | undefined;
 }
 
 /** A port value is not a value of the port's semantic type. */
@@ -173,7 +199,9 @@ export class Executor {
   async execute(
     plan: ExecutionPlan,
     inputs: ReadonlyMap<string, unknown>,
+    options: ExecuteOptions = {},
   ): Promise<ExecutionResult> {
+    const { caller } = options;
     const startTime = this.clock.now();
     const planned = planExecution(plan);
 
@@ -207,7 +235,14 @@ export class Executor {
       if (step === undefined) {
         throw new Error(`Step "${id}" not found in execution plan`);
       }
-      return this.executeStep(step, inputs, stepOutputs, ttlByStep.get(id), planned.aliases);
+      return this.executeStep(
+        step,
+        inputs,
+        stepOutputs,
+        ttlByStep.get(id),
+        planned.aliases,
+        caller,
+      );
     };
 
     const processed = new Set<string>();
@@ -263,6 +298,7 @@ export class Executor {
     stepOutputs: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
     ttlSeconds: number | undefined,
     aliases: ReadonlyMap<string, string>,
+    caller: Caller | undefined,
   ): Promise<StepResult> {
     const stepStart = this.clock.now();
     const definition: CapabilityDefinition = this.catalog.get(
@@ -290,9 +326,16 @@ export class Executor {
     // serves an old answer and a hit still names its build.
     const sourceVersion = this.sourceVersionOf(definition);
     const build = sourceVersion === undefined ? '' : '[' + sourceVersion + ']';
+    // A step that sees one caller's data is keyed by the caller too, so one
+    // character's answer is never served to another.
+    const identityInKey = definition.cache.identityInKey === true;
+    const who = identityInKey ? `{${caller?.key ?? ''}}` : '';
     const cacheKey =
-      this.cache !== undefined && ttlSeconds !== undefined && definition.source !== 'ESI'
-        ? `${definition.id as string}@${definition.version as string}${build}:${stableJson(inputs)}`
+      this.cache !== undefined &&
+      ttlSeconds !== undefined &&
+      definition.source !== 'ESI' &&
+      (!identityInKey || caller !== undefined)
+        ? `${definition.id as string}@${definition.version as string}${build}${who}:${stableJson(inputs)}`
         : undefined;
 
     // A lower cap than the one a cached result ran under still refuses.
@@ -321,8 +364,8 @@ export class Executor {
 
     const data =
       step.each === undefined
-        ? await this.run(step, definition, inputs)
-        : await this.runEach(step, step.each, definition, inputs);
+        ? await this.run(step, definition, inputs, caller)
+        : await this.runEach(step, step.each, definition, inputs, caller);
 
     if (cacheKey !== undefined) {
       await this.cache!.set(cacheKey, data, ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS);
@@ -380,6 +423,7 @@ export class Executor {
     each: { readonly port: string; readonly cap: number },
     definition: CapabilityDefinition,
     inputs: Readonly<Record<string, unknown>>,
+    caller: Caller | undefined,
   ): Promise<Readonly<Record<string, unknown>>> {
     const { keys, distinct } = this.distinctItems(step, each, definition, inputs);
     const entries = [...distinct.entries()];
@@ -387,7 +431,7 @@ export class Executor {
       entries.map(
         ([, item]) =>
           () =>
-            this.run(step, definition, { ...inputs, [each.port]: item }),
+            this.run(step, definition, { ...inputs, [each.port]: item }, caller),
       ),
       this.maxConcurrency,
     );
@@ -403,6 +447,7 @@ export class Executor {
     step: ExecutionStep,
     definition: CapabilityDefinition,
     inputs: Readonly<Record<string, unknown>>,
+    caller: Caller | undefined,
   ): Promise<Readonly<Record<string, unknown>>> {
     const id = definition.id as string;
     if (typeof definition.run !== 'function') {
@@ -413,7 +458,7 @@ export class Executor {
       );
     }
     const checked = this.checkPorts(step, definition, 'input', inputs);
-    const context = this.contextFor(definition);
+    const context = this.contextFor(definition, caller);
     let result: unknown;
     try {
       result = await definition.run(checked, context);
@@ -468,11 +513,25 @@ export class Executor {
     return parsed;
   }
 
-  private contextFor(definition: CapabilityDefinition): RunContext {
+  private contextFor(definition: CapabilityDefinition, caller: Caller | undefined): RunContext {
     const uses = definition.uses ?? [];
     const id = definition.id as string;
     let esi: unknown;
     let sde: unknown;
+    const scopes = uses.filter((use) => use.startsWith('esi:')).map((use) => use.slice(4));
+    if (scopes.length > 0) {
+      // A scoped capability gets the caller's view, and only with every scope it declared.
+      if (this.sources.esi === undefined) throw new SourceUnavailableError(id, `esi:${scopes[0]!}`);
+      const missing = scopes.filter((scope) => !(caller?.scopes ?? []).includes(scope));
+      if (caller === undefined || missing.length > 0) {
+        throw new ScopeMissingError(
+          caller === undefined ? scopes : missing,
+          caller !== undefined,
+          id,
+        );
+      }
+      esi = this.sources.esi.as(caller.credentials);
+    }
     for (const use of uses) {
       if (use === 'sde') {
         if (this.sources.sde === undefined) throw new SourceUnavailableError(id, use);
@@ -480,9 +539,6 @@ export class Executor {
       } else if (use === 'esi.public') {
         if (this.sources.esi === undefined) throw new SourceUnavailableError(id, use);
         esi ??= this.sources.esi.public;
-      } else {
-        // An ESI scope needs the calling identity's view (overhaul phase 6).
-        throw new SourceUnavailableError(id, `${use} (no identity)`);
       }
     }
     return { clock: this.clock, esi, sde };
