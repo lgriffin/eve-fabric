@@ -72,6 +72,31 @@ describe('per-item steps (phase 5)', () => {
     await expect(fabric.query(draft, { perItemCap: 5 })).resolves.toBeDefined();
   });
 
+  it('refuses a lower cap even when a cached result ran under a higher one', async () => {
+    const fabric = createFabric({
+      esi: tranquilityEsi().esi,
+      esiCompatibilityDate: '2026-08-18',
+      sde: tranquilitySde(),
+      packs: [corePack],
+      clock: fixedClock(Date.UTC(2026, 9, 1)),
+    });
+    const draft = fabric
+      .draft({ system: 'Jita' })
+      .apply('route')
+      .fill('destination', 'Amarr')
+      .apply('lowest security');
+    await fabric.query(draft, { perItemCap: 5 });
+    const refused = await fabric.query(draft, { perItemCap: 2 }).catch((e: unknown) => e);
+    expect((refused as StepExecutionError).cause).toBeInstanceOf(PerItemCapError);
+  });
+
+  it.each([0, -1, 1.5, Number.NaN])('refuses a per-item cap of %s', async (cap) => {
+    const { fabric } = tranquilityFabric();
+    await expect(fabric.query(rifterCost(fabric), { perItemCap: cap })).rejects.toThrow(
+      /positive whole number/,
+    );
+  });
+
   it('runs an equal item once and gives every item its result, in order', async () => {
     const { fabric, transport } = tranquilityFabric();
     const pipeline: PipelineDefinition = {
@@ -195,6 +220,45 @@ describe('a pack from outside the repository (phase 5)', () => {
     expect(() => fabric.install(broken)).toThrow(/does not compile|Cannot publish|refused/i);
     expect(fabric.describe().capabilities).toHaveLength(before);
     expect(fabric.types.has('incursions.incursion')).toBe(false);
+  });
+
+  it('takes back the pipeline and edges of a weave that published before one failed', () => {
+    const { fabric } = tranquilityFabric();
+    const now = {
+      pipeline: {
+        id: 'now',
+        version: 1,
+        name: 'Now',
+        inputs: [],
+        nodes: [
+          {
+            id: 'current',
+            capability: {
+              id: capabilityId('incursions.current'),
+              version: capabilityVersion('1.0.0'),
+            },
+          },
+        ],
+        edges: [],
+        outputs: [{ name: 'incursions', source: 'current.incursions' }],
+      },
+      capability: { id: 'example.now', version: '1.0.0', name: 'Now', description: 'x' },
+    };
+    const broken = {
+      ...now,
+      pipeline: {
+        ...now.pipeline,
+        id: 'broken',
+        outputs: [{ name: 'x', source: 'current.nothing' }],
+      },
+      capability: { ...now.capability, id: 'example.broken' },
+    };
+    expect(() => fabric.install({ ...incursionsPack, weaves: [now, broken] })).toThrow();
+    expect(fabric.getPipeline('now@example.now@1.0.0', 1)).toBeUndefined();
+    const ref = { id: capabilityId('example.now'), version: capabilityVersion('1.0.0') };
+    expect(fabric.registry.getGraph().getDependencies(ref).size).toBe(0);
+    fabric.install({ ...incursionsPack, weaves: [now] });
+    expect(fabric.getPipeline('now@example.now@1.0.0', 1)).toBeDefined();
   });
 
   it('names what it cannot start from', () => {

@@ -179,12 +179,20 @@ export class Fabric implements DraftHost {
     } catch (error) {
       const undo = [...added];
       undo.reverse();
-      for (const capability of undo) {
-        this.catalog.unregister(capability.id, capability.version);
-      }
+      for (const capability of undo) this.withdraw(capability);
       for (const type of fresh) this.types.unregister(type.id);
       throw error;
     }
+  }
+
+  /** Takes back a capability an install added: its entry, its edges, and a weave's pipeline. */
+  private withdraw(capability: CapabilityDefinition): void {
+    this.catalog.unregister(capability.id, capability.version);
+    const graph = this.registry.getGraph();
+    const ref = { id: capability.id, version: capability.version };
+    for (const dep of capability.dependencies) graph.removeDependency(ref, dep);
+    const pipeline = capability.pipelineRef;
+    if (pipeline !== undefined) this.pipelines.delete(`${pipeline.id}@${pipeline.version}`);
   }
 
   /** Whether the type is new here; throws when it conflicts. */
@@ -197,7 +205,8 @@ export class Fabric implements DraftHost {
         `the eve.* namespace is reserved for ${CORE_PACK_ID}`,
       );
     }
-    if (!this.types.has(id)) return true;
+    // A list of an installed type is implied, not registered, so it is new here.
+    if (!this.types.hasRegistered(id)) return true;
     if (this.types.get(id) === type) return false;
     throw new TypeConflictError(pack.id, id, 'another definition is already installed');
   }
@@ -295,6 +304,9 @@ export class Fabric implements DraftHost {
   ): Promise<{ readonly answer: unknown; readonly result: ExecutionResult }> {
     const { plan } = draft.plan();
     const cap = options.perItemCap;
+    if (cap !== undefined && !(Number.isInteger(cap) && cap > 0)) {
+      throw new RangeError(`perItemCap must be a positive whole number, not ${String(cap)}`);
+    }
     const capped: ExecutionPlan =
       cap === undefined
         ? plan

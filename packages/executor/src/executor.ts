@@ -295,6 +295,10 @@ export class Executor {
         ? `${definition.id as string}@${definition.version as string}${build}:${stableJson(inputs)}`
         : undefined;
 
+    // A lower cap than the one a cached result ran under still refuses.
+    if (cacheKey !== undefined && step.each !== undefined)
+      this.distinctItems(step, step.each, definition, inputs);
+
     if (cacheKey !== undefined) {
       const cached = await this.cache!.get(cacheKey);
       if (cached !== undefined) {
@@ -333,16 +337,15 @@ export class Executor {
   }
 
   /**
-   * Runs the step once per distinct item of the list on the per-item port,
-   * and gives each output as a list in the input's order. Fails before any
-   * call when there are more distinct items than the cap.
+   * The items of the per-item port, keyed, and the distinct ones. Throws when
+   * there are more distinct items than the cap, before any call or cache read.
    */
-  private async runEach(
+  private distinctItems(
     step: ExecutionStep,
     each: { readonly port: string; readonly cap: number },
     definition: CapabilityDefinition,
     inputs: Readonly<Record<string, unknown>>,
-  ): Promise<Readonly<Record<string, unknown>>> {
+  ): { readonly keys: readonly string[]; readonly distinct: ReadonlyMap<string, unknown> } {
     const list = inputs[each.port];
     if (list !== undefined && list !== null && !Array.isArray(list)) {
       throw new StepExecutionError(
@@ -364,6 +367,21 @@ export class Executor {
         new PerItemCapError(each.port, distinct.size, each.cap),
       );
     }
+    return { keys, distinct };
+  }
+
+  /**
+   * Runs the step once per distinct item of the list on the per-item port,
+   * and gives each output as a list in the input's order. Fails before any
+   * call when there are more distinct items than the cap.
+   */
+  private async runEach(
+    step: ExecutionStep,
+    each: { readonly port: string; readonly cap: number },
+    definition: CapabilityDefinition,
+    inputs: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const { keys, distinct } = this.distinctItems(step, each, definition, inputs);
     const entries = [...distinct.entries()];
     const results = await runWithConcurrency(
       entries.map(

@@ -22,7 +22,8 @@ export const pipelineInputSchema = z.object({
 
 export const pipelineOutputSchema = z.object({
   name: z.string().min(1),
-  source: portReference,
+  // An output may read a field of a record, as an edge's `from` may.
+  source: portReferenceWithFields,
 });
 
 export const pipelineCapabilityRefSchema = z.object({

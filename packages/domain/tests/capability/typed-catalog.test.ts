@@ -307,4 +307,14 @@ describe('a catalog with types', () => {
     expect(catalog.attachedTo('test.place')).toEqual([]);
     catalog.register(one);
   });
+
+  it('keeps a move name while another version of its capability still holds it', () => {
+    const catalog = new CapabilityCatalog({ types: types() });
+    const att = { on: 'test.place', as: 'label', subject: 'p' };
+    const one = capability('test.one', { p: 'test.place.reference' }, { n: 'test.text' }, att);
+    catalog.registerAll([one, { ...one, version: capabilityVersion('2.0.0') }]);
+    catalog.unregister(capabilityId('test.one'), capabilityVersion('2.0.0'));
+    const rival = capability('test.rival', { p: 'test.place.reference' }, { n: 'test.text' }, att);
+    expect(() => catalog.register(rival)).toThrow(InvalidAttachError);
+  });
 });

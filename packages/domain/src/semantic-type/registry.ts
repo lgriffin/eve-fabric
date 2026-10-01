@@ -62,6 +62,11 @@ export class SemanticTypeRegistry {
     return type;
   }
 
+  /** Whether the type was registered, not merely implied as a list of one that was. */
+  hasRegistered(id: SemanticTypeId | string): boolean {
+    return this.types.has(id);
+  }
+
   has(id: SemanticTypeId | string): boolean {
     return this.types.has(id) || this.implicitList(id) !== undefined;
   }

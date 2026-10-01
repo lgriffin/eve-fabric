@@ -177,6 +177,28 @@ describe('estimateCost', () => {
     expect(cost.parallelLatencyMs).toBe(250); // max(200,5) + 50
   });
 
+  it('counts every item of a per-item step, a few at a time', () => {
+    const pipeline: PipelineDefinition = {
+      id: 'test.pipeline',
+      version: 1,
+      name: 'Test Pipeline',
+      inputs: [],
+      nodes: [
+        {
+          id: 'fetch',
+          capability: { id: 'market.orders' as any },
+          each: { port: 'regionId', cap: 12 },
+        },
+      ],
+      edges: [],
+      outputs: [],
+    };
+    const cost = estimateCost(pipeline, catalog, [{ steps: ['fetch'], canParallelize: false }]);
+    expect(cost.esiCallCount).toBe(12);
+    expect(cost.totalLatencyMs).toBe(2400); // 12 items of 200ms
+    expect(cost.parallelLatencyMs).toBe(600); // 3 rounds of 5 at once
+  });
+
   it('returns zero costs for empty pipeline', () => {
     const pipeline: PipelineDefinition = {
       id: 'test.pipeline',

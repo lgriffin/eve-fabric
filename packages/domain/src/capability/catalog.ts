@@ -357,8 +357,16 @@ export class CapabilityCatalog {
     const def = this.definitions.get(key);
     if (def === undefined) return;
     this.definitions.delete(key);
-    if (def.attach !== undefined) {
-      this.attachments.delete(`${def.attach.on as string}.${def.attach.as}`);
+    const attach = def.attach;
+    // Another version of the same capability may hang on the same move name.
+    const stillHeld =
+      attach !== undefined &&
+      [...this.definitions.values()].some(
+        (other) =>
+          other.id === id && other.attach?.on === attach.on && other.attach.as === attach.as,
+      );
+    if (attach !== undefined && !stillHeld) {
+      this.attachments.delete(`${attach.on as string}.${attach.as}`);
     }
     this.latestVersions.delete(id);
     for (const other of this.definitions.values()) {

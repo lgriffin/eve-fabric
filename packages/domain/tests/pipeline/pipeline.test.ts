@@ -89,6 +89,14 @@ describe('pipelineOutputSchema', () => {
     expect(result.success).toBe(true);
   });
 
+  it('accepts an output that reads a field of a record', () => {
+    const result = pipelineOutputSchema.safeParse({
+      name: 'location',
+      source: 'cheapest.cheapest.location_id',
+    });
+    expect(result.success).toBe(true);
+  });
+
   it('rejects invalid source port reference', () => {
     const result = pipelineOutputSchema.safeParse({
       name: 'orders',
