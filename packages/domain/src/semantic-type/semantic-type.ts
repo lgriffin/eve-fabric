@@ -65,6 +65,12 @@ export interface ReferenceTypeDefinition extends SemanticTypeBase {
    * refuses a capability whose output carries a reference no one can follow.
    */
   readonly resolver?: ReferenceResolver | undefined;
+  /**
+   * The capability that lists the values a person may pick for a hole of
+   * this type: text in, a list of `{ id, name }` out. Holes of a reference
+   * type without one take an id or a name, but offer no list.
+   */
+  readonly choices?: ReferenceResolver | undefined;
 }
 
 export interface RecordTypeDefinition extends SemanticTypeBase {

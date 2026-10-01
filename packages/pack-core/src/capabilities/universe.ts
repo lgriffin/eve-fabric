@@ -2,6 +2,7 @@ import { defineCapability } from '@eve-fabric/kit';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 import { requireId } from '../support.js';
 import {
+  EveChoices,
   EveLocation,
   EveLocationRef,
   EveRegion,
@@ -9,6 +10,7 @@ import {
   EveSystem,
   EveSystemRef,
   EveType,
+  EveText,
   EveTypeRef,
 } from '../types.js';
 
@@ -255,6 +257,83 @@ export const locationRecord = defineCapability({
     // with no system rather than as an error.
     return {
       location: locationOf(sde, locationId) ?? { location_id: locationId, kind: 'structure' },
+    };
+  },
+});
+
+/** How many choices a search offers. */
+const CHOICE_LIMIT = 20;
+
+function choicesFrom<T>(
+  items: readonly T[],
+  text: unknown,
+  pick: (item: T) => { id: number; name: string },
+): { id: number; name: string }[] {
+  const wanted = typeof text === 'string' ? text.trim().toLowerCase() : '';
+  return items
+    .map(pick)
+    .filter((c) => c.name.toLowerCase().includes(wanted))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, CHOICE_LIMIT);
+}
+
+const SEARCH_INPUT = { text: { type: EveText, description: 'Part of the name; empty for all' } };
+
+export const searchTypes = defineCapability({
+  id: 'universe.search.type',
+  version: '2.0.0',
+  name: 'Search Item Types',
+  description: 'Item types whose name contains the text, for picking one',
+  inputs: SEARCH_INPUT,
+  outputs: { matches: { type: EveChoices, description: 'Matching types' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ text }, { sde }) {
+    const query = typeof text === 'string' ? text.trim() : '';
+    return {
+      matches: choicesFrom(sde.searchTypesByName(query, CHOICE_LIMIT), query, (t) => ({
+        id: t.typeId,
+        name: t.name,
+      })),
+    };
+  },
+});
+
+export const searchRegions = defineCapability({
+  id: 'universe.search.region',
+  version: '2.0.0',
+  name: 'Search Regions',
+  description: 'Regions whose name contains the text, for picking one',
+  inputs: SEARCH_INPUT,
+  outputs: { matches: { type: EveChoices, description: 'Matching regions' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ text }, { sde }) {
+    return {
+      matches: choicesFrom(sde.getAllRegions(), text, (r) => ({ id: r.regionId, name: r.name })),
+    };
+  },
+});
+
+export const searchSystems = defineCapability({
+  id: 'universe.search.system',
+  version: '2.0.0',
+  name: 'Search Solar Systems',
+  description: 'Solar systems whose name contains the text, for picking one',
+  inputs: SEARCH_INPUT,
+  outputs: { matches: { type: EveChoices, description: 'Matching systems' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ text }, { sde }) {
+    const query = typeof text === 'string' ? text.trim() : '';
+    return {
+      matches: choicesFrom(sde.searchSolarSystemsByName(query, CHOICE_LIMIT), query, (s) => ({
+        id: s.systemId,
+        name: s.name,
+      })),
     };
   },
 });

@@ -114,4 +114,45 @@ describe('deduplicateSteps', () => {
     expect(result.mergedCount).toBe(0);
     expect(result.steps).toHaveLength(2);
   });
+
+  it('does not merge steps fed the same values on different ports', () => {
+    // A route from A to B is not a route from B to A.
+    const steps: ExecutionStep[] = [
+      makeStep({
+        id: 'there',
+        inputs: [
+          { portName: 'origin', source: 'pipeline-input', pipelineInputName: 'a' },
+          { portName: 'destination', source: 'pipeline-input', pipelineInputName: 'b' },
+        ],
+      }),
+      makeStep({
+        id: 'back',
+        inputs: [
+          { portName: 'origin', source: 'pipeline-input', pipelineInputName: 'b' },
+          { portName: 'destination', source: 'pipeline-input', pipelineInputName: 'a' },
+        ],
+      }),
+    ];
+    expect(deduplicateSteps(steps).mergedCount).toBe(0);
+  });
+
+  it('does not merge steps reading different fields of one output', () => {
+    const read = (id: string, field: string): ExecutionStep =>
+      makeStep({
+        id,
+        inputs: [
+          {
+            portName: 'id',
+            source: 'step-output',
+            stepId: 'order',
+            outputPortName: 'cheapest',
+            fieldPath: [field],
+          },
+        ],
+      });
+    expect(deduplicateSteps([read('a', 'location_id'), read('b', 'system_id')]).mergedCount).toBe(
+      0,
+    );
+    expect(deduplicateSteps([read('a', 'system_id'), read('b', 'system_id')]).mergedCount).toBe(1);
+  });
 });

@@ -2,6 +2,7 @@ import type { CapabilityCatalog } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
+import { outputBinding, splitPortPath } from './port-path.js';
 import type { CompilerDiagnostic } from './diagnostics.js';
 
 export interface PipelineRegistry {
@@ -134,7 +135,7 @@ export function expandCompositeNode(
         portName: toPort,
         source: 'step-output' as const,
         stepId: prefixId(nodeId, fromNode),
-        outputPortName: fromPort,
+        ...outputBinding(fromPort),
       });
     }
   }
@@ -251,7 +252,7 @@ export function resolveComposites(
             portName: toPort,
             source: 'step-output' as const,
             stepId: fromNode,
-            outputPortName: fromPort,
+            ...outputBinding(fromPort),
           });
         }
       }
@@ -366,8 +367,10 @@ export function resolveComposites(
     let resolvedFroms: string[];
     if (fromIsComposite) {
       const outputSources = compositeOutputSources.get(fromNode);
-      const source = outputSources?.get(fromPort);
-      resolvedFroms = source ? [source] : [edge.from];
+      // A field read on a composite's output reads the same field inside.
+      const { port, fieldPath } = splitPortPath(fromPort);
+      const source = outputSources?.get(port);
+      resolvedFroms = source ? [[source, ...fieldPath].join('.')] : [edge.from];
     } else {
       resolvedFroms = [edge.from];
     }

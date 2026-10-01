@@ -83,6 +83,11 @@ describe('Validation helpers', () => {
     it('rejects "no-dot" (no dot separator)', () => {
       expect(portReference.safeParse('no-dot').success).toBe(false);
     });
+
+    it('accepts record fields after the port', () => {
+      expect(portReference.safeParse('cheapest.cheapest.location_id').success).toBe(true);
+      expect(portReference.safeParse('cheapest.cheapest.').success).toBe(false);
+    });
   });
 
   describe('parsePortReference', () => {

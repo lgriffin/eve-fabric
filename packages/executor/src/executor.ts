@@ -106,6 +106,16 @@ async function runWithConcurrency<T>(
   return results;
 }
 
+/** The value at a field path inside a record; undefined where a field is absent. */
+function readField(value: unknown, fieldPath: readonly string[]): unknown {
+  let current = value;
+  for (const field of fieldPath) {
+    if (current === null || typeof current !== 'object' || Array.isArray(current)) return undefined;
+    current = (current as Record<string, unknown>)[field];
+  }
+  return current;
+}
+
 /** JSON with sorted keys, so equal inputs give equal cache keys. */
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
@@ -251,8 +261,10 @@ export class Executor {
         // A step merged into an identical one reads the kept step's result.
         const upstream = stepOutputs.get(aliases.get(binding.stepId) ?? binding.stepId);
         // A binding names the upstream port it reads; the step's other outputs stay put.
-        inputs[binding.portName] =
+        const value =
           binding.outputPortName !== undefined ? upstream?.[binding.outputPortName] : upstream;
+        // An edge may read a field of a record: an order's location_id.
+        inputs[binding.portName] = readField(value, binding.fieldPath ?? []);
       }
     }
 

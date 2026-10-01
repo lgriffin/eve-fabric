@@ -6,15 +6,18 @@ export {
   MISSING_INPUT,
   UNKNOWN_PIPELINE_INPUT,
   INVALID_CONFIGURED_VALUE,
+  UNKNOWN_FIELD,
   SEMANTIC_SUGGESTION,
   semanticTypeMismatch,
   cycleDetected,
   capabilityNotFound,
   missingInput,
   invalidConfiguredValue,
+  unknownField,
   semanticSuggestion,
 } from './diagnostics.js';
 
+export { splitPortPath, type PortPath } from './port-path.js';
 export { detectCycles } from './detect-cycles.js';
 export { validateSemanticWiring } from './validate-semantic-wiring.js';
 export { suggestIntermediates } from './suggest-intermediates.js';

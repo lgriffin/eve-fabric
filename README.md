@@ -136,6 +136,25 @@ capability that emits a reference no installed capability can follow
 refuses to compile a configured value of the wrong type (FAB-TYPE-02). The
 `eve.*` types live in `@eve-fabric/pack-core`, which owns that namespace.
 
+### Drafts
+
+A question is built as a draft: a subject, then moves the fabric offers, then holes filled. The compiler is the oracle. A move is offered only when applying it gives a pipeline that compiles once its holes are filled. A draft with holes cannot be planned, run or exported.
+
+```ts
+const draft = fabric
+  .draft({ type: 'Tritanium' })
+  .apply('orders') // market.orders, attached to eve.type
+  .fill('region', 'The Forge') // a hole, typed eve.region.reference
+  .apply('cheapest')
+  .apply('location') // follow the order's location_id
+  .apply('system');
+
+draft.plan(); // 6 steps, 1 ESI call, no scopes
+const { answer } = await fabric.query(draft); // Perimeter, security 0.9549
+```
+
+`draft.moves()` lists what can come next and `draft.holes` what is still needed. A reference hole lists its choices from the SDE through `hole.choices(text)`. Every draft is immutable, so undo means keeping the previous one.
+
 ### Capabilities
 
 A capability is a versioned, typed data operation. Its contract and the code

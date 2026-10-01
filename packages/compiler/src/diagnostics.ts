@@ -35,6 +35,18 @@ export const MISSING_INPUT = 'MISSING_INPUT';
 export const SEMANTIC_SUGGESTION = 'SEMANTIC_SUGGESTION';
 export const UNKNOWN_PIPELINE_INPUT = 'UNKNOWN_PIPELINE_INPUT';
 export const INVALID_CONFIGURED_VALUE = 'INVALID_CONFIGURED_VALUE';
+export const UNKNOWN_FIELD = 'UNKNOWN_FIELD';
+
+/** Creates a diagnostic for an edge reading a field its record type does not have. */
+export function unknownField(ref: string, recordType: string, field: string): CompilerDiagnostic {
+  return {
+    code: UNKNOWN_FIELD,
+    severity: 'error',
+    message: `"${ref}" reads "${field}", which "${recordType}" does not have`,
+    location: { edgeFrom: ref, field },
+    context: { actualType: recordType },
+  };
+}
 
 /**
  * Creates a diagnostic for a value configured on a port that is not a value
@@ -111,14 +123,16 @@ export function capabilityNotFound(capabilityId: string): CompilerDiagnostic {
 /**
  * Creates a diagnostic for a required input port that is not wired.
  */
-export function missingInput(capabilityId: string, port: string): CompilerDiagnostic {
+export function missingInput(
+  capabilityId: string,
+  port: string,
+  nodeId?: string,
+): CompilerDiagnostic {
   return {
     code: MISSING_INPUT,
     severity: 'error',
     message: `Required input port "${port}" on capability "${capabilityId}" is not connected`,
-    location: {
-      field: port,
-    },
+    location: nodeId === undefined ? { field: port } : { nodeId, field: port },
     context: {
       capability: capabilityId,
     },

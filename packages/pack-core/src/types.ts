@@ -101,6 +101,7 @@ export const EveTypeRef = defineType({
   category: 'universe',
   entity: 'eve.type',
   resolver: { capability: 'universe.type', input: 'id', output: 'type' },
+  choices: { capability: 'universe.search.type', input: 'text', output: 'matches' },
 });
 
 export const EveRegionRef = defineType({
@@ -110,6 +111,7 @@ export const EveRegionRef = defineType({
   category: 'universe',
   entity: 'eve.region',
   resolver: { capability: 'universe.region', input: 'id', output: 'region' },
+  choices: { capability: 'universe.search.region', input: 'text', output: 'matches' },
 });
 
 export const EveSystemRef = defineType({
@@ -119,6 +121,7 @@ export const EveSystemRef = defineType({
   category: 'universe',
   entity: 'eve.system',
   resolver: { capability: 'universe.system', input: 'id', output: 'system' },
+  choices: { capability: 'universe.search.system', input: 'text', output: 'matches' },
 });
 
 export const EveLocationRef = defineType({
@@ -204,6 +207,16 @@ export const EveMarketOrder = defineType({
 
 export const EveMarketOrders = listOf(EveMarketOrder);
 
+export const EveChoice = defineType({
+  kind: 'record',
+  id: 'eve.choice',
+  description: 'A value a person may pick for a hole: an id and its name',
+  category: 'common',
+  fields: { id: EveId, name: EveText },
+});
+
+export const EveChoices = listOf(EveChoice);
+
 export const coreTypes = [
   EveCurrencyIsk,
   EveQuantity,
@@ -225,4 +238,6 @@ export const coreTypes = [
   EveLocation,
   EveMarketOrder,
   EveMarketOrders,
+  EveChoice,
+  EveChoices,
 ] as const;

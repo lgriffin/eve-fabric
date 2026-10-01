@@ -101,19 +101,18 @@ export class GatewayRuntime {
     for (const saved of pipelines) {
       // Composites expand first, so outputs read the inner steps that run.
       const expanded = this.fabric.expand(saved);
-      const pipeline = expanded.diagnostics.length === 0 ? expanded.pipeline : saved;
-      const base = { pipeline, catalog: this.catalog, includeProvenance: true as const };
-      try {
-        const result = this.fabric.compile(pipeline);
-        this.compiledRegistrations.push(
-          result.success
-            ? { ...base, plan: result.plan as unknown as ExecutionPlan, executor: this.executor }
-            : base,
-        );
-      } catch {
-        // Pipeline failed to compile — still register for type introspection
-        this.compiledRegistrations.push(base);
-      }
+      if (expanded.diagnostics.some((d) => d.severity === 'error')) continue;
+      const result = this.fabric.compile(expanded.pipeline);
+      // Only a pipeline that compiles is published; a saved draft that does
+      // not stays saved, but is not a field anyone can query.
+      if (!result.success || result.plan === undefined) continue;
+      this.compiledRegistrations.push({
+        pipeline: expanded.pipeline,
+        catalog: this.catalog,
+        includeProvenance: true,
+        plan: result.plan as unknown as ExecutionPlan,
+        executor: this.executor,
+      });
     }
     this.invalidateGraphQLSchema();
   }

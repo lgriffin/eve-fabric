@@ -8,6 +8,9 @@ import {
   regionRecord,
   systemRecord,
   locationRecord,
+  searchTypes,
+  searchRegions,
+  searchSystems,
 } from './universe.js';
 import { orders, aggregate } from './market.js';
 import { distance } from './routing.js';
@@ -41,6 +44,9 @@ export const allCapabilities: readonly CapabilityDefinition[] = [
   regionRecord,
   systemRecord,
   locationRecord,
+  searchTypes,
+  searchRegions,
+  searchSystems,
   orders,
   aggregate,
   distance,

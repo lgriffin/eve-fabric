@@ -201,6 +201,11 @@ export function tranquilityTransport(): MockTransport {
     path: `/route/${SYSTEM.jita}/${SYSTEM.amarr}`,
     body: { route: [...JITA_TO_AMARR] },
   });
+  transport.respond({
+    method: 'POST',
+    path: `/route/${SYSTEM.amarr}/${SYSTEM.jita}`,
+    body: { route: [...JITA_TO_AMARR].reverse() },
+  });
   return transport;
 }
 
