@@ -10,6 +10,8 @@ import type { MarketOrder } from '@lgriffin/esi.ts';
 
 export interface EsiAdapterConfig {
   readonly client?: EsiClient;
+  /** User agent for the client built when none is given. Defaults to the fabric's own. */
+  readonly userAgent?: string | undefined;
   readonly clock?: Clock;
 }
 
@@ -65,13 +67,17 @@ function resolveNumericInput(inputs: ReadonlyMap<string, unknown>, ...keys: stri
   throw new Error(`Missing required numeric input: ${keys.join(' or ')}`);
 }
 
+/** Who is calling ESI, as CCP asks every application to say. */
+const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)';
+
 export class EsiAdapter implements SourceAdapter {
   readonly name = 'ESI';
   private readonly client: EsiClient;
   private readonly clock: Clock;
 
   constructor(config?: EsiAdapterConfig) {
-    this.client = config?.client ?? new EsiClient();
+    this.client =
+      config?.client ?? new EsiClient({ userAgent: config?.userAgent ?? DEFAULT_ESI_USER_AGENT });
     this.clock = config?.clock ?? systemClock;
   }
 

@@ -104,7 +104,8 @@ function findViolations(): string[] {
         const text = readFileSync(file, 'utf8');
         for (const match of text.matchAll(IMPORT_RE)) {
           const spec = match[1]!;
-          if (spec.startsWith('.') || spec.startsWith('node:')) continue;
+          // Node built-ins go through the check too: the core may not import them.
+          if (spec.startsWith('.')) continue;
           const reason = layer.check(spec) ?? layer.check(packageName(spec));
           if (reason !== undefined) {
             violations.push(`${relative(ROOT, file)} imports '${spec}': ${reason}`);

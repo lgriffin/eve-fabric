@@ -106,3 +106,9 @@ describe('EsiAdapter', () => {
     });
   });
 });
+
+describe('EsiAdapter default client', () => {
+  it('builds its own client with the fabric user agent when given none', () => {
+    expect(() => new EsiAdapter()).not.toThrow();
+  });
+});

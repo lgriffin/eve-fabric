@@ -25,19 +25,19 @@ function makeCapability(id: string, source: string): CapabilityDefinition {
 
 function makeMockSdeProvider() {
   return {
-    getType: vi.fn().mockReturnValue({ typeID: 34, typeName: 'Tritanium', groupID: 18 }),
-    searchTypesByName: vi
-      .fn()
-      .mockReturnValue([{ typeID: 34, typeName: 'Tritanium', groupID: 18 }]),
+    getType: vi.fn().mockReturnValue({ typeId: 34, name: 'Tritanium', groupId: 18 }),
+    searchTypesByName: vi.fn().mockReturnValue([{ typeId: 34, name: 'Tritanium', groupId: 18 }]),
     getRegion: vi.fn().mockReturnValue({ regionId: 10000002, name: 'The Forge' }),
     getAllRegions: vi.fn().mockReturnValue([
       { regionId: 10000002, name: 'The Forge' },
       { regionId: 10000043, name: 'Domain' },
     ]),
-    getSolarSystem: vi.fn().mockReturnValue({ solarSystemID: 30000142, solarSystemName: 'Jita' }),
+    getSolarSystem: vi
+      .fn()
+      .mockReturnValue({ systemId: 30000142, name: 'Jita', regionId: 10000002 }),
     searchSolarSystemsByName: vi
       .fn()
-      .mockReturnValue([{ solarSystemID: 30000142, solarSystemName: 'Jita' }]),
+      .mockReturnValue([{ systemId: 30000142, name: 'Jita', regionId: 10000002 }]),
     getVersion: vi.fn().mockReturnValue({ version: '1.0' }),
     close: vi.fn(),
   };
@@ -72,7 +72,7 @@ describe('SdeAdapter', () => {
       const result = await adapter.execute(cap, inputs);
 
       expect(mockProvider.getType).toHaveBeenCalledWith(34);
-      expect((result.data as Record<string, unknown>).typeName).toBe('Tritanium');
+      expect((result.data as Record<string, unknown>).name).toBe('Tritanium');
       expect(result.provenance.source).toBe('SDE');
     });
 
@@ -82,7 +82,7 @@ describe('SdeAdapter', () => {
       const result = await adapter.execute(cap, inputs);
 
       expect(mockProvider.searchTypesByName).toHaveBeenCalledWith('Tritanium', 1);
-      expect((result.data as Record<string, unknown>).typeName).toBe('Tritanium');
+      expect((result.data as Record<string, unknown>).name).toBe('Tritanium');
     });
 
     it('resolves region by numeric ID', async () => {
@@ -100,7 +100,7 @@ describe('SdeAdapter', () => {
       const result = await adapter.execute(cap, inputs);
 
       expect(mockProvider.getSolarSystem).toHaveBeenCalledWith(30000142);
-      expect((result.data as Record<string, unknown>).solarSystemName).toBe('Jita');
+      expect((result.data as Record<string, unknown>).name).toBe('Jita');
     });
 
     it('resolves solar system by name search', async () => {

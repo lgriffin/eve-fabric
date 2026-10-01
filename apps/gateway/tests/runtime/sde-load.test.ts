@@ -12,12 +12,20 @@ describe('GatewayRuntime SDE loading (FAB-SRC-01)', () => {
     ).rejects.toBeInstanceOf(SdeLoadError);
   });
 
-  it('names the path that failed', async () => {
+  it('reports a source failure and keeps the path server-side', async () => {
     const runtime = new GatewayRuntime({ sdeDataPath: '/nonexistent/sde-export' });
     const plan = compileOrThrowFixture(runtime, capabilityId);
 
-    await expect(
-      runtime.executor.execute(plan, new Map<string, unknown>([['query', 'Tritanium']])),
-    ).rejects.toThrow('/nonexistent/sde-export');
+    const error = await runtime.executor
+      .execute(plan, new Map<string, unknown>([['query', 'Tritanium']]))
+      .catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(SdeLoadError);
+    const sdeError = error as SdeLoadError;
+    expect(sdeError.code).toBe('GATEWAY_SOURCE_UNAVAILABLE');
+    expect(sdeError.category).toBe('runtime');
+    expect(sdeError.context).toEqual({ source: 'SDE' });
+    expect(sdeError.path).toBe('/nonexistent/sde-export');
+    expect(sdeError.message).not.toContain('/nonexistent');
+    expect(sdeError.cause).toBeDefined();
   });
 });

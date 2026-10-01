@@ -1,4 +1,4 @@
-import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import { GatewayError, InMemoryFabricRegistry } from '@eve-fabric/domain';
 import type {
   CapabilityCatalog,
   CapabilityDefinition,
@@ -8,7 +8,7 @@ import type {
   TokenProvider,
 } from '@eve-fabric/domain';
 import type { GraphQLSchema } from 'graphql';
-import { EsiClient } from '@lgriffin/esi.ts';
+import type { EsiClient } from '@lgriffin/esi.ts';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 import { EsiAdapter } from '@eve-fabric/esi-adapter';
 import { SdeAdapter } from '@eve-fabric/sde-adapter';
@@ -57,14 +57,21 @@ class LazySdeAdapter implements SourceAdapter {
   }
 }
 
-/** Thrown when a configured SDE export cannot be loaded. Never replaced by an empty provider. */
-export class SdeLoadError extends Error {
+/**
+ * Thrown when a configured SDE export cannot be loaded. Never replaced by an
+ * empty provider. A source failure, so API clients see GATEWAY_SOURCE_UNAVAILABLE;
+ * the path stays server-side (on the error and in the logged cause).
+ */
+export class SdeLoadError extends GatewayError {
+  readonly code = 'GATEWAY_SOURCE_UNAVAILABLE' as const;
+  readonly category = 'runtime' as const;
+  readonly context = { source: 'SDE' as const };
+  readonly path: string;
+
   constructor(path: string, cause: unknown) {
-    super(
-      `SDE export at "${path}" could not be loaded: ${cause instanceof Error ? cause.message : String(cause)}`,
-      { cause },
-    );
-    this.name = 'SdeLoadError';
+    super('SDE source unavailable: the configured export could not be loaded');
+    this.cause = cause;
+    this.path = path;
   }
 }
 
@@ -86,9 +93,6 @@ async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvi
   };
   return new memoryModule.MemorySdeProvider();
 }
-
-/** Who is calling ESI, as CCP asks every application to say. */
-const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)';
 
 export class GatewayRuntime {
   readonly registry: InMemoryFabricRegistry;
@@ -113,10 +117,12 @@ export class GatewayRuntime {
     this.cache = new MemoryCache();
     this.tokenProvider = config?.tokenProvider ?? new EnvTokenProvider();
 
-    const esiClient =
-      config?.esiClient ??
-      new EsiClient({ userAgent: process.env['ESI_USER_AGENT'] ?? DEFAULT_ESI_USER_AGENT });
-    this.esiAdapter = new EsiAdapter({ client: esiClient });
+    // Without a client, the adapter builds one with the fabric's user agent,
+    // the same one generated pipelines get; ESI_USER_AGENT overrides it here.
+    this.esiAdapter =
+      config?.esiClient === undefined
+        ? new EsiAdapter({ userAgent: process.env['ESI_USER_AGENT'] })
+        : new EsiAdapter({ client: config.esiClient });
     this.derivedAdapter = new DerivedAdapter();
 
     const sdeDataPath = config?.sdeDataPath ?? process.env['SDE_DATA_PATH'];

@@ -10,7 +10,14 @@
  * Run: pnpm run test:bank [--update]
  */
 import { spawnSync } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
@@ -27,14 +34,30 @@ interface Envelope {
 
 function runCucumber(): void {
   mkdirSync(join(ROOT, 'reports', 'bank'), { recursive: true });
+  // Never count a previous run's report.
+  rmSync(MESSAGES, { force: true });
   const bin = join(ROOT, 'node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js');
-  // The bank is expected to fail until every question passes; the exit code is ignored.
-  spawnSync(process.execPath, [bin, '-c', 'cucumber.cjs', '-p', 'bank'], {
+  // Scenarios fail until every question passes, so exit 1 is expected; stderr
+  // still reaches the log so a load error shows why.
+  const result = spawnSync(process.execPath, [bin, '-c', 'cucumber.cjs', '-p', 'bank'], {
     cwd: ROOT,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', 'inherit'],
   });
+  if (result.error !== undefined || result.signal !== null || (result.status ?? 2) > 1) {
+    console.error(
+      `question bank: cucumber did not complete (status ${String(result.status)}, signal ${String(result.signal)})`,
+    );
+    process.exit(1);
+  }
   if (!existsSync(MESSAGES)) {
     console.error('question bank: cucumber produced no messages');
+    process.exit(1);
+  }
+  const finished = readFileSync(MESSAGES, 'utf8')
+    .split('\n')
+    .some((line) => line.startsWith('{"testRunFinished"'));
+  if (!finished) {
+    console.error('question bank: cucumber report has no testRunFinished; the run was cut short');
     process.exit(1);
   }
 }
