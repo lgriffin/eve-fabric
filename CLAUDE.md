@@ -25,14 +25,17 @@ apps/
   gateway/          # Fastify API server
   designer/         # Vite/React pipeline designer
 packages/
-  domain/           # Core domain types and value objects
+  domain/           # Core domain types and value objects (imports zod only)
+  kit/              # defineCapability (contract + run), definePack, defineContract
+  pack-core/        # The built-in capabilities, as a pack
+  fabric/           # createFabric: sources and packs in, a fabric out
   compiler/         # Pipeline compiler
   planner/          # Execution planner
-  executor/         # Pipeline executor
+  executor/         # Pipeline executor (runs each capability's run)
   cache/            # Cache implementation
-  esi-adapter/      # ESI data source adapter
-  sde-adapter/      # SDE data source adapter
-  capability-sdk/   # Capability definition SDK
+  source-esi/       # ESI source: ESI.ts's public view for capabilities
+  source-sde/       # SDE source: ESI.ts's static data provider, fails loudly
+  codegen/          # Generates a runnable module from a pipeline
   schema-package/   # Schema import/export
   graphql/          # GraphQL schema generation
   persistence/      # Data persistence

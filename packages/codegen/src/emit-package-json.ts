@@ -17,12 +17,12 @@ export function emitPackageJson(options: PackageJsonOptions, plan: ExecutionPlan
   const dependencies: Record<string, string> = {
     '@eve-fabric/domain': '*',
     '@eve-fabric/executor': '*',
-    '@eve-fabric/capability-sdk': '*',
+    '@eve-fabric/fabric': '*',
+    '@eve-fabric/pack-core': '*',
   };
 
-  if (sources.has('ESI')) dependencies['@eve-fabric/esi-adapter'] = '*';
-  if (sources.has('SDE')) dependencies['@eve-fabric/sde-adapter'] = '*';
-  if (sources.has('DERIVED')) dependencies['@eve-fabric/executor'] = '*';
+  if (sources.has('ESI')) dependencies['@lgriffin/esi.ts'] = '11.1.1';
+  if (sources.has('SDE')) dependencies['@eve-fabric/source-sde'] = '*';
 
   const pkg = {
     name: fullName,

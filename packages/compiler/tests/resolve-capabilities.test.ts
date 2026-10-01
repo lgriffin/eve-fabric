@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveCapabilities } from '../src/resolve-capabilities.js';
-import { CAPABILITY_NOT_FOUND, MISSING_INPUT } from '../src/diagnostics.js';
+import { CAPABILITY_NOT_FOUND, MISSING_INPUT, UNKNOWN_PIPELINE_INPUT } from '../src/diagnostics.js';
 import { CapabilityCatalog } from '@eve-fabric/domain';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 
@@ -205,5 +205,28 @@ describe('resolveCapabilities', () => {
     const ports = missingInputs.map((d) => d.location?.field);
     expect(ports).toContain('regionId');
     expect(ports).toContain('typeId');
+  });
+});
+
+describe('resolveCapabilities: undeclared pipeline inputs', () => {
+  it('reports an edge from an undeclared input and does not count it as wiring', () => {
+    const catalog = new CapabilityCatalog();
+    catalog.register(marketOrdersDef());
+    const pipeline = {
+      id: 'p',
+      version: 1,
+      name: 'P',
+      inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
+      nodes: [{ id: 'orders', capability: { id: 'market.orders' } }],
+      edges: [
+        { from: 'input.region', to: 'orders.regionId' },
+        { from: 'input.item', to: 'orders.typeId' },
+      ],
+      outputs: [{ name: 'orders', source: 'orders.orders' }],
+    } as unknown as PipelineDefinition;
+
+    const codes = resolveCapabilities(pipeline, catalog).map((d) => d.code);
+    expect(codes).toContain(UNKNOWN_PIPELINE_INPUT);
+    expect(codes).toContain(MISSING_INPUT);
   });
 });

@@ -9,7 +9,12 @@
 import type { CapabilityCatalog, Clock } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
-import { type CompilerDiagnostic, capabilityNotFound, missingInput } from './diagnostics.js';
+import {
+  type CompilerDiagnostic,
+  capabilityNotFound,
+  missingInput,
+  unknownPipelineInput,
+} from './diagnostics.js';
 
 /**
  * Resolves all capability references in a pipeline against the catalog.
@@ -34,9 +39,18 @@ export function resolveCapabilities(
   const diagnostics: CompilerDiagnostic[] = [];
   const configured = options?.configuredInputs ?? {};
 
-  // Build a map of wired input ports per node
+  // Build a map of wired input ports per node. An edge from an undeclared
+  // pipeline input wires nothing.
+  const declaredInputs = new Set(pipeline.inputs.map((i) => i.name));
   const wiredInputs = new Map<string, Set<string>>();
   for (const edge of pipeline.edges) {
+    if (edge.from.startsWith('input.')) {
+      const name = edge.from.substring('input.'.length);
+      if (!declaredInputs.has(name)) {
+        diagnostics.push(unknownPipelineInput(name, edge.to));
+        continue;
+      }
+    }
     const dotIdx = edge.to.indexOf('.');
     if (dotIdx === -1) continue;
     const nodeId = edge.to.substring(0, dotIdx);

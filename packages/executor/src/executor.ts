@@ -1,12 +1,13 @@
 import type {
   ExecutionPlan,
   ExecutionStep,
-  SourceAdapter,
-  SourceAdapterResult,
   CachePort,
   ProvenanceRecord,
   CapabilityDefinition,
   Clock,
+  RunContext,
+  SourcePorts,
+  DataSource,
 } from '@eve-fabric/domain';
 import { CapabilityCatalog, systemClock } from '@eve-fabric/domain';
 import { planExecution } from '@eve-fabric/planner';
@@ -20,17 +21,44 @@ export interface ExecutionMetrics {
 }
 
 export interface ExecutionResult {
-  readonly outputs: ReadonlyMap<string, unknown>;
+  /** Each step's output port values, keyed by step id then port name. */
+  readonly outputs: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
   readonly provenance: ReadonlyMap<string, ProvenanceRecord>;
   readonly metrics: ExecutionMetrics;
 }
 
 export interface ExecutorConfig {
-  readonly adapters: readonly SourceAdapter[];
   readonly catalog: CapabilityCatalog;
+  /** The sources capabilities reach through their `uses`. */
+  readonly sources?: SourcePorts | undefined;
+  /** Caches SDE and DERIVED steps. ESI steps defer to ESI.ts's own cache (constitution XIV). */
   readonly cache?: CachePort | undefined;
   readonly maxConcurrency?: number | undefined;
   readonly clock?: Clock | undefined;
+}
+
+/** A step failed. Names the step and capability; the cause is the run's error. */
+export class StepExecutionError extends Error {
+  readonly stepId: string;
+  readonly capabilityId: string;
+
+  constructor(stepId: string, capabilityId: string, cause: unknown) {
+    super(
+      `Step "${stepId}" (${capabilityId}) failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      { cause },
+    );
+    this.name = 'StepExecutionError';
+    this.stepId = stepId;
+    this.capabilityId = capabilityId;
+  }
+}
+
+/** A capability reached for a source the fabric was not given. */
+export class SourceUnavailableError extends Error {
+  constructor(capabilityId: string, use: string) {
+    super(`Capability "${capabilityId}" uses ${use}, but this fabric has no such source`);
+    this.name = 'SourceUnavailableError';
+  }
 }
 
 const DEFAULT_MAX_CONCURRENCY = 5;
@@ -63,16 +91,36 @@ async function runWithConcurrency<T>(
   return results;
 }
 
+/** JSON with sorted keys, so equal inputs give equal cache keys. */
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
+    const body = entries.map(([k, v]) => JSON.stringify(k) + ':' + stableJson(v)).join(',');
+    return `{${body}}`;
+  }
+  return JSON.stringify(value) ?? 'undefined';
+}
+
+interface StepResult {
+  readonly data: Readonly<Record<string, unknown>>;
+  readonly provenance: ProvenanceRecord;
+  readonly durationMs: number;
+  readonly cacheHit: boolean;
+}
+
 export class Executor {
-  private readonly adapters: readonly SourceAdapter[];
   private readonly catalog: CapabilityCatalog;
+  private readonly sources: SourcePorts;
   private readonly cache: CachePort | undefined;
   private readonly maxConcurrency: number;
   private readonly clock: Clock;
 
   constructor(config: ExecutorConfig) {
-    this.adapters = config.adapters;
     this.catalog = config.catalog;
+    this.sources = config.sources ?? {};
     this.cache = config.cache;
     this.maxConcurrency = config.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
     this.clock = config.clock ?? systemClock;
@@ -83,113 +131,81 @@ export class Executor {
     inputs: ReadonlyMap<string, unknown>,
   ): Promise<ExecutionResult> {
     const startTime = this.clock.now();
-
     const planned = planExecution(plan);
 
-    // Build lookup maps
     const stepMap = new Map<string, ExecutionStep>();
     for (const step of plan.steps) {
       stepMap.set(step.id, step);
     }
 
-    const capabilityToSource = new Map<string, string>();
-    for (const req of plan.sourceRequirements) {
-      for (const cap of req.capabilities) {
-        capabilityToSource.set(cap.id, req.source);
-      }
-    }
-
-    const cacheStrategyMap = new Map<string, { ttlSeconds: number; cacheable: boolean }>();
+    const ttlByStep = new Map<string, number>();
     for (const cs of plan.cacheStrategy) {
-      cacheStrategyMap.set(cs.stepId, { ttlSeconds: cs.ttlSeconds, cacheable: cs.cacheable });
+      // A TTL of zero would store entries that are already stale.
+      if (cs.cacheable && cs.ttlSeconds !== 0) ttlByStep.set(cs.stepId, cs.ttlSeconds);
     }
 
-    // Results and metrics tracking
-    const stepOutputs = new Map<string, unknown>();
+    const stepOutputs = new Map<string, Readonly<Record<string, unknown>>>();
     const stepProvenance = new Map<string, ProvenanceRecord>();
     const stepDurations = new Map<string, number>();
     let cacheHits = 0;
     let cacheMisses = 0;
 
-    // Process steps in order, batching parallel groups
+    const record = (id: string, result: StepResult): void => {
+      stepOutputs.set(id, result.data);
+      stepProvenance.set(id, result.provenance);
+      stepDurations.set(id, result.durationMs);
+      cacheHits += result.cacheHit ? 1 : 0;
+      cacheMisses += result.cacheHit ? 0 : 1;
+    };
+
+    const runStep = (id: string): Promise<StepResult> => {
+      const step = stepMap.get(id);
+      if (step === undefined) {
+        throw new Error(`Step "${id}" not found in execution plan`);
+      }
+      return this.executeStep(step, inputs, stepOutputs, ttlByStep.get(id), planned.aliases);
+    };
+
     const processed = new Set<string>();
     let i = 0;
-
     while (i < planned.orderedSteps.length) {
       const stepId = planned.orderedSteps[i]!;
-
-      // Check if this step starts a parallel group
       const parallelGroup = planned.parallelGroups.find(
         (g) => g.stepIds.includes(stepId) && !processed.has(stepId),
       );
 
       if (parallelGroup !== undefined) {
-        // Execute all steps in the parallel group concurrently
-        const tasks = parallelGroup.stepIds.map((id) => {
-          return async () => {
-            const step = stepMap.get(id);
-            if (step === undefined) {
-              throw new Error(`Step "${id}" not found in execution plan`);
-            }
-            return this.executeStep(
-              step,
-              inputs,
-              stepOutputs,
-              capabilityToSource,
-              cacheStrategyMap,
-            );
-          };
-        });
-
-        const results = await runWithConcurrency(tasks, this.maxConcurrency);
-
-        for (let j = 0; j < parallelGroup.stepIds.length; j++) {
-          const id = parallelGroup.stepIds[j]!;
-          const result = results[j]!;
-          stepOutputs.set(id, result.data);
-          stepProvenance.set(id, result.provenance);
-          stepDurations.set(id, result.durationMs);
-          cacheHits += result.cacheHit ? 1 : 0;
-          cacheMisses += result.cacheHit ? 0 : 1;
+        const results = await runWithConcurrency(
+          parallelGroup.stepIds.map((id) => () => runStep(id)),
+          this.maxConcurrency,
+        );
+        parallelGroup.stepIds.forEach((id, j) => {
+          record(id, results[j]!);
           processed.add(id);
-        }
-
-        // Skip past all steps in this group that appear in orderedSteps
+        });
         while (i < planned.orderedSteps.length && processed.has(planned.orderedSteps[i]!)) {
           i++;
         }
       } else {
-        // Execute single step
-        const step = stepMap.get(stepId);
-        if (step === undefined) {
-          throw new Error(`Step "${stepId}" not found in execution plan`);
-        }
-
-        const result = await this.executeStep(
-          step,
-          inputs,
-          stepOutputs,
-          capabilityToSource,
-          cacheStrategyMap,
-        );
-
-        stepOutputs.set(stepId, result.data);
-        stepProvenance.set(stepId, result.provenance);
-        stepDurations.set(stepId, result.durationMs);
-        cacheHits += result.cacheHit ? 1 : 0;
-        cacheMisses += result.cacheHit ? 0 : 1;
+        record(stepId, await runStep(stepId));
         processed.add(stepId);
         i++;
       }
     }
 
-    const totalDurationMs = this.clock.now() - startTime;
+    // A step merged into an identical one shares its result.
+    for (const [alias, kept] of planned.aliases) {
+      const output = stepOutputs.get(kept);
+      const provenance = stepProvenance.get(kept);
+      if (output !== undefined) stepOutputs.set(alias, output);
+      if (provenance !== undefined) stepProvenance.set(alias, provenance);
+    }
 
     return {
       outputs: stepOutputs,
       provenance: stepProvenance,
       metrics: {
-        totalDurationMs,
+        totalDurationMs: this.clock.now() - startTime,
         stepDurations,
         cacheHits,
         cacheMisses,
@@ -200,98 +216,146 @@ export class Executor {
   private async executeStep(
     step: ExecutionStep,
     pipelineInputs: ReadonlyMap<string, unknown>,
-    stepOutputs: ReadonlyMap<string, unknown>,
-    capabilityToSource: ReadonlyMap<string, string>,
-    cacheStrategyMap: ReadonlyMap<string, { ttlSeconds: number; cacheable: boolean }>,
-  ): Promise<{
-    data: unknown;
-    provenance: ProvenanceRecord;
-    durationMs: number;
-    cacheHit: boolean;
-  }> {
+    stepOutputs: ReadonlyMap<string, Readonly<Record<string, unknown>>>,
+    ttlSeconds: number | undefined,
+    aliases: ReadonlyMap<string, string>,
+  ): Promise<StepResult> {
     const stepStart = this.clock.now();
-
-    // Check cache first
-    if (this.cache !== undefined && step.cacheKey !== undefined) {
-      const cached = await this.cache.get(step.cacheKey);
-      if (cached !== undefined) {
-        const durationMs = this.clock.now() - stepStart;
-        return {
-          data: cached.data,
-          provenance: {
-            source: 'CACHE',
-            capability: step.capability,
-            capabilityVersion: step.capability.version ?? '1.0.0',
-            cached: true,
-            upstream: [],
-          },
-          durationMs,
-          cacheHit: true,
-        };
-      }
-    }
-
-    // Resolve inputs for this step
-    const resolvedInputs = new Map<string, unknown>();
-    for (const input of step.inputs) {
-      if (input.source === 'pipeline-input' && input.pipelineInputName !== undefined) {
-        resolvedInputs.set(input.portName, pipelineInputs.get(input.pipelineInputName));
-      } else if (input.source === 'step-output' && input.stepId !== undefined) {
-        resolvedInputs.set(input.portName, stepOutputs.get(input.stepId));
-      }
-    }
-
-    // Resolve CapabilityRef → CapabilityDefinition via catalog
     const definition: CapabilityDefinition = this.catalog.get(
       step.capability.id,
       step.capability.version,
     );
 
-    // Find the right adapter
-    const source = capabilityToSource.get(step.capability.id);
-    const adapter = this.findAdapter(source, definition);
-
-    // Execute via adapter
-    const result: SourceAdapterResult = await adapter.execute(definition, resolvedInputs);
-
-    // Store in cache
-    if (this.cache !== undefined && step.cacheKey !== undefined) {
-      const strategy = cacheStrategyMap.get(step.id);
-      const ttl = strategy?.ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS;
-      await this.cache.set(step.cacheKey, result.data, ttl);
+    const inputs: Record<string, unknown> = {};
+    for (const binding of step.inputs) {
+      if (binding.source === 'pipeline-input' && binding.pipelineInputName !== undefined) {
+        inputs[binding.portName] = pipelineInputs.get(binding.pipelineInputName);
+      } else if (binding.source === 'step-output' && binding.stepId !== undefined) {
+        // A step merged into an identical one reads the kept step's result.
+        const upstream = stepOutputs.get(aliases.get(binding.stepId) ?? binding.stepId);
+        // A binding names the upstream port it reads; the step's other outputs stay put.
+        inputs[binding.portName] =
+          binding.outputPortName !== undefined ? upstream?.[binding.outputPortName] : upstream;
+      }
     }
 
-    const durationMs = this.clock.now() - stepStart;
+    // ESI steps defer to ESI.ts's ETag cache; the fabric caches the rest. An
+    // SDE result is keyed by the build it came from, so a new export never
+    // serves an old answer and a hit still names its build.
+    const sourceVersion = this.sourceVersionOf(definition);
+    const build = sourceVersion === undefined ? '' : '[' + sourceVersion + ']';
+    const cacheKey =
+      this.cache !== undefined && ttlSeconds !== undefined && definition.source !== 'ESI'
+        ? `${definition.id as string}@${definition.version as string}${build}:${stableJson(inputs)}`
+        : undefined;
 
-    let provenance = result.provenance;
-    if (source === 'COMPOSITE' || provenance.upstream.length > 0) {
-      const aggregated = aggregateProvenance([provenance, ...provenance.upstream]);
-      provenance = { ...provenance, upstream: aggregated };
+    if (cacheKey !== undefined) {
+      const cached = await this.cache!.get(cacheKey);
+      if (cached !== undefined) {
+        return {
+          data: cached.data as Readonly<Record<string, unknown>>,
+          provenance: {
+            source: 'CACHE',
+            sourceVersion,
+            capability: step.capability,
+            capabilityVersion: definition.version,
+            retrievedAt: cached.storedAt,
+            cached: true,
+            upstream: [],
+          },
+          durationMs: this.clock.now() - stepStart,
+          cacheHit: true,
+        };
+      }
     }
 
-    return {
-      data: result.data,
-      provenance,
-      durationMs,
-      cacheHit: false,
-    };
+    const data = await this.run(step, definition, inputs);
+
+    if (cacheKey !== undefined) {
+      await this.cache!.set(cacheKey, data, ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS);
+    }
+
+    let provenance = this.provenanceFor(definition);
+    if (provenance.upstream.length > 0) {
+      provenance = { ...provenance, upstream: aggregateProvenance(provenance.upstream) };
+    }
+
+    return { data, provenance, durationMs: this.clock.now() - stepStart, cacheHit: false };
   }
 
-  private findAdapter(source: string | undefined, definition: CapabilityDefinition): SourceAdapter {
-    if (source !== undefined) {
-      for (const adapter of this.adapters) {
-        if (adapter.name === source) {
-          return adapter;
-        }
+  private async run(
+    step: ExecutionStep,
+    definition: CapabilityDefinition,
+    inputs: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const id = definition.id as string;
+    if (typeof definition.run !== 'function') {
+      throw new StepExecutionError(
+        step.id,
+        id,
+        new Error(`Capability "${id}" has no run function (FAB-VAL-01)`),
+      );
+    }
+    const context = this.contextFor(definition);
+    let result: unknown;
+    try {
+      result = await definition.run(inputs, context);
+    } catch (err) {
+      throw new StepExecutionError(step.id, id, err);
+    }
+    if (result === null || typeof result !== 'object' || Array.isArray(result)) {
+      throw new StepExecutionError(
+        step.id,
+        id,
+        new Error('run must return an object of output port values'),
+      );
+    }
+    return result as Readonly<Record<string, unknown>>;
+  }
+
+  private contextFor(definition: CapabilityDefinition): RunContext {
+    const uses = definition.uses ?? [];
+    const id = definition.id as string;
+    let esi: unknown;
+    let sde: unknown;
+    for (const use of uses) {
+      if (use === 'sde') {
+        if (this.sources.sde === undefined) throw new SourceUnavailableError(id, use);
+        sde = this.sources.sde.provider;
+      } else if (use === 'esi.public') {
+        if (this.sources.esi === undefined) throw new SourceUnavailableError(id, use);
+        esi ??= this.sources.esi.public;
+      } else {
+        // An ESI scope needs the calling identity's view (overhaul phase 6).
+        throw new SourceUnavailableError(id, `${use} (no identity)`);
       }
     }
+    return { clock: this.clock, esi, sde };
+  }
 
-    for (const adapter of this.adapters) {
-      if (adapter.supports(definition)) {
-        return adapter;
-      }
+  /** The ESI compatibility date or SDE build a capability's result depends on. */
+  private sourceVersionOf(definition: CapabilityDefinition): string | undefined {
+    if (definition.source === 'ESI' && this.sources.esi !== undefined) {
+      return `esi-compat:${this.sources.esi.compatibilityDate}`;
     }
+    if (definition.source === 'SDE' && this.sources.sde !== undefined) {
+      return `sde:${this.sources.sde.buildVersion()}`;
+    }
+    return undefined;
+  }
 
-    throw new Error(`No adapter found for source "${source ?? 'unknown'}"`);
+  private provenanceFor(definition: CapabilityDefinition): ProvenanceRecord {
+    const at = new Date(this.clock.now());
+    const source: DataSource =
+      definition.source === 'ESI' || definition.source === 'SDE' ? definition.source : 'DERIVED';
+    return {
+      source,
+      sourceVersion: this.sourceVersionOf(definition),
+      capability: { id: definition.id, version: definition.version },
+      capabilityVersion: definition.version,
+      ...(source === 'DERIVED' ? { calculatedAt: at } : { retrievedAt: at }),
+      cached: false,
+      upstream: [],
+    };
   }
 }

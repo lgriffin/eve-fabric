@@ -19,23 +19,25 @@ nodes:
   - id: fetchOrders
     capability:
       id: market.orders
-      version: 1
+      version: 2.0.0
 
   - id: aggregate
     capability:
       id: market.aggregate
-      version: 1
+      version: 2.0.0
 
 edges:
   - from: input.typeId
-    to: fetchOrders.typeId
+    to: fetchOrders.item
   - from: input.regionId
-    to: fetchOrders.regionId
+    to: fetchOrders.region
   - from: fetchOrders.orders
     to: aggregate.orders
 
 outputs:
   - name: orders
     source: fetchOrders.orders
-  - name: summary
-    source: aggregate.summary
+  - name: lowestSell
+    source: aggregate.lowestSell
+  - name: highestBuy
+    source: aggregate.highestBuy

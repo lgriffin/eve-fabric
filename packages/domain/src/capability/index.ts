@@ -24,7 +24,15 @@ export {
 
 export { type SemanticPort, semanticPortSchema } from './semantic-port.js';
 
-export { type CapabilityDefinition, type PipelineRef } from './capability-definition.js';
+export {
+  type CapabilityDefinition,
+  type PipelineRef,
+  type CapabilityUse,
+  type CapabilityRun,
+  type RunContext,
+} from './capability-definition.js';
+
+export { isCapabilityUse, sourceFromUses, scopesFromUses } from './uses.js';
 
 export {
   capabilityDefinitionSchema,
@@ -33,6 +41,10 @@ export {
   type CapabilityManifest,
 } from './schemas.js';
 
-export { CapabilityCatalog } from './catalog.js';
+export {
+  CapabilityCatalog,
+  CapabilityNotExecutableError,
+  type CapabilityCatalogOptions,
+} from './catalog.js';
 
 export { type EditorType, getEditorType } from './input-editor-mapping.js';

@@ -19,32 +19,32 @@ inputs:
 nodes:
   - id: resolveOrigin
     capability:
-      id: universe.resolveSolarSystem
-      version: 1
+      id: universe.resolve.solar.system
+      version: 2.0.0
 
   - id: resolveDestination
     capability:
-      id: universe.resolveSolarSystem
-      version: 1
+      id: universe.resolve.solar.system
+      version: 2.0.0
 
   - id: calculateRoute
     capability:
       id: route.distance
-      version: 1
+      version: 2.0.0
 
 edges:
   - from: input.origin
-    to: resolveOrigin.systemRef
+    to: resolveOrigin.query
   - from: input.destination
-    to: resolveDestination.systemRef
+    to: resolveDestination.query
   - from: resolveOrigin.system
-    to: calculateRoute.originSystem
+    to: calculateRoute.origin
   - from: resolveDestination.system
-    to: calculateRoute.destinationSystem
+    to: calculateRoute.destination
 
 outputs:
-  - name: route
-    source: calculateRoute.route
+  - name: jumps
+    source: calculateRoute.distance
   - name: originSystem
     source: resolveOrigin.system
   - name: destinationSystem

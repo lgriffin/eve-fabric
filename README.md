@@ -54,13 +54,13 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 │ Scalars  │ Proven-  │ groups    │ compiler │ Secret     │
 │ Pruning  │ ance     │ Coalesce  │ DAG      │ scanner    │
 ├──────────┴──────────┴───────────┴──────────┴────────────┤
-│               capability-sdk                            │
-│        10 initial capabilities + YAML parser            │
+│        fabric (createFabric)  ·  kit  ·  pack-core      │
+│   composition root · defineCapability · capabilities    │
 ├──────────┬──────────┬───────────┬──────────┬────────────┤
-│  domain  │esi-adapt │sde-adapt  │  cache   │persistence │
+│  domain  │source-esi│source-sde │  cache   │persistence │
 │          │          │           │          │            │
 │ Branded  │ ESI.ts   │ Static    │ In-mem   │ Drizzle    │
-│ types    │ wrapper  │ data      │ TTL      │ ORM        │
+│ types    │ views    │ data      │ TTL      │ ORM        │
 │ Zod      │          │           │          │            │
 └──────────┴──────────┴───────────┴──────────┴────────────┘
 ```
@@ -74,9 +74,11 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 | `@eve-fabric/planner`        | Dependency ordering, parallel group detection, request coalescing                                                            |
 | `@eve-fabric/executor`       | Concurrent execution engine with provenance tracking                                                                         |
 | `@eve-fabric/graphql`        | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
-| `@eve-fabric/capability-sdk` | `defineCapability` helper, YAML manifest parser, 10 initial EVE capabilities                                                 |
-| `@eve-fabric/esi-adapter`    | ESI.ts integration (wraps `@lgriffin/esi.ts`)                                                                                |
-| `@eve-fabric/sde-adapter`    | Static Data Export adapter                                                                                                   |
+| `@eve-fabric/kit`            | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
+| `@eve-fabric/pack-core`      | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
+| `@eve-fabric/fabric`         | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
+| `@eve-fabric/source-esi`     | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
+| `@eve-fabric/source-sde`     | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
 | `@eve-fabric/cache`          | In-memory cache with TTL and stale-while-revalidate                                                                          |
 | `@eve-fabric/schema-package` | Schema export/import with secret scanning                                                                                    |
 | `@eve-fabric/persistence`    | Drizzle ORM schema and repository implementations                                                                            |
@@ -105,24 +107,52 @@ type TypeReference = number & { readonly __brand: 'eve.type.reference' };
 
 ### Capabilities
 
-A capability is a versioned, typed data operation:
+A capability is a versioned, typed data operation. Its contract and the code
+that implements it live in one module; what it `uses` decides its source, its
+scopes and the context its `run` receives:
 
 ```typescript
-const marketOrders: CapabilityDefinition = {
-  id: 'market.orders' as CapabilityId,
-  version: 1 as CapabilityVersion,
+import { defineCapability, definePack } from '@eve-fabric/kit';
+
+export const orders = defineCapability({
+  id: 'market.orders',
+  version: '2.0.0',
   name: 'Market Orders',
-  source: 'ESI',
-  inputs: new Map([
-    ['regionId', { name: 'regionId', semanticType: regionRefType }],
-    ['typeId', { name: 'typeId', semanticType: typeRefType }],
-  ]),
-  outputs: new Map([['orders', { name: 'orders', semanticType: orderCollectionType }]]),
-  auth: { required: true, scopes: ['esi-markets.read_markets.v1'] },
-  cache: { strategy: 'ttl', ttlSeconds: 300 },
-  cost: { weight: 1 },
-  dependencies: [],
-};
+  description: 'Live market orders for an item in a region',
+  inputs: {
+    region: { type: 'eve.region.reference' },
+    item: { type: 'eve.type.reference' },
+  },
+  outputs: { orders: { type: 'eve.market.order.collection' } },
+  uses: ['esi.public'],
+  async run({ region, item }, { esi }) {
+    const found = [];
+    for await (const order of esi.market(Number(region)).orders.get({
+      order_type: 'all',
+      type_id: Number(item),
+    })) {
+      found.push(order);
+    }
+    return { orders: found };
+  },
+});
+
+export const myPack = definePack({ id: 'my-pack', capabilities: [orders] });
+```
+
+A fabric only accepts capabilities that can run (FAB-VAL-01):
+
+```typescript
+import { createFabric } from '@eve-fabric/fabric';
+import { corePack } from '@eve-fabric/pack-core';
+import { createEsi } from '@lgriffin/esi.ts/client';
+
+const fabric = createFabric({
+  esi: createEsi({ userAgent: 'my-app/1.0 (me@example.com)' }),
+  sde: provider, // ESI.ts's IStaticDataProvider
+  packs: [corePack, myPack],
+});
+const result = await fabric.run(pipeline, { item: 'Tritanium', region: 'The Forge' });
 ```
 
 ### 12-Step Compiler
@@ -147,17 +177,17 @@ The compiler validates and optimizes pipelines through a deterministic sequence:
 Publish a validated pipeline as a reusable capability:
 
 ```typescript
-import { publishAsComposite } from '@eve-fabric/capability-sdk';
-
-const composite = publishAsComposite(marketSnapshotPipeline, catalog, {
+const composite = fabric.publishComposite(marketSnapshotPipeline, {
+  id: 'market.snapshot',
+  version: '1.0.0',
   name: 'Market Snapshot',
   description: 'Aggregated market view',
-  version: 1,
 });
 // Now "market.snapshot" can be used as a node in other pipelines
 ```
 
-The compiler recursively expands composite nodes into sub-graphs during resolution.
+Only a pipeline that compiles is published. The fabric expands composite nodes,
+however deeply nested, into the steps that run.
 
 ### Provenance Tracking
 

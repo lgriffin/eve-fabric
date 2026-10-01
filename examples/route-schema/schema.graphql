@@ -1,4 +1,6 @@
-"""Reference to an EVE solar system ID"""
+"""
+Reference to an EVE solar system ID
+"""
 scalar SystemReference
 
 enum DataSource {

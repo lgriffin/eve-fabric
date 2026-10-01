@@ -74,10 +74,10 @@ const marketSnapshotPipeline = {
     },
   ],
   nodes: [
-    { id: 'fetchOrders', capability: { id: 'market.orders', version: '1.0.0' } },
+    { id: 'fetchOrders', capability: { id: 'market.orders', version: '2.0.0' } },
     {
       id: 'aggregate',
-      capability: { id: 'market.aggregate', version: '1.0.0' },
+      capability: { id: 'market.aggregate', version: '2.0.0' },
     },
   ],
   edges: [
@@ -120,21 +120,21 @@ const tradeOpportunityPipeline = {
   nodes: [
     {
       id: 'sourceSellOrders',
-      capability: { id: 'market.orders', version: '1.0.0' },
+      capability: { id: 'market.orders', version: '2.0.0' },
       config: { orderType: 'sell' },
     },
     {
       id: 'destBuyOrders',
-      capability: { id: 'market.orders', version: '1.0.0' },
+      capability: { id: 'market.orders', version: '2.0.0' },
       config: { orderType: 'buy' },
     },
     {
       id: 'routeCalc',
-      capability: { id: 'route.distance', version: '1.0.0' },
+      capability: { id: 'route.distance', version: '2.0.0' },
     },
     {
       id: 'profitCalc',
-      capability: { id: 'trade.profit.calculator', version: '1.0.0' },
+      capability: { id: 'trade.profit.calculator', version: '2.0.0' },
     },
   ],
   edges: [

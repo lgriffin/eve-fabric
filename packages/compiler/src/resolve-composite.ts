@@ -398,7 +398,12 @@ export function resolveComposites(
     inputs: pipeline.inputs,
     nodes: expandedNodes,
     edges: expandedEdges,
-    outputs: pipeline.outputs,
+    // An output read from a composite node now reads the inner port behind it.
+    outputs: pipeline.outputs.map((output) => {
+      const sourceNode = extractNodeId(output.source);
+      const inner = compositeOutputSources.get(sourceNode)?.get(extractPortName(output.source));
+      return inner === undefined ? output : { ...output, source: inner };
+    }),
   };
 
   return { expandedPipeline, diagnostics };

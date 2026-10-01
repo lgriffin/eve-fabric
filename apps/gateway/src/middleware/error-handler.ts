@@ -31,19 +31,34 @@ function extractDetails(error: Error): unknown {
   return null;
 }
 
+/**
+ * The typed error that decides the response. A step failure wraps what the
+ * capability threw, so a rate limit or a missing scope raised inside a run
+ * still answers 503 or 403 rather than 500.
+ */
+function decidingError(error: Error): Error {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current instanceof Error; depth++) {
+    if (isGatewayError(current)) return current;
+    current = current.cause;
+  }
+  return error;
+}
+
 export function gatewayErrorHandler(
-  error: Error,
+  thrown: Error,
   request: FastifyRequest,
   reply: FastifyReply,
 ): void {
+  const error = decidingError(thrown);
   const status = statusForError(error);
   const code = isGatewayError(error) ? error.code : 'INTERNAL_ERROR';
   const details = extractDetails(error);
 
   if (status >= 500) {
-    request.log.error({ err: error }, 'Gateway request failed');
+    request.log.error({ err: thrown }, 'Gateway request failed');
   } else {
-    request.log.warn({ err: error }, 'Gateway request error');
+    request.log.warn({ err: thrown }, 'Gateway request error');
   }
 
   const body: ErrorResponse = {

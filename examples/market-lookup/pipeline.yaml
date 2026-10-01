@@ -19,7 +19,7 @@ nodes:
   - id: fetchOrders
     capability:
       id: market.orders
-      version: 1.0.0
+      version: 2.0.0
     defaults:
       region:
         value: 10000002
@@ -31,7 +31,7 @@ nodes:
   - id: aggregateMarket
     capability:
       id: market.aggregate
-      version: 1.0.0
+      version: 2.0.0
 
 edges:
   - from: input.region

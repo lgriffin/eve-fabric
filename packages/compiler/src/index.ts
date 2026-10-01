@@ -4,6 +4,7 @@ export {
   GRAPH_CYCLE_DETECTED,
   CAPABILITY_NOT_FOUND,
   MISSING_INPUT,
+  UNKNOWN_PIPELINE_INPUT,
   SEMANTIC_SUGGESTION,
   semanticTypeMismatch,
   cycleDetected,

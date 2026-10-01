@@ -1,138 +1,87 @@
-import { GatewayError, InMemoryFabricRegistry } from '@eve-fabric/domain';
 import type {
   CapabilityCatalog,
-  CapabilityDefinition,
   ExecutionPlan,
-  SourceAdapter,
-  SourceAdapterResult,
+  InMemoryFabricRegistry,
+  StaticSource,
   TokenProvider,
 } from '@eve-fabric/domain';
 import type { GraphQLSchema } from 'graphql';
-import type { EsiClient } from '@lgriffin/esi.ts';
-import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
-import { EsiAdapter } from '@eve-fabric/esi-adapter';
-import { SdeAdapter } from '@eve-fabric/sde-adapter';
-import { Executor, DerivedAdapter } from '@eve-fabric/executor';
-import { MemoryCache } from '@eve-fabric/cache';
+import { createEsi, type Esi } from '@lgriffin/esi.ts/client';
+import { createFabric, type Fabric } from '@eve-fabric/fabric';
+import type { Executor } from '@eve-fabric/executor';
+import { corePack } from '@eve-fabric/pack-core';
+import { DEFAULT_COMPATIBILITY_DATE } from '@eve-fabric/source-esi';
+import { lazySdeDirectory, memoryStaticSource } from '@eve-fabric/source-sde';
 import { InMemoryPipelineRepository } from '@eve-fabric/persistence';
 import type { PipelineRepository } from '@eve-fabric/persistence';
-import { compile } from '@eve-fabric/compiler';
 import { buildSchema as buildGraphQLSchema } from '@eve-fabric/graphql';
 import type { PipelineRegistration } from '@eve-fabric/graphql';
-import { seedPrebuiltCapabilities } from './seed-capabilities.js';
-import { seedDemoCapabilities } from './seed-demo.js';
+import { seedDemoComposites } from './seed-demo.js';
 import { EnvTokenProvider } from './auth/env-token-provider.js';
+
+export { SdeLoadError } from '@eve-fabric/source-sde';
 
 interface GatewayRuntimeConfig {
   readonly sdeDataPath?: string | undefined;
-  readonly esiClient?: EsiClient | undefined;
+  /** ESI.ts's runtime. Defaults to one sending the fabric's user agent. */
+  readonly esi?: Esi | undefined;
+  /** The SDE, when not loaded from `sdeDataPath`. */
+  readonly sde?: StaticSource | undefined;
   readonly tokenProvider?: TokenProvider | undefined;
 }
 
-class LazySdeAdapter implements SourceAdapter {
-  readonly name = 'SDE';
-  private resolvedAdapter: SdeAdapter | undefined;
-  private adapterPromise: Promise<SdeAdapter> | undefined;
-  private readonly sdeDataPath: string | undefined;
+/** Who is calling ESI, as CCP asks every application to say. */
+const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)';
 
-  constructor(sdeDataPath?: string) {
-    this.sdeDataPath = sdeDataPath;
-  }
-
-  supports(capability: CapabilityDefinition): boolean {
-    return capability.source === 'SDE';
-  }
-
-  async execute(
-    capability: CapabilityDefinition,
-    inputs: ReadonlyMap<string, unknown>,
-  ): Promise<SourceAdapterResult> {
-    if (this.resolvedAdapter === undefined) {
-      this.adapterPromise ??= createSdeProvider(this.sdeDataPath).then(
-        (provider) => new SdeAdapter({ provider }),
-      );
-      this.resolvedAdapter = await this.adapterPromise;
-    }
-    return this.resolvedAdapter.execute(capability, inputs);
-  }
+function staticSourceFor(config: GatewayRuntimeConfig | undefined): StaticSource {
+  if (config?.sde !== undefined) return config.sde;
+  const path = config?.sdeDataPath ?? process.env['SDE_DATA_PATH'];
+  // A configured export that will not load fails loudly (FAB-SRC-01). With no
+  // export configured, an explicitly empty SDE: every lookup reports "not found".
+  return path ? lazySdeDirectory(path) : memoryStaticSource();
 }
 
 /**
- * Thrown when a configured SDE export cannot be loaded. Never replaced by an
- * empty provider. A source failure, so API clients see GATEWAY_SOURCE_UNAVAILABLE;
- * the path stays server-side (on the error and in the logged cause).
+ * The gateway's composition root: a fabric over ESI, the SDE and the core
+ * pack, plus the gateway's own pipeline store and GraphQL schema.
  */
-export class SdeLoadError extends GatewayError {
-  readonly code = 'GATEWAY_SOURCE_UNAVAILABLE' as const;
-  readonly category = 'runtime' as const;
-  readonly context = { source: 'SDE' as const };
-  readonly path: string;
-
-  constructor(path: string, cause: unknown) {
-    super('SDE source unavailable: the configured export could not be loaded');
-    this.cause = cause;
-    this.path = path;
-  }
-}
-
-async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
-  if (sdeDataPath) {
-    try {
-      const sdeModule = (await import('@lgriffin/esi.ts/sde')) as {
-        SdeDataProvider: { fromDirectory: (path: string) => IStaticDataProvider };
-      };
-      return sdeModule.SdeDataProvider.fromDirectory(sdeDataPath);
-    } catch (err) {
-      // Constitution XII: a configured source that fails is an error, not an empty source.
-      throw new SdeLoadError(sdeDataPath, err);
-    }
-  }
-  // No SDE configured: an explicitly empty provider, so every lookup reports "not found".
-  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
-    MemorySdeProvider: new () => IStaticDataProvider;
-  };
-  return new memoryModule.MemorySdeProvider();
-}
-
 export class GatewayRuntime {
-  readonly registry: InMemoryFabricRegistry;
-  readonly catalog: CapabilityCatalog;
+  readonly fabric: Fabric;
   readonly pipelineRepository: PipelineRepository;
-  readonly cache: MemoryCache;
-  readonly executor: Executor;
   readonly tokenProvider: TokenProvider;
-  readonly esiAdapter: EsiAdapter;
-  readonly derivedAdapter: DerivedAdapter;
 
   private _graphqlSchema: GraphQLSchema | undefined;
   private compiledRegistrations: PipelineRegistration[] = [];
 
   constructor(config?: GatewayRuntimeConfig) {
-    this.registry = new InMemoryFabricRegistry();
-    seedPrebuiltCapabilities(this.registry);
-    seedDemoCapabilities(this.registry);
-
-    this.catalog = this.registry.getCatalog();
-    this.pipelineRepository = new InMemoryPipelineRepository();
-    this.cache = new MemoryCache();
-    this.tokenProvider = config?.tokenProvider ?? new EnvTokenProvider();
-
-    // Without a client, the adapter builds one with the fabric's user agent,
-    // the same one generated pipelines get; ESI_USER_AGENT overrides it here.
-    this.esiAdapter =
-      config?.esiClient === undefined
-        ? new EsiAdapter({ userAgent: process.env['ESI_USER_AGENT'] })
-        : new EsiAdapter({ client: config.esiClient });
-    this.derivedAdapter = new DerivedAdapter();
-
-    const sdeDataPath = config?.sdeDataPath ?? process.env['SDE_DATA_PATH'];
-    const lazySdeAdapter = new LazySdeAdapter(sdeDataPath);
-
-    this.executor = new Executor({
-      adapters: [this.esiAdapter, lazySdeAdapter, this.derivedAdapter],
-      catalog: this.catalog,
-      cache: this.cache,
+    const esi =
+      config?.esi ??
+      createEsi({
+        userAgent: process.env['ESI_USER_AGENT'] ?? DEFAULT_ESI_USER_AGENT,
+        compatibilityDate: DEFAULT_COMPATIBILITY_DATE,
+      });
+    this.fabric = createFabric({
+      esi,
+      esiCompatibilityDate: DEFAULT_COMPATIBILITY_DATE,
+      sde: staticSourceFor(config),
+      packs: [corePack],
     });
+    seedDemoComposites(this.fabric);
+
+    this.pipelineRepository = new InMemoryPipelineRepository();
+    this.tokenProvider = config?.tokenProvider ?? new EnvTokenProvider();
+  }
+
+  get registry(): InMemoryFabricRegistry {
+    return this.fabric.registry;
+  }
+
+  get catalog(): CapabilityCatalog {
+    return this.fabric.catalog;
+  }
+
+  get executor(): Executor {
+    return this.fabric.executor;
   }
 
   get graphqlSchema(): GraphQLSchema {
@@ -149,21 +98,21 @@ export class GatewayRuntime {
   async rebuildRegistrations(): Promise<void> {
     const pipelines = await this.pipelineRepository.list();
     this.compiledRegistrations = [];
-    for (const pipeline of pipelines) {
+    for (const saved of pipelines) {
+      // Composites expand first, so outputs read the inner steps that run.
+      const expanded = this.fabric.expand(saved);
+      const pipeline = expanded.diagnostics.length === 0 ? expanded.pipeline : saved;
+      const base = { pipeline, catalog: this.catalog, includeProvenance: true as const };
       try {
-        const result = compile(pipeline, this.catalog);
-        const base = { pipeline, catalog: this.catalog, includeProvenance: true as const };
-        const reg: PipelineRegistration = result.success
-          ? { ...base, plan: result.plan as unknown as ExecutionPlan, executor: this.executor }
-          : base;
-        this.compiledRegistrations.push(reg);
+        const result = this.fabric.compile(pipeline);
+        this.compiledRegistrations.push(
+          result.success
+            ? { ...base, plan: result.plan as unknown as ExecutionPlan, executor: this.executor }
+            : base,
+        );
       } catch {
         // Pipeline failed to compile — still register for type introspection
-        this.compiledRegistrations.push({
-          pipeline,
-          catalog: this.catalog,
-          includeProvenance: true,
-        });
+        this.compiledRegistrations.push(base);
       }
     }
     this.invalidateGraphQLSchema();

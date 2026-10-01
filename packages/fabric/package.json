@@ -1,0 +1,32 @@
+{
+  "name": "@eve-fabric/fabric",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The composition root as a library: sources and packs in, a fabric out.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@eve-fabric/cache": "workspace:*",
+    "@eve-fabric/compiler": "workspace:*",
+    "@eve-fabric/domain": "workspace:*",
+    "@eve-fabric/executor": "workspace:*",
+    "@eve-fabric/kit": "workspace:*",
+    "@eve-fabric/source-esi": "workspace:*",
+    "@eve-fabric/source-sde": "workspace:*",
+    "@lgriffin/esi.ts": "11.1.1"
+  },
+  "devDependencies": {
+    "@eve-fabric/pack-core": "workspace:*",
+    "@eve-fabric/test-support": "workspace:*",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "yaml": "^2.5.0"
+  }
+}

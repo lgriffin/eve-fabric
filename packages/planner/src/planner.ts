@@ -14,6 +14,8 @@ export interface PlannedExecution {
   readonly orderedSteps: readonly string[];
   readonly parallelGroups: readonly ParallelGroup[];
   readonly coalescedRequests: readonly CoalescedGroup[];
+  /** Steps merged into an identical step; each shares the kept step's result. */
+  readonly aliases: ReadonlyMap<string, string>;
 }
 
 /**
@@ -164,7 +166,7 @@ function buildCoalescedGroups(
  * with dependency-ordered steps, parallel groups, and coalesced requests.
  */
 export function planExecution(plan: ExecutionPlan): PlannedExecution {
-  const { steps: dedupedSteps } = deduplicateSteps(plan.steps);
+  const { steps: dedupedSteps, aliases } = deduplicateSteps(plan.steps);
   const levels = topologicalLevels(dedupedSteps);
 
   const orderedSteps: string[] = [];
@@ -181,5 +183,6 @@ export function planExecution(plan: ExecutionPlan): PlannedExecution {
     orderedSteps,
     parallelGroups,
     coalescedRequests,
+    aliases,
   };
 }

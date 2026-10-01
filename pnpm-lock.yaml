@@ -26,6 +26,21 @@ importers:
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
+      '@eve-fabric/domain':
+        specifier: workspace:*
+        version: link:packages/domain
+      '@eve-fabric/fabric':
+        specifier: workspace:*
+        version: link:packages/fabric
+      '@eve-fabric/pack-core':
+        specifier: workspace:*
+        version: link:packages/pack-core
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:packages/test-support
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
       '@stryker-mutator/core':
         specifier: ^10.0.0
         version: 10.0.0(@types/node@22.20.1)
@@ -132,36 +147,36 @@ importers:
 
   apps/gateway:
     dependencies:
-      '@eve-fabric/cache':
-        specifier: workspace:*
-        version: link:../../packages/cache
-      '@eve-fabric/capability-sdk':
-        specifier: workspace:*
-        version: link:../../packages/capability-sdk
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@eve-fabric/esi-adapter':
-        specifier: workspace:*
-        version: link:../../packages/esi-adapter
       '@eve-fabric/executor':
         specifier: workspace:*
         version: link:../../packages/executor
+      '@eve-fabric/fabric':
+        specifier: workspace:*
+        version: link:../../packages/fabric
       '@eve-fabric/graphql':
         specifier: workspace:*
         version: link:../../packages/graphql
+      '@eve-fabric/pack-core':
+        specifier: workspace:*
+        version: link:../../packages/pack-core
       '@eve-fabric/persistence':
         specifier: workspace:*
         version: link:../../packages/persistence
       '@eve-fabric/schema-package':
         specifier: workspace:*
         version: link:../../packages/schema-package
-      '@eve-fabric/sde-adapter':
+      '@eve-fabric/source-esi':
         specifier: workspace:*
-        version: link:../../packages/sde-adapter
+        version: link:../../packages/source-esi
+      '@eve-fabric/source-sde':
+        specifier: workspace:*
+        version: link:../../packages/source-sde
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -181,6 +196,9 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
     devDependencies:
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../../packages/test-support
       tsx:
         specifier: ^4.0.0
         version: 4.23.12
@@ -196,22 +214,6 @@ importers:
       '@eve-fabric/domain':
         specifier: workspace:*
         version: link:../domain
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.20.1)
-
-  packages/capability-sdk:
-    dependencies:
-      '@eve-fabric/domain':
-        specifier: workspace:*
-        version: link:../domain
-      yaml:
-        specifier: ^2.5.0
-        version: 2.9.0
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -274,22 +276,6 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
 
-  packages/esi-adapter:
-    dependencies:
-      '@eve-fabric/domain':
-        specifier: workspace:*
-        version: link:../domain
-      '@lgriffin/esi.ts':
-        specifier: 11.1.1
-        version: 11.1.1(js-yaml@4.3.1)
-    devDependencies:
-      typescript:
-        specifier: ^5.5.0
-        version: 5.9.3
-      vitest:
-        specifier: ^2.0.0
-        version: 2.1.9(@types/node@22.20.1)
-
   packages/executor:
     dependencies:
       '@eve-fabric/domain':
@@ -299,18 +285,61 @@ importers:
         specifier: workspace:*
         version: link:../planner
     devDependencies:
-      '@eve-fabric/capability-sdk':
-        specifier: workspace:*
-        version: link:../capability-sdk
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../compiler
+      '@eve-fabric/kit':
+        specifier: workspace:*
+        version: link:../kit
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
+
+  packages/fabric:
+    dependencies:
+      '@eve-fabric/cache':
+        specifier: workspace:*
+        version: link:../cache
+      '@eve-fabric/compiler':
+        specifier: workspace:*
+        version: link:../compiler
+      '@eve-fabric/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@eve-fabric/executor':
+        specifier: workspace:*
+        version: link:../executor
+      '@eve-fabric/kit':
+        specifier: workspace:*
+        version: link:../kit
+      '@eve-fabric/source-esi':
+        specifier: workspace:*
+        version: link:../source-esi
+      '@eve-fabric/source-sde':
+        specifier: workspace:*
+        version: link:../source-sde
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
+    devDependencies:
+      '@eve-fabric/pack-core':
+        specifier: workspace:*
+        version: link:../pack-core
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../test-support
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
 
   packages/graphql:
     dependencies:
@@ -321,6 +350,50 @@ importers:
         specifier: ^16.9.0
         version: 16.14.2
     devDependencies:
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/kit:
+    dependencies:
+      '@eve-fabric/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/pack-core:
+    dependencies:
+      '@eve-fabric/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@eve-fabric/kit':
+        specifier: workspace:*
+        version: link:../kit
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
+    devDependencies:
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../test-support
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -373,7 +446,7 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
 
-  packages/sde-adapter:
+  packages/source-esi:
     dependencies:
       '@eve-fabric/domain':
         specifier: workspace:*
@@ -382,6 +455,28 @@ importers:
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
     devDependencies:
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../test-support
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/source-sde:
+    dependencies:
+      '@eve-fabric/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
+    devDependencies:
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../test-support
       typescript:
         specifier: ^5.5.0
         version: 5.9.3
@@ -394,6 +489,9 @@ importers:
       '@cucumber/cucumber':
         specifier: ^11.0.0
         version: 11.3.0
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
     devDependencies:
       typescript:
         specifier: ^5.5.0

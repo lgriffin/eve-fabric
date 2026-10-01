@@ -23,12 +23,18 @@ describe('Publish routes', () => {
       nodes: [
         {
           id: 'node1',
-          capability: { id: 'market.orders', version: '1.0.0' },
+          capability: { id: 'market.orders', version: '2.0.0' },
           config: {},
         },
       ],
-      edges: [{ from: 'input.region', to: 'node1.region' }],
-      inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
+      edges: [
+        { from: 'input.region', to: 'node1.region' },
+        { from: 'input.item', to: 'node1.item' },
+      ],
+      inputs: [
+        { name: 'region', semanticType: 'eve.region.reference', required: true },
+        { name: 'item', semanticType: 'eve.type.reference', required: true },
+      ],
       outputs: [{ name: 'orders', source: 'node1.orders' }],
     };
 
@@ -57,7 +63,7 @@ describe('Publish routes', () => {
         url: '/api/registry/publish',
         payload: {
           capabilityId: 'market.orders',
-          version: '1.0.0',
+          version: '2.0.0',
           name: 'Market Orders',
           description: 'Duplicate',
           pipelineId: 'some-pipeline',
@@ -161,7 +167,7 @@ describe('Publish routes', () => {
           description: 'A test composite capability',
           pipelineId: saved.id,
           pipelineVersion: 1,
-          selectedInputs: ['region'],
+          selectedInputs: ['region', 'item'],
           selectedOutputs: ['orders'],
         },
       });
@@ -173,6 +179,37 @@ describe('Publish routes', () => {
       expect(body.success).toBe(true);
       expect(body.capability).toBeDefined();
       expect(body.capability.source).toBe('COMPOSITE');
+    });
+
+    it('refuses to publish a view that does not compile (the publish gate)', async () => {
+      const saveRes = await saveAndGetPipeline();
+      const saved = JSON.parse(saveRes.body) as { id: string };
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/registry/publish',
+        payload: {
+          capabilityId: 'custom.test.unbound',
+          version: '1.0.0',
+          name: 'Unbound',
+          description: 'Leaves the item port unbound',
+          pipelineId: saved.id,
+          pipelineVersion: 1,
+          selectedInputs: ['region'],
+          selectedOutputs: ['orders'],
+        },
+      });
+      expect(response.statusCode).toBe(400);
+      const body = JSON.parse(response.body) as {
+        success: boolean;
+        diagnostics: Array<{ code: string }>;
+      };
+      expect(body.success).toBe(false);
+      expect(body.diagnostics[0]!.code).toBe('PIPELINE_INVALID');
+      expect(body.diagnostics.length).toBeGreaterThan(1);
+
+      const lookup = await app.inject({ method: 'GET', url: '/api/registry/custom.test.unbound' });
+      expect(lookup.statusCode).toBe(404);
     });
   });
 });

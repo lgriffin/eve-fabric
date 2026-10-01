@@ -22,10 +22,10 @@ interface Layer {
   readonly name: string;
   readonly packages: readonly string[];
   /** Returns a reason when `spec` is not allowed, otherwise undefined. */
-  readonly check: (spec: string) => string | undefined;
+  readonly check: (spec: string, typeOnly: boolean) => string | undefined;
 }
 
-const SOURCE_PACKAGES = ['@eve-fabric/esi-adapter', '@eve-fabric/sde-adapter'];
+const SOURCE_PACKAGES = ['@eve-fabric/source-esi', '@eve-fabric/source-sde'];
 
 function noSources(spec: string): string | undefined {
   if (spec === ESI_TS || spec.startsWith(`${ESI_TS}/`)) {
@@ -53,19 +53,26 @@ const LAYERS: readonly Layer[] = [
       'packages/cache',
       'packages/graphql',
       'packages/schema-package',
-      'packages/capability-sdk',
       'packages/persistence',
     ],
     check: noSources,
   },
   {
+    // Capabilities type their run context with ESI.ts's views; the values
+    // arrive from a source at run time (constitution V).
+    name: 'kit',
+    packages: ['packages/kit', 'packages/pack-core'],
+    check: (spec, typeOnly) =>
+      typeOnly && (spec === ESI_TS || spec.startsWith(`${ESI_TS}/`)) ? undefined : noSources(spec),
+  },
+  {
     name: 'source',
-    packages: ['packages/esi-adapter', 'packages/sde-adapter'],
+    packages: ['packages/source-esi', 'packages/source-sde'],
     check: () => undefined,
   },
   {
     name: 'driving',
-    packages: ['packages/codegen', 'apps/gateway', 'packages/test-support'],
+    packages: ['packages/fabric', 'packages/codegen', 'apps/gateway', 'packages/test-support'],
     check: () => undefined,
   },
   {
@@ -96,6 +103,12 @@ function packageName(spec: string): string {
   return spec.split('/')[0]!;
 }
 
+/** Whether the import or export statement ending at `index` is `import type` / `export type`. */
+function isTypeOnly(text: string, index: number): boolean {
+  const start = Math.max(text.lastIndexOf('\nimport', index), text.lastIndexOf('\nexport', index));
+  return /^\s*(?:import|export)\s+type\s/.test(text.slice(start + 1, index));
+}
+
 function findViolations(): string[] {
   const violations: string[] = [];
   for (const layer of LAYERS) {
@@ -106,7 +119,8 @@ function findViolations(): string[] {
           const spec = match[1]!;
           // Node built-ins go through the check too: the core may not import them.
           if (spec.startsWith('.')) continue;
-          const reason = layer.check(spec) ?? layer.check(packageName(spec));
+          const typeOnly = isTypeOnly(text, match.index);
+          const reason = layer.check(spec, typeOnly) ?? layer.check(packageName(spec), typeOnly);
           if (reason !== undefined) {
             violations.push(`${relative(ROOT, file)} imports '${spec}': ${reason}`);
           }

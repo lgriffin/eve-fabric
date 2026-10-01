@@ -1,10 +1,16 @@
-"""Reference to an EVE item type ID"""
+"""
+Reference to an EVE item type ID
+"""
 scalar TypeReference
 
-"""Reference to an EVE region ID"""
+"""
+Reference to an EVE region ID
+"""
 scalar RegionReference
 
-"""EVE Online ISK currency amount"""
+"""
+EVE Online ISK currency amount
+"""
 scalar ISK
 
 enum DataSource {

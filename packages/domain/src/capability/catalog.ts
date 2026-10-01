@@ -28,12 +28,50 @@ function portsToMap(
   return map;
 }
 
+export interface CapabilityCatalogOptions {
+  /**
+   * The catalog gate (constitution XXVIII, FAB-VAL-01). When true, a
+   * capability registers only with a `run` (or as a composite backed by a
+   * pipeline), so everything in the catalog can execute. The fabric's runtime
+   * catalog is always executable; a contracts-only catalog (a designer's
+   * view, a compiler test) leaves it off.
+   */
+  readonly executable?: boolean | undefined;
+}
+
+/** Thrown when an executable catalog is offered a capability with no code behind it. */
+export class CapabilityNotExecutableError extends Error {
+  readonly capabilityId: string;
+
+  constructor(id: string) {
+    super(
+      `Capability "${id}" has no run function; an executable catalog registers only capabilities with the code that implements them (FAB-VAL-01)`,
+    );
+    this.name = 'CapabilityNotExecutableError';
+    this.capabilityId = id;
+  }
+}
+
 export class CapabilityCatalog {
   private readonly definitions = new Map<string, CapabilityDefinition>();
   private readonly latestVersions = new Map<string, CapabilityVersion>();
+  /** Whether this catalog enforces the catalog gate. */
+  readonly executable: boolean;
+
+  constructor(options?: CapabilityCatalogOptions) {
+    this.executable = options?.executable ?? false;
+  }
 
   register(definition: CapabilityDefinition | Record<string, unknown>): void {
     const def = definition as Record<string, unknown>;
+
+    if (
+      this.executable &&
+      typeof def['run'] !== 'function' &&
+      !(def['source'] === 'COMPOSITE' && def['pipelineRef'] !== undefined)
+    ) {
+      throw new CapabilityNotExecutableError(String(def['id']));
+    }
 
     // If inputs is already a Map, this is a normalized CapabilityDefinition
     if (def.inputs instanceof Map) {

@@ -12,16 +12,16 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/cache": "workspace:*",
-    "@eve-fabric/capability-sdk": "workspace:*",
     "@eve-fabric/compiler": "workspace:*",
     "@eve-fabric/domain": "workspace:*",
-    "@eve-fabric/esi-adapter": "workspace:*",
     "@eve-fabric/executor": "workspace:*",
+    "@eve-fabric/fabric": "workspace:*",
     "@eve-fabric/graphql": "workspace:*",
+    "@eve-fabric/pack-core": "workspace:*",
     "@eve-fabric/persistence": "workspace:*",
     "@eve-fabric/schema-package": "workspace:*",
-    "@eve-fabric/sde-adapter": "workspace:*",
+    "@eve-fabric/source-esi": "workspace:*",
+    "@eve-fabric/source-sde": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
     "fastify": "^5.0.0",
     "fastify-plugin": "^6.0.0",
@@ -30,6 +30,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@eve-fabric/test-support": "workspace:*",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

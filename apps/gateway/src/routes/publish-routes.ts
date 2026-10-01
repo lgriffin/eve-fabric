@@ -6,7 +6,22 @@ import {
   capabilityIdSchema,
   capabilityVersionSchema,
 } from '@eve-fabric/domain';
-import type { FabricRegistry, PipelineDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition, FabricRegistry, PipelineDefinition } from '@eve-fabric/domain';
+
+/** Publishes a pipeline as a composite; throws when it does not compile (the publish gate). */
+type PublishComposite = (
+  pipeline: PipelineDefinition,
+  options: { id: string; version: string; name: string; description: string },
+) => CapabilityDefinition;
+
+/** Thrown by a publish that the gate refused; carries the compiler's diagnostics. */
+interface RefusedPublish {
+  readonly diagnostics: readonly { severity: string; code: string; message: string }[];
+}
+
+function isRefusedPublish(err: unknown): err is Error & RefusedPublish {
+  return err instanceof Error && Array.isArray((err as Partial<RefusedPublish>).diagnostics);
+}
 
 const publishRequestSchema = z.object({
   capabilityId: capabilityIdSchema,
@@ -21,6 +36,7 @@ const publishRequestSchema = z.object({
 
 export function createPublishRoutes(
   registry: FabricRegistry,
+  publish: PublishComposite,
   getPipeline: (
     id: string,
     version: number,
@@ -105,95 +121,50 @@ export function createPublishRoutes(
       }
 
       try {
-        const inputs: Record<
-          string,
-          {
-            name: string;
-            semanticType: string;
-            required: boolean;
-            description?: string | undefined;
-          }
-        > = {};
-        for (const input of pipeline.inputs) {
-          if (data.selectedInputs.includes(input.name)) {
-            inputs[input.name] = {
-              name: input.name,
-              semanticType: input.semanticType,
-              required: input.required,
-              description: input.description,
-            };
-          }
-        }
-
-        const outputs: Record<string, { name: string; semanticType: string; required: boolean }> =
-          {};
-        for (const output of pipeline.outputs) {
-          if (data.selectedOutputs.includes(output.name)) {
-            const raw = output as unknown as Record<string, unknown>;
-            const semType =
-              typeof raw['semanticType'] === 'string' ? raw['semanticType'] : 'eve.type.unknown';
-            outputs[output.name] = {
-              name: output.name,
-              semanticType: semType,
-              required: typeof raw['required'] === 'boolean' ? raw['required'] : true,
-            };
-          }
-        }
-
-        const dependencies = pipeline.nodes.map((node) => {
-          if (node.capability.version !== undefined) {
-            return { id: node.capability.id, version: node.capability.version };
-          }
-          return { id: node.capability.id };
-        });
-
-        const rawDef = {
+        // The composite exposes the selected inputs and outputs only; the
+        // publish gate compiles exactly that view.
+        const view: PipelineDefinition = {
+          ...pipeline,
+          inputs: pipeline.inputs.filter((i) => data.selectedInputs.includes(i.name)),
+          outputs: pipeline.outputs.filter((o) => data.selectedOutputs.includes(o.name)),
+        };
+        const capability = publish(view, {
           id: data.capabilityId,
           version: data.version,
           name: data.name,
           description: data.description,
-          inputs,
-          outputs,
-          source: 'COMPOSITE' as const,
-          dependencies,
-          auth: { required: false, scopes: [] as string[] },
-          cache: {
-            cacheable: false,
-            defaultTtlSeconds: 0,
-            stalePermitted: false,
-            identityInKey: false,
-          },
-          cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
-          pipelineRef: { id: pipeline.id, version: pipeline.version },
-        };
-
-        registry.register(rawDef as never);
+        });
         await onPublished?.();
-
-        const capability = registry.get(capId, capVer);
 
         return reply.status(201).send({
           success: true,
-          capability: capability
-            ? {
-                id: capability.id as string,
-                version: capability.version as string,
-                name: capability.name,
-                source: capability.source,
-                inputs: [...capability.inputs.values()].map((p) => ({
-                  name: p.name,
-                  semanticType: p.semanticType,
-                  required: p.required,
-                })),
-                outputs: [...capability.outputs.values()].map((p) => ({
-                  name: p.name,
-                  semanticType: p.semanticType,
-                })),
-              }
-            : null,
+          capability: {
+            id: capability.id as string,
+            version: capability.version as string,
+            name: capability.name,
+            source: capability.source,
+            inputs: [...capability.inputs.values()].map((p) => ({
+              name: p.name,
+              semanticType: p.semanticType,
+              required: p.required,
+            })),
+            outputs: [...capability.outputs.values()].map((p) => ({
+              name: p.name,
+              semanticType: p.semanticType,
+            })),
+          },
           diagnostics: [],
         });
       } catch (err) {
+        if (isRefusedPublish(err)) {
+          return reply.status(400).send({
+            success: false,
+            diagnostics: [
+              { severity: 'error', code: 'PIPELINE_INVALID', message: err.message },
+              ...err.diagnostics,
+            ],
+          });
+        }
         const message = err instanceof Error ? err.message : 'Unknown error';
 
         if (message.includes('Circular dependency')) {
