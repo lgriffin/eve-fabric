@@ -46,6 +46,7 @@ export {
   CapabilityCatalog,
   CapabilityNotExecutableError,
   UnresolvableReferenceError,
+  ResolverMissingError,
   InvalidAttachError,
   type CapabilityCatalogOptions,
 } from './catalog.js';

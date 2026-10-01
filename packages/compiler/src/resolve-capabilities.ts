@@ -109,9 +109,7 @@ function checkConfiguredValues(
   for (const [portName, value] of Object.entries(values)) {
     const port = def.inputs.get(portName);
     if (port === undefined || value === undefined || value === null) continue;
-    if (port.acceptsName === true && typeof value === 'string' && value.trim() !== '') continue;
-    if (!types.has(port.semanticType)) continue;
-    const check = types.check(port.semanticType, value);
+    const check = types.checkPort(port, value);
     if (!check.ok) {
       diagnostics.push(invalidConfiguredValue(nodeId, portName, port.semanticType, check.message));
     }

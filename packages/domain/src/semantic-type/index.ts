@@ -13,4 +13,10 @@ export {
   idSchema,
 } from './semantic-type.js';
 
-export { SemanticTypeRegistry, UnknownSemanticTypeError, type TypeCheck } from './registry.js';
+export {
+  SemanticTypeRegistry,
+  UnknownSemanticTypeError,
+  lookupNameSchema,
+  type CheckedPort,
+  type TypeCheck,
+} from './registry.js';

@@ -32,9 +32,13 @@ export class InMemoryFabricRegistry implements FabricRegistry {
   }
 
   register(definition: CapabilityDefinition): void {
-    this.catalog.register(definition);
+    this.registerAll([definition]);
+  }
 
-    if (definition.dependencies && definition.dependencies.length > 0) {
+  /** Registers capabilities together: all, or none when the catalog refuses any. */
+  registerAll(definitions: readonly CapabilityDefinition[]): void {
+    for (const definition of this.catalog.registerAll(definitions)) {
+      if (definition.dependencies.length === 0) continue;
       const parentRef: CapabilityRef = { id: definition.id, version: definition.version };
       for (const dep of definition.dependencies) {
         this.graph.addDependency(parentRef, dep);

@@ -66,6 +66,32 @@ describe('listOf', () => {
     expect(listOf('test.place')).toBe(places);
     expect(typeIdOf(places)).toBe('test.place.collection');
   });
+
+  it('records the item for a pack when first listed by id, then by definition', () => {
+    const crate = defineType({
+      kind: 'value',
+      id: 'test.crate',
+      description: 'A crate',
+      schema: z.string(),
+    });
+    const byId = listOf('test.crate');
+    expect(listOf(crate)).toBe(byId);
+    const pack = definePack({
+      id: 'test',
+      capabilities: [
+        defineCapability({
+          id: 'test.crates',
+          version: '1.0.0',
+          name: 'Crates',
+          description: 'Crates',
+          inputs: {},
+          outputs: { crates: { type: byId } },
+          run: () => ({ crates: [] }),
+        }),
+      ],
+    });
+    expect(pack.types?.map((t) => t.id).sort()).toEqual(['test.crate', 'test.crate.collection']);
+  });
 });
 
 describe('packs collect the types their capabilities name', () => {

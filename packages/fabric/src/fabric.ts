@@ -85,17 +85,6 @@ export class PublishRefusedError extends PipelineCompileError {
   }
 }
 
-/** A reference type names a resolver this fabric does not have, or one whose ports do not fit. */
-export class ResolverMissingError extends Error {
-  readonly typeId: string;
-
-  constructor(typeId: string, reason: string) {
-    super(`Reference type "${typeId}" cannot be followed: ${reason}`);
-    this.name = 'ResolverMissingError';
-    this.typeId = typeId;
-  }
-}
-
 /** A pack defines a type in a namespace it does not own, or one already defined. */
 export class TypeConflictError extends Error {
   readonly typeId: string;
@@ -139,7 +128,11 @@ export class Fabric {
     // The catalog gate: everything registered here can execute (constitution XXVIII).
     // With types: every port type known, every emitted reference followable.
     this.types = new SemanticTypeRegistry();
-    this.catalog = new CapabilityCatalog({ executable: true, types: this.types });
+    this.catalog = new CapabilityCatalog({
+      executable: true,
+      types: this.types,
+      requireResolvers: true,
+    });
     this.registry = new InMemoryFabricRegistry(this.catalog);
     this.sources = {
       esi:
@@ -170,8 +163,13 @@ export class Fabric {
   install(pack: Pack): void {
     const fresh = (pack.types ?? []).filter((type) => this.checkType(pack, type));
     for (const type of fresh) this.types.register(type);
-    this.checkResolvers(pack);
-    for (const capability of pack.capabilities) this.registry.register(capability);
+    try {
+      // All the pack's capabilities, or none of them.
+      this.registry.registerAll(pack.capabilities);
+    } catch (error) {
+      for (const type of fresh) this.types.unregister(type.id);
+      throw error;
+    }
   }
 
   /** Whether the type is new here; throws when it conflicts. */
@@ -187,45 +185,6 @@ export class Fabric {
     if (!this.types.has(id)) return true;
     if (this.types.get(id) === type) return false;
     throw new TypeConflictError(pack.id, id, 'another definition is already installed');
-  }
-
-  /** Each reference the pack's capabilities emit resolves through a capability that fits. */
-  private checkResolvers(pack: Pack): void {
-    const inPack = new Map(pack.capabilities.map((c) => [c.id as string, c]));
-    const find = (id: string): CapabilityDefinition | undefined => {
-      if (inPack.has(id)) return inPack.get(id);
-      return this.catalog.has(capabilityId(id)) ? this.catalog.get(capabilityId(id)) : undefined;
-    };
-    const checked = new Set<string>();
-    for (const capability of pack.capabilities) {
-      for (const port of capability.outputs.values()) {
-        if (!this.types.has(port.semanticType)) continue; // the catalog names it
-        for (const reference of this.types.referencesIn(port.semanticType)) {
-          if (reference.resolver === undefined || checked.has(reference.id)) continue;
-          checked.add(reference.id);
-          const { capability: resolverId, input, output } = reference.resolver;
-          const resolver = find(resolverId);
-          if (resolver === undefined) {
-            throw new ResolverMissingError(
-              reference.id,
-              `its resolver "${resolverId}" is not installed`,
-            );
-          }
-          if (resolver.inputs.get(input)?.semanticType !== reference.id) {
-            throw new ResolverMissingError(
-              reference.id,
-              `"${resolverId}" has no input "${input}" taking a ${reference.id as string}`,
-            );
-          }
-          if (resolver.outputs.get(output)?.semanticType !== reference.entity) {
-            throw new ResolverMissingError(
-              reference.id,
-              `"${resolverId}" has no output "${output}" giving a ${reference.entity as string}`,
-            );
-          }
-        }
-      }
-    }
   }
 
   /** The catalog: every capability that can run here, and the types they speak. */

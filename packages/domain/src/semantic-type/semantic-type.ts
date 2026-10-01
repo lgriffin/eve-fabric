@@ -96,5 +96,12 @@ export function createSemanticType<T>(config: {
   };
 }
 
-/** The schema of an id: a positive integer. */
-export const idSchema = z.number().int().positive();
+/** The schema of an id: a positive integer, or one sent as decimal text, which becomes a number. */
+export const idSchema: z.ZodType<number, z.ZodTypeDef, unknown> = z.union([
+  z.number().int().positive(),
+  z
+    .string()
+    .regex(/^\d{1,15}$/, 'Expected a positive integer id')
+    .transform(Number)
+    .pipe(z.number().int().positive()),
+]);

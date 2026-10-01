@@ -339,7 +339,7 @@ describe('the eve.* types', () => {
 
   it('reads ESI market orders as eve.market.order values, unchanged', async () => {
     const { orders } = await run(core.orders, { region: REGION.theForge, item: TYPE.tritanium });
-    expect(types.check('eve.market.order.collection', orders)).toEqual({ ok: true });
+    expect(types.check('eve.market.order.collection', orders).ok).toBe(true);
     expect(types.check('eve.market.order', { ...(orders as object[])[0], price: '4.12' }).ok).toBe(
       false,
     );
@@ -354,7 +354,7 @@ describe('the eve.* types', () => {
       );
     }
     const { system } = await run(core.systemRecord, { id: SYSTEM.sivala });
-    expect(types.check('eve.system', system)).toEqual({ ok: true });
+    expect(types.check('eve.system', system).ok).toBe(true);
   });
 
   it('lets an order be followed: its location, type and system are references', () => {

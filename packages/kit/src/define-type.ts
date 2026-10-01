@@ -128,7 +128,12 @@ const lists = new Map<string, ListTypeDefinition>();
 export function listOf(item: TypeRef): ListTypeDefinition {
   const itemId = typeIdOf(item);
   const known = lists.get(itemId);
-  if (known !== undefined) return known;
+  if (known !== undefined) {
+    // Called first with the id, then with the definition: record it now.
+    if (typeof item !== 'string' && typesMentionedBy(known).length === 0)
+      mentioned.set(known, [item]);
+    return known;
+  }
   const list: ListTypeDefinition = {
     kind: 'list',
     id: semanticTypeId(`${itemId as string}.collection`),

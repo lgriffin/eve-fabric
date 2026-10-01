@@ -20,4 +20,5 @@ export const semanticPortSchema = z.object({
     .regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/, 'Must be a valid semantic type ID'),
   description: z.string().optional(),
   required: z.boolean().default(true),
+  acceptsName: z.boolean().optional(),
 });

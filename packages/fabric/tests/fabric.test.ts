@@ -461,6 +461,46 @@ describe('types that can represent a traversal (phase 3)', () => {
     ).toThrow(ResolverMissingError);
   });
 
+  it('installs nothing of a pack it refuses', () => {
+    const named = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const fabric = createFabric({ packs: [corePack] });
+    const before = fabric.describe();
+    const refused = definePack({
+      id: '@someone/widgets',
+      types: [widget],
+      capabilities: [
+        defineCapability({
+          id: 'someone.widget.count',
+          version: '1.0.0',
+          name: 'Count',
+          description: 'Counts widgets',
+          inputs: {},
+          outputs: { count: { type: 'eve.quantity' } },
+          run: () => ({ count: 1 }),
+        }),
+        makeWidget(named),
+      ],
+    });
+    expect(() => fabric.install(refused)).toThrow(ResolverMissingError);
+    expect(fabric.describe().capabilities).toHaveLength(before.capabilities.length);
+    expect(fabric.types.has('someone.widget')).toBe(false);
+    expect(fabric.types.has('someone.widget.reference')).toBe(false);
+  });
+
+  it('checks resolvers for a capability registered straight into the catalog', () => {
+    const named = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const fabric = createFabric({
+      packs: [
+        corePack,
+        definePack({ id: '@someone/widget-types', types: [widget, named], capabilities: [] }),
+      ],
+    });
+    expect(() => fabric.catalog.register(makeWidget(named))).toThrow(ResolverMissingError);
+    expect(() => fabric.registry.register(makeWidget(named))).toThrow(ResolverMissingError);
+    fabric.registry.registerAll([lookUpWidget(named), makeWidget(named)]);
+    expect(fabric.catalog.has(capabilityId('someone.widget.make'))).toBe(true);
+  });
+
   it('installs a reference whose resolver is in the same pack, and follows it', async () => {
     const ref = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
     const fabric = createFabric({
@@ -606,6 +646,53 @@ describe('types that can represent a traversal (phase 3)', () => {
     expect(failure).toBeInstanceOf(StepExecutionError);
     expect((failure as Error).cause).toBeInstanceOf(PortValueError);
     expect((failure as Error).message).toContain('Input "origin" is not a eve.system.reference');
+  });
+
+  it('takes ids sent as text, and gives steps numbers', async () => {
+    const { fabric } = tranquilityFabric();
+    const result = await fabric.run(
+      {
+        id: 'orders-by-text',
+        version: 1,
+        name: 'Orders by text',
+        inputs: [input('item', 'eve.type.reference'), input('region', 'eve.region.reference')],
+        nodes: [node('orders', 'market.orders', '2.0.0')],
+        edges: [
+          { from: 'input.item', to: 'orders.item' },
+          { from: 'input.region', to: 'orders.region' },
+        ],
+        outputs: [{ name: 'orders', source: 'orders.orders' }],
+      },
+      { item: String(TYPE.tritanium), region: String(REGION.theForge) },
+    );
+    const orders = result.outputs.get('orders')?.['orders'] as { type_id: number }[];
+    expect(orders.length).toBeGreaterThan(0);
+    expect(orders.every((o) => o.type_id === TYPE.tritanium)).toBe(true);
+  });
+
+  it('values orders given by hand with only what names and prices them', async () => {
+    const { fabric } = tranquilityFabric();
+    const order = (order_id: number, price: number, volume_remain?: number) => ({
+      order_id,
+      type_id: TYPE.tritanium,
+      location_id: STATION.jita44,
+      price,
+      is_buy_order: false,
+      ...(volume_remain === undefined ? {} : { volume_remain }),
+    });
+    const result = await fabric.run(
+      {
+        id: 'cargo',
+        version: 1,
+        name: 'Cargo',
+        inputs: [input('orders', 'eve.market.order.collection')],
+        nodes: [node('value', 'logistics.cargo.value', '2.0.0')],
+        edges: [{ from: 'input.orders', to: 'value.orders' }],
+        outputs: [{ name: 'total', source: 'value.totalValue' }],
+      },
+      { orders: [order(1, 4, 10), order(2, 5)] },
+    );
+    expect(result.outputs.get('value')).toEqual({ totalValue: 45 });
   });
 
   it('follows an order to its location, and the location to its system', async () => {

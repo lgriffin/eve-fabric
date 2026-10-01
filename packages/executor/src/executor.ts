@@ -132,6 +132,8 @@ export class Executor {
   private readonly cache: CachePort | undefined;
   private readonly maxConcurrency: number;
   private readonly clock: Clock;
+  /** Port values that passed an output check, so the next step need not parse them again. */
+  private readonly checkedValues = new WeakSet<object>();
 
   constructor(config: ExecutorConfig) {
     this.catalog = config.catalog;
@@ -311,11 +313,11 @@ export class Executor {
         new Error(`Capability "${id}" has no run function (FAB-VAL-01)`),
       );
     }
-    this.checkPorts(step, definition, 'input', inputs);
+    const checked = this.checkPorts(step, definition, 'input', inputs);
     const context = this.contextFor(definition);
     let result: unknown;
     try {
-      result = await definition.run(inputs, context);
+      result = await definition.run(checked, context);
     } catch (err) {
       throw new StepExecutionError(step.id, id, err);
     }
@@ -326,9 +328,7 @@ export class Executor {
         new Error('run must return an object of output port values'),
       );
     }
-    const outputs = result as Readonly<Record<string, unknown>>;
-    this.checkPorts(step, definition, 'output', outputs);
-    return outputs;
+    return this.checkPorts(step, definition, 'output', result as Readonly<Record<string, unknown>>);
   }
 
   /**
@@ -342,16 +342,17 @@ export class Executor {
     definition: CapabilityDefinition,
     direction: 'input' | 'output',
     values: Readonly<Record<string, unknown>>,
-  ): void {
+  ): Readonly<Record<string, unknown>> {
     const types = this.catalog.types;
-    if (types === undefined) return;
+    if (types === undefined) return values;
     const ports = direction === 'input' ? definition.inputs : definition.outputs;
+    const parsed: Record<string, unknown> = { ...values };
     for (const [name, port] of ports) {
       const value = values[name];
       if (value === undefined || value === null) continue;
-      if (port.acceptsName === true && typeof value === 'string' && value.trim() !== '') continue;
-      if (!types.has(port.semanticType)) continue;
-      const check = types.check(port.semanticType, value);
+      // An output this run already checked arrives as the same object: no second parse.
+      if (typeof value === 'object' && this.checkedValues.has(value)) continue;
+      const check = types.checkPort(port, value);
       if (!check.ok) {
         throw new StepExecutionError(
           step.id,
@@ -359,7 +360,13 @@ export class Executor {
           new PortValueError(direction, name, port.semanticType, check.message),
         );
       }
+      // Steps get the parsed value: an id sent as text arrives as a number.
+      parsed[name] = check.value;
+      if (direction === 'output' && typeof check.value === 'object' && check.value !== null) {
+        this.checkedValues.add(check.value);
+      }
     }
+    return parsed;
   }
 
   private contextFor(definition: CapabilityDefinition): RunContext {

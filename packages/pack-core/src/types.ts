@@ -183,21 +183,22 @@ export const EveLocation = defineType({
 export const EveMarketOrder = defineType({
   kind: 'record',
   id: 'eve.market.order',
-  description: 'A market order, as ESI sends it',
+  description:
+    'A market order. ESI sends every field; an order given by hand needs only what names and prices it.',
   category: 'market',
   fields: {
     order_id: EveId,
     type_id: EveTypeRef,
     location_id: EveLocationRef,
-    system_id: EveSystemRef,
     price: EveCurrencyIsk,
-    volume_remain: EveQuantity,
-    volume_total: EveQuantity,
     is_buy_order: EveFlag,
-    issued: EveTimestamp,
-    duration: EveQuantity,
-    range: EveText,
-    min_volume: EveQuantity,
+    system_id: { type: EveSystemRef, optional: true },
+    volume_remain: { type: EveQuantity, optional: true },
+    volume_total: { type: EveQuantity, optional: true },
+    issued: { type: EveTimestamp, optional: true },
+    duration: { type: EveQuantity, optional: true },
+    range: { type: EveText, optional: true },
+    min_volume: { type: EveQuantity, optional: true },
   },
 });
 

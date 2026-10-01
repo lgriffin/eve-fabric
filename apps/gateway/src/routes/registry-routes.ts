@@ -15,6 +15,7 @@ function serializeDefinition(def: CapabilityDefinition): Record<string, unknown>
       semanticType: p.semanticType,
       description: p.description,
       required: p.required,
+      ...(p.acceptsName === true ? { acceptsName: true } : {}),
     })),
     outputs: [...def.outputs.values()].map((p) => ({
       name: p.name,
@@ -28,6 +29,7 @@ function serializeDefinition(def: CapabilityDefinition): Record<string, unknown>
     auth: { requiredScopes: [...def.auth.scopes] },
     cache: { cacheable: def.cache.cacheable, ttlSeconds: def.cache.defaultTtlSeconds },
     isComposite: def.source === 'COMPOSITE',
+    ...(def.attach === undefined ? {} : { attach: { ...def.attach } }),
   };
 }
 

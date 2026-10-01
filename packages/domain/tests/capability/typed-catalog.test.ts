@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
   CapabilityCatalog,
   InvalidAttachError,
+  ResolverMissingError,
   UnresolvableReferenceError,
 } from '../../src/capability/catalog.js';
 import type {
@@ -189,5 +190,107 @@ describe('a catalog with types', () => {
         ),
       ).toThrow(/already has "label", attached by "test\.one"/);
     });
+  });
+
+  it('refuses an input record whose fields name an unknown type, naming the field', () => {
+    const registry = types();
+    registry.register({
+      kind: 'record',
+      id: semanticTypeId('test.parcel'),
+      description: 'A parcel',
+      category: 't',
+      fields: new Map([['label', { type: semanticTypeId('test.unknown'), optional: false }]]),
+    });
+    const catalog = new CapabilityCatalog({ types: registry });
+    expect(() =>
+      catalog.register(capability('test.ship', { parcel: 'test.parcel' }, { n: 'test.text' })),
+    ).toThrow(/test\.unknown.*input "parcel" of test\.ship, at label/);
+  });
+
+  describe('requiring resolvers', () => {
+    const resolver = (): CapabilityDefinition =>
+      capability('test.place.get', { id: 'test.place.reference' }, { record: 'test.place' });
+    const emitter = (): CapabilityDefinition =>
+      capability('test.where', {}, { place: 'test.place.reference' });
+
+    it('refuses a reference whose resolver is not registered, however it is registered', () => {
+      const catalog = new CapabilityCatalog({ types: types(), requireResolvers: true });
+      expect(() => catalog.register(emitter())).toThrow(ResolverMissingError);
+      expect(() => catalog.registerAll([emitter()])).toThrow(/"test\.place\.get" is not installed/);
+      expect(catalog.list()).toEqual([]);
+    });
+
+    it('takes the resolver from the catalog or the same batch', () => {
+      const batch = new CapabilityCatalog({ types: types(), requireResolvers: true });
+      batch.registerAll([emitter(), resolver()]);
+      expect(batch.list()).toHaveLength(2);
+
+      const later = new CapabilityCatalog({ types: types(), requireResolvers: true });
+      later.register(resolver());
+      later.register(emitter());
+      expect(later.list()).toHaveLength(2);
+    });
+
+    it('refuses a resolver whose ports do not fit', () => {
+      const catalog = new CapabilityCatalog({ types: types(), requireResolvers: true });
+      catalog.register(
+        capability('test.place.get', { id: 'test.place.reference' }, { record: 'test.text' }),
+      );
+      expect(() => catalog.register(emitter())).toThrow(/no output "record" giving a test\.place/);
+    });
+  });
+
+  it('registers a batch whole or not at all', () => {
+    const catalog = new CapabilityCatalog({ types: types() });
+    expect(() =>
+      catalog.registerAll([
+        capability('test.fine', {}, { n: 'test.text' }),
+        capability('test.broken', { a: 'test.nothing' }, { n: 'test.text' }),
+      ]),
+    ).toThrow(UnknownSemanticTypeError);
+    expect(catalog.list()).toEqual([]);
+    expect(() =>
+      catalog.registerAll([
+        capability('test.dup', {}, { n: 'test.text' }),
+        capability('test.dup', {}, { n: 'test.text' }),
+      ]),
+    ).toThrow(/already registered/);
+    expect(catalog.list()).toEqual([]);
+  });
+
+  it('keeps a lookup port, an attach and the code through a record-shaped registration', () => {
+    const catalog = new CapabilityCatalog({ types: types(), executable: true });
+    const run = (): Record<string, unknown> => ({ n: 'x' });
+    catalog.register({
+      id: 'test.lookup',
+      version: '1.0.0',
+      name: 'Lookup',
+      description: 'Looks a place up',
+      inputs: {
+        place: {
+          name: 'place',
+          semanticType: 'test.place.reference',
+          required: true,
+          acceptsName: true,
+        },
+      },
+      outputs: { n: { name: 'n', semanticType: 'test.text', required: true } },
+      source: 'DERIVED',
+      auth: { required: false, scopes: [] },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 1, esiCallCount: 0 },
+      attach: { on: 'test.place', as: 'label', subject: 'place' },
+      uses: [],
+      run,
+    });
+    const registered = catalog.get(capabilityId('test.lookup'));
+    expect(registered.inputs.get('place')?.acceptsName).toBe(true);
+    expect(registered.run).toBe(run);
+    expect(catalog.attachedTo('test.place').map((c) => c.id)).toEqual(['test.lookup']);
   });
 });

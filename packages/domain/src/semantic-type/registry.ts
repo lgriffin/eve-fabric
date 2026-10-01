@@ -17,7 +17,18 @@ export class UnknownSemanticTypeError extends Error {
   }
 }
 
-export type TypeCheck = { readonly ok: true } | { readonly ok: false; readonly message: string };
+/** A passing check carries the parsed value: an id sent as text arrives as a number. */
+export type TypeCheck =
+  { readonly ok: true; readonly value: unknown } | { readonly ok: false; readonly message: string };
+
+/** A name a lookup port takes in place of a reference: non-empty text, trimmed. */
+export const lookupNameSchema = z.string().trim().min(1);
+
+/** The parts of a port a value is checked against. */
+export interface CheckedPort {
+  readonly semanticType: string;
+  readonly acceptsName?: boolean | undefined;
+}
 
 function describeIssues(error: z.ZodError): string {
   return error.issues
@@ -96,7 +107,21 @@ export class SemanticTypeRegistry {
   /** Checks a value against a type. */
   check(id: SemanticTypeId | string, value: unknown): TypeCheck {
     const result = this.schemaOf(id).safeParse(value);
-    return result.success ? { ok: true } : { ok: false, message: describeIssues(result.error) };
+    return result.success
+      ? { ok: true, value: result.data }
+      : { ok: false, message: describeIssues(result.error) };
+  }
+
+  /**
+   * Checks a value for a port: a value of the port's type, or, for a port
+   * that takes a name, a name. Unknown types are taken on trust.
+   */
+  checkPort(port: CheckedPort, value: unknown): TypeCheck {
+    if (!this.has(port.semanticType)) return { ok: true, value };
+    const typed = this.check(port.semanticType, value);
+    if (typed.ok || port.acceptsName !== true) return typed;
+    const named = lookupNameSchema.safeParse(value);
+    return named.success ? { ok: true, value: named.data } : typed;
   }
 
   /**
@@ -116,6 +141,36 @@ export class SemanticTypeRegistry {
     };
     visit(id);
     return [...found.values()];
+  }
+
+  /**
+   * Throws {@link UnknownSemanticTypeError} unless the type, and every type
+   * its record fields and list items name, is registered.
+   */
+  assertKnown(id: SemanticTypeId | string, where: string): void {
+    const seen = new Set<string>();
+    const visit = (typeId: string, path: string): void => {
+      if (seen.has(typeId)) return;
+      seen.add(typeId);
+      const type = this.types.get(typeId);
+      if (type === undefined) {
+        throw new UnknownSemanticTypeError(typeId, path === '' ? where : `${where}, at ${path}`);
+      }
+      if (type.kind === 'list') visit(type.item, `${path}[]`);
+      else if (type.kind === 'record') {
+        for (const [name, field] of type.fields) {
+          visit(field.type, path === '' ? name : `${path}.${name}`);
+        }
+      }
+    };
+    visit(id, '');
+  }
+
+  /** Removes a type; used to undo a pack install that was refused. */
+  unregister(id: SemanticTypeId | string): void {
+    this.types.delete(id);
+    // Record and list schemas are built lazily over other types; rebuild them.
+    this.schemas.clear();
   }
 
   /** The record type a reference resolves to, or the type itself. */
