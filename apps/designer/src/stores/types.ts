@@ -1,5 +1,5 @@
 import type { Node, Edge, OnNodesChange, OnEdgesChange, OnConnect } from '@xyflow/react';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import type { ExecutionPlan } from '@eve-fabric/compiler';
 
 /* ---------------------------------------------------------------- */

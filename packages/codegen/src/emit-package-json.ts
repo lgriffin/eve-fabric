@@ -1,4 +1,4 @@
-import type { ExecutionPlan } from '@eve-fabric/domain';
+import type { ExecutionPlan } from '@eve-fabric/core';
 
 export interface PackageJsonOptions {
   readonly packageName: string;
@@ -15,7 +15,7 @@ export function emitPackageJson(options: PackageJsonOptions, plan: ExecutionPlan
   const sources = new Set(plan.sourceRequirements.map((r) => r.source));
 
   const dependencies: Record<string, string> = {
-    '@eve-fabric/domain': '*',
+    '@eve-fabric/core': '*',
     '@eve-fabric/executor': '*',
     '@eve-fabric/fabric': '*',
     '@eve-fabric/pack-core': '*',

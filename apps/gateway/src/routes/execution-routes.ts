@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
-import { capabilityId as toCapabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/core';
+import { capabilityId as toCapabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { CompileResult } from '@eve-fabric/compiler';
 import type { GatewayRuntime } from '../runtime.js';
 

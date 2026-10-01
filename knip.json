@@ -16,7 +16,7 @@
     "packages/*": {
       "project": ["src/**/*.ts"]
     },
-    "packages/domain": {
+    "packages/core": {
       "entry": ["tests/bdd/**/*.ts"],
       "project": ["src/**/*.ts"]
     },

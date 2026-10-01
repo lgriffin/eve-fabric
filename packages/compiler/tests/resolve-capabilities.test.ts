@@ -14,7 +14,7 @@ import {
   capabilityVersion,
   createSemanticType,
   semanticTypeId,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 
 function marketOrdersDef() {

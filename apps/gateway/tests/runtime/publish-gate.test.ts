@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/domain';
+import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/core';
 import { GatewayRuntime } from '../../src/runtime.js';
 
 function lookup(id: string, wired: boolean): PipelineDefinition {

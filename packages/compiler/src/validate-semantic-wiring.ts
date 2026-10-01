@@ -6,8 +6,8 @@
  * and verifies they match.
  */
 
-import type { CapabilityCatalog, PipelineDefinition, PipelineNode } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog, PipelineDefinition, PipelineNode } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import {
   type CompilerDiagnostic,
   semanticTypeMismatch,
@@ -15,6 +15,7 @@ import {
   unknownField,
   fieldOnInput,
   invalidPerItem,
+  unknownPort,
 } from './diagnostics.js';
 import { splitPortPath } from './port-path.js';
 
@@ -101,6 +102,7 @@ function resolvePortType(
   // Node port
   const node = nodeMap.get(parsed.nodeId);
   if (!node) {
+    diagnostics.push(unknownPort(ref, `the pipeline has no node "${parsed.nodeId}"`));
     return undefined;
   }
 
@@ -115,13 +117,21 @@ function resolvePortType(
     // A per-item node takes a list on its per-item port and gives lists.
     const listed = (type: string): string => `${type}.collection`;
     // For "from" side, look at capability outputs; for "to" side, look at inputs
+    const missing = (port: string, kind: string) =>
+      unknownPort(ref, `"${def.id as string}" has no ${kind} "${port}"`);
     if (side === 'input') {
       const type = def.inputs.get(parsed.portName)?.semanticType;
+      if (type === undefined && !parsed.portName.includes('.')) {
+        diagnostics.push(missing(parsed.portName, 'input'));
+      }
       return type !== undefined && node.each?.port === parsed.portName ? listed(type) : type;
     }
     const { port: portName, fieldPath } = splitPortPath(parsed.portName);
     const port = def.outputs.get(portName);
-    if (!port) return undefined;
+    if (!port) {
+      diagnostics.push(missing(portName, 'output'));
+      return undefined;
+    }
     const type = node.each === undefined ? port.semanticType : listed(port.semanticType);
     return fieldPath.length === 0 ? type : fieldType(ref, type, fieldPath, catalog, diagnostics);
   } catch {

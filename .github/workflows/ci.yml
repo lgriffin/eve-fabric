@@ -122,6 +122,62 @@ jobs:
       - name: Secret scanning
         run: pnpm run scan:secrets
 
+  # Q8 across two clean checkouts (FAB-VAL-08): one runner exports the
+  # weave, a fresh checkout on another imports it and asks the question.
+  weave-export:
+    name: Weave Export
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run weaves:check
+      - run: pnpm run weaves --out "$RUNNER_TEMP/weaves"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weave-index
+          path: ${{ runner.temp }}/weaves/
+
+  weave-import:
+    name: Weave Import
+    runs-on: ubuntu-latest
+    needs: weave-export
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: weave-index
+          path: ${{ runner.temp }}/weaves
+      - run: npx cucumber-js -p bank --tags @Q8 --format progress
+        env:
+          WEAVE_INDEX: ${{ runner.temp }}/weaves
+
+  packages:
+    name: Published Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run packages:check
+
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
@@ -133,5 +189,7 @@ jobs:
       - question-bank
       - coverage
       - static-analysis
+      - weave-import
+      - packages
     steps:
       - run: echo "All quality checks passed"

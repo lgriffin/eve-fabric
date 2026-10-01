@@ -1,4 +1,4 @@
-import type { ExecutionPlan, ExecutionStep } from '@eve-fabric/domain';
+import type { ExecutionPlan, ExecutionStep } from '@eve-fabric/core';
 import { deduplicateSteps } from './deduplicate.js';
 
 export interface ParallelGroup {

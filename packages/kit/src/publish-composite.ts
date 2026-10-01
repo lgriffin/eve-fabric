@@ -4,13 +4,13 @@ import type {
   AuthRequirement,
   CachePolicy,
   CostModel,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import {
   CapabilityCatalog,
   capabilityId,
   capabilityVersion,
   DependencyGraph,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 
 export interface PublishResult {
   readonly capability: CapabilityDefinition;

@@ -5,8 +5,8 @@
  * cache policy from the catalog.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { CacheStrategy } from './execution-types.js';
 

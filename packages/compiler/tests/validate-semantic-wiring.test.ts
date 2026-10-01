@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { validateSemanticWiring } from '../src/validate-semantic-wiring.js';
-import { SEMANTIC_TYPE_MISMATCH, CAPABILITY_NOT_FOUND } from '../src/diagnostics.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { SEMANTIC_TYPE_MISMATCH, UNKNOWN_PORT, CAPABILITY_NOT_FOUND } from '../src/diagnostics.js';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 
 function marketOrdersDef() {
@@ -155,5 +155,34 @@ describe('validateSemanticWiring', () => {
     // No mismatch because the from-type couldn't be resolved
     const mismatches = diagnostics.filter((d) => d.code === SEMANTIC_TYPE_MISMATCH);
     expect(mismatches).toHaveLength(0);
+  });
+
+  it('reports an edge or output naming a node or port that does not exist', () => {
+    const pipeline: PipelineDefinition = {
+      id: 'test.pipeline',
+      version: 1,
+      name: 'Test Pipeline',
+      inputs: [{ name: 'regionId', semanticType: 'eve.region.reference', required: true }],
+      nodes: [
+        { id: 'fetchOrders', capability: { id: 'market.orders', version: 1 } },
+        { id: 'aggregate', capability: { id: 'price.aggregator', version: 1 } },
+      ],
+      edges: [
+        { from: 'input.regionId', to: 'fetchOrders.regionId' },
+        { from: 'input.regionId', to: 'fetchOrders.nothing' },
+        { from: 'fetchOrders.nothing', to: 'aggregate.orders' },
+        { from: 'ghost.orders', to: 'aggregate.orders' },
+      ],
+      outputs: [{ name: 'result', source: 'aggregate.nothing' }],
+    };
+    const unknown = validateSemanticWiring(pipeline, catalog).filter(
+      (d) => d.code === UNKNOWN_PORT,
+    );
+    expect(unknown.map((d) => d.message)).toEqual([
+      '"fetchOrders.nothing" names nothing: "market.orders" has no input "nothing"',
+      '"fetchOrders.nothing" names nothing: "market.orders" has no output "nothing"',
+      '"ghost.orders" names nothing: the pipeline has no node "ghost"',
+      '"aggregate.nothing" names nothing: "price.aggregator" has no output "nothing"',
+    ]);
   });
 });

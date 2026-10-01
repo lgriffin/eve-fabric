@@ -2,7 +2,7 @@ import type {
   CapabilityDefinition,
   PipelineDefinition,
   SemanticTypeDefinition,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { typesUsedBy } from './define-capability.js';
 import { typesMentionedBy } from './define-type.js';
 

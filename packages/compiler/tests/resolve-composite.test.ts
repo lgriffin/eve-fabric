@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveComposites, expandCompositeNode } from '../src/resolve-composite.js';
 import type { PipelineRegistry } from '../src/resolve-composite.js';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/core';
 
 function makeRawCap(
   id: string,

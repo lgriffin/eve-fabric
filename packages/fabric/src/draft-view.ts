@@ -4,7 +4,7 @@
  * them and answers with a plain view. Nothing is built anywhere else, so a
  * front end never needs rules of its own about what connects to what.
  */
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import {
   Draft,
   type DraftStep,

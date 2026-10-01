@@ -5,7 +5,7 @@ import {
   isRuntimeError,
   MissingAuthScopeError,
   SourceRateLimitedError,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 
 interface ErrorResponse {
   error: {

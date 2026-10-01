@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
-import type { CapabilityDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
 import {
   Draft,
   draftFrom,

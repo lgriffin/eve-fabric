@@ -5,7 +5,7 @@ import {
   type GraphQLInputType,
   type GraphQLInputFieldConfigMap,
 } from 'graphql';
-import type { PipelineDefinition, CapabilityCatalog } from '@eve-fabric/domain';
+import type { PipelineDefinition, CapabilityCatalog } from '@eve-fabric/core';
 import { getScalarForSemanticType } from './scalars.js';
 
 function toPascalCase(s: string): string {

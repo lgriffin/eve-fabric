@@ -7,7 +7,7 @@ export {
   type FabricOptions,
   type PublishCompositeOptions,
 } from './fabric.js';
-export { ResolverMissingError } from '@eve-fabric/domain';
+export { ResolverMissingError } from '@eve-fabric/core';
 export { ScopeMissingError } from '@eve-fabric/executor';
 export {
   Draft,
@@ -39,3 +39,9 @@ export {
   type DraftView,
   type HoleView,
 } from './draft-view.js';
+export {
+  WeaveMismatchError,
+  WeaveRefusedError,
+  WeaveRequirementError,
+  type WeaveOptions,
+} from './weaving.js';

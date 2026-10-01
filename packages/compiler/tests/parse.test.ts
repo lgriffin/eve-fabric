@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePipeline } from '../src/parse.js';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 function makePipeline(overrides?: Partial<PipelineDefinition>): PipelineDefinition {
   return {

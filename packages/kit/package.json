@@ -1,10 +1,33 @@
 {
   "name": "@eve-fabric/kit",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "The authoring surface for fabric capabilities: defineCapability, definePack.",
+  "license": "ISC",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lgriffin/eve-fabric.git",
+    "directory": "packages/kit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -12,7 +35,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/domain": "workspace:*",
+    "@eve-fabric/core": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
     "yaml": "^2.5.0",
     "zod": "^3.23.0"
@@ -20,6 +43,5 @@
   "devDependencies": {
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
-  },
-  "description": "The authoring surface for fabric capabilities: defineCapability, definePack."
+  }
 }

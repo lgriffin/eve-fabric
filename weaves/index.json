@@ -1,0 +1,13 @@
+{
+  "format": 2,
+  "weaves": {
+    "lgriffin.trade.opportunity": {
+      "1.0.0": {
+        "path": "lgriffin.trade.opportunity/1.0.0/weave.yaml",
+        "digest": "sha256:5c82613acf3c30e4eee2e4bad13bd9fe0357abe88bbd79d6a42a1eec5fc330e1",
+        "name": "Trade opportunity",
+        "description": "Buy in one region, sell in another: the profit per unit after sales tax"
+      }
+    }
+  }
+}

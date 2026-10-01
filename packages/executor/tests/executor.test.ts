@@ -8,7 +8,7 @@ import {
   capabilityVersion,
   fixedClock,
   semanticTypeId,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type {
   CacheEntry,
   CachePort,
@@ -16,7 +16,7 @@ import type {
   ExecutionPlan,
   PipelineDefinition,
   SourcePorts,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { defineCapability } from '@eve-fabric/kit';
 import { compile } from '@eve-fabric/compiler';
 import {

@@ -8,7 +8,7 @@ import {
   yamlToPipeline,
 } from '../../src/services/pipeline-serializer.js';
 import type { CapabilityFlowNode } from '../../src/stores/pipeline-store.js';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 function makeFlowNode(id: string, capabilityId: string): CapabilityFlowNode {
   return {

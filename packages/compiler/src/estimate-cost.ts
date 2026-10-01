@@ -6,8 +6,8 @@
  * sums across groups.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { DEFAULT_PER_ITEM_CAP, capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { DEFAULT_PER_ITEM_CAP, capabilityId, capabilityVersion } from '@eve-fabric/core';
 
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { CostEstimate, StepGroup } from './execution-types.js';

@@ -25,7 +25,7 @@ apps/
   gateway/          # Fastify API server
   designer/         # Vite/React pipeline designer
 packages/
-  domain/           # Core domain types and value objects (imports zod only)
+  core/             # Core types, contracts and ports (@eve-fabric/core) (imports zod only)
   kit/              # defineCapability (contract + run), definePack, defineContract
   pack-core/        # The built-in capabilities, as a pack
   fabric/           # createFabric: sources and packs in, a fabric out
@@ -36,7 +36,8 @@ packages/
   source-esi/       # ESI source: ESI.ts's public view for capabilities
   source-sde/       # SDE source: ESI.ts's static data provider, fails loudly
   codegen/          # Generates a runnable module from a pipeline
-  schema-package/   # Schema import/export
+  weave/            # Package format v2: weaves, digest, git index
+  schema-package/   # Schema import/export (format v1)
   graphql/          # GraphQL schema generation
   persistence/      # Data persistence
   test-support/     # Shared test utilities

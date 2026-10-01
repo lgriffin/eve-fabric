@@ -1,5 +1,5 @@
-import type { CacheEntry, CachePort, Clock } from '@eve-fabric/domain';
-import { systemClock } from '@eve-fabric/domain';
+import type { CacheEntry, CachePort, Clock } from '@eve-fabric/core';
+import { systemClock } from '@eve-fabric/core';
 
 interface InternalEntry {
   readonly data: unknown;

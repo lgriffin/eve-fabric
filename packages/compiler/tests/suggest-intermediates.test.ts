@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { suggestIntermediates } from '../src/suggest-intermediates.js';
 import { SEMANTIC_SUGGESTION } from '../src/diagnostics.js';
-import { CapabilityCatalog, DiscoveryEngine } from '@eve-fabric/domain';
+import { CapabilityCatalog, DiscoveryEngine } from '@eve-fabric/core';
 
 function bridgingCapDef() {
   return {

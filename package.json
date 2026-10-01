@@ -2,7 +2,7 @@
   "name": "eve-fabric",
   "private": true,
   "scripts": {
-    "build": "pnpm --filter @eve-fabric/domain run build && pnpm -r run build",
+    "build": "pnpm --filter @eve-fabric/core run build && pnpm -r run build",
     "test": "vitest run",
     "test:bdd": "cucumber-js -c cucumber.cjs",
     "test:watch": "vitest",
@@ -25,7 +25,10 @@
     "prepare": "husky",
     "lint:layers": "tsx scripts/lint-layers.ts",
     "lint:determinism": "tsx scripts/lint-determinism.ts",
-    "test:bank": "tsx scripts/question-bank.ts"
+    "test:bank": "tsx scripts/question-bank.ts",
+    "weaves": "tsx scripts/export-weaves.ts",
+    "weaves:check": "tsx scripts/export-weaves.ts --check",
+    "packages:check": "tsx scripts/check-packages.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
@@ -33,11 +36,12 @@
     "@commitlint/config-conventional": "^19.0.0",
     "@cucumber/cucumber": "11.3.0",
     "@eslint/js": "^9.0.0",
-    "@eve-fabric/domain": "workspace:*",
+    "@eve-fabric/core": "workspace:*",
     "@eve-fabric/fabric": "workspace:*",
     "@eve-fabric/kit": "workspace:*",
     "@eve-fabric/pack-core": "workspace:*",
     "@eve-fabric/test-support": "workspace:*",
+    "@eve-fabric/weave": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",

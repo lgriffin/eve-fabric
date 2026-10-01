@@ -40,7 +40,7 @@ function noSources(spec: string): string | undefined {
 const LAYERS: readonly Layer[] = [
   {
     name: 'core',
-    packages: ['packages/domain'],
+    packages: ['packages/core'],
     check: (spec) =>
       spec === 'zod' ? undefined : 'the core imports zod and nothing else (FAB-ARCH-01)',
   },

@@ -5,8 +5,8 @@ import type {
   PackagePolicies,
   PackageMetadata,
   Clock,
-} from '@eve-fabric/domain';
-import { schemaPackageSchema, systemClock } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import { schemaPackageSchema, systemClock } from '@eve-fabric/core';
 import { scanForSecrets } from './secret-scanner.js';
 
 export interface ExportOptions {

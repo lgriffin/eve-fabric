@@ -1,4 +1,4 @@
-import type { ExecutionPlan, PipelineDefinition, SemanticTypeId } from '@eve-fabric/domain';
+import type { ExecutionPlan, PipelineDefinition, SemanticTypeId } from '@eve-fabric/core';
 import { compile } from '@eve-fabric/compiler';
 import type { GatewayRuntime } from '../../src/runtime.js';
 

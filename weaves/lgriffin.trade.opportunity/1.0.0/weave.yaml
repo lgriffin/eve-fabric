@@ -1,0 +1,53 @@
+format: 2
+id: lgriffin.trade.opportunity
+version: 1.0.0
+name: Trade opportunity
+description: "Buy in one region, sell in another: the profit per unit after sales tax"
+provides:
+  attach:
+    as: trade opportunity
+    on: eve.type
+    subject: type
+  in:
+    from: eve.region.reference
+    to: eve.region.reference
+    type: eve.type.reference
+  out:
+    profit: eve.currency.isk
+requires:
+  trade.profit.after.tax: ^1.0.0
+scopes: []
+verifiedAgainst:
+  esiCompatibilityDate: 2026-08-18
+  sdeBuild: 1.0.0-test
+pipeline:
+  description: "Buy in one region, sell in another: the profit per unit after sales tax"
+  edges:
+    - from: input.type
+      to: trade-profit-after-tax.item
+    - from: input.from
+      to: trade-profit-after-tax.from
+    - from: input.to
+      to: trade-profit-after-tax.to
+  id: lgriffin-trade-opportunity
+  inputs:
+    - name: type
+      required: true
+      semanticType: eve.type.reference
+    - name: from
+      required: true
+      semanticType: eve.region.reference
+    - name: to
+      required: true
+      semanticType: eve.region.reference
+  name: Trade opportunity
+  nodes:
+    - capability:
+        id: trade.profit.after.tax
+        version: 1.0.0
+      id: trade-profit-after-tax
+  outputs:
+    - name: profit
+      source: trade-profit-after-tax.profit
+  version: 1
+digest: sha256:5c82613acf3c30e4eee2e4bad13bd9fe0357abe88bbd79d6a42a1eec5fc330e1

@@ -1,4 +1,4 @@
-import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/domain';
+import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/core';
 import type { ExecuteOptions, Executor, ExecutionResult } from './executor.js';
 
 interface Span {

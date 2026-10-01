@@ -3,7 +3,7 @@ import * as fc from 'fast-check';
 import { getNamedType, isNonNullType, parse, validate, type GraphQLObjectType } from 'graphql';
 import { corePack, ORDERS_SCOPE, WALLET_SCOPE } from '@eve-fabric/pack-core';
 import { defineCapability, definePack } from '@eve-fabric/kit';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import {
   CHARACTER,
   REGION,

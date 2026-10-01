@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveVersions, VERSION_MISMATCH } from '../src/resolve-versions.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 
 function registerCap(catalog: CapabilityCatalog, id: string, version: number) {
   catalog.register({

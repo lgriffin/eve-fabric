@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { InMemorySchemaPackageRepository } from '@eve-fabric/persistence';
 import { exportSchemaPackage, importSchemaPackage } from '@eve-fabric/schema-package';
-import { CapabilityCatalog, schemaPackageSchema } from '@eve-fabric/domain';
-import type { SchemaPackage } from '@eve-fabric/domain';
+import { CapabilityCatalog, schemaPackageSchema } from '@eve-fabric/core';
+import type { SchemaPackage } from '@eve-fabric/core';
 
 const repository = new InMemorySchemaPackageRepository();
 const catalog = new CapabilityCatalog();

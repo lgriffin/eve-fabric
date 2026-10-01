@@ -1,4 +1,4 @@
-import type { ExecutionStep } from '@eve-fabric/domain';
+import type { ExecutionStep } from '@eve-fabric/core';
 
 function stepSignature(step: ExecutionStep): string {
   const capKey = `${step.capability.id}@${step.capability.version ?? 'latest'}`;

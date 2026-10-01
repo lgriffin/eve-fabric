@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { resolveDependencies } from '../src/resolve-dependencies.js';
-import type { PipelineDefinition, CapabilityDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition, CapabilityDefinition } from '@eve-fabric/core';
 
 function makePipeline(overrides?: Partial<PipelineDefinition>): PipelineDefinition {
   return {

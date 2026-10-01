@@ -31,8 +31,8 @@ import {
   type GraphQLOutputType,
   type SelectionSetNode,
 } from 'graphql';
-import type { CapabilityDefinition, SemanticTypeId } from '@eve-fabric/domain';
-import { semanticTypeId } from '@eve-fabric/domain';
+import type { CapabilityDefinition, SemanticTypeId } from '@eve-fabric/core';
+import { semanticTypeId } from '@eve-fabric/core';
 import {
   Draft,
   DraftIncompleteError,

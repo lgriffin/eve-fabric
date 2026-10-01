@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { determineSources } from '../src/determine-sources.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 
 function esiCapDef() {

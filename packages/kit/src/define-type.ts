@@ -7,8 +7,8 @@ import type {
   SemanticTypeDefinition,
   SemanticTypeId,
   ValueTypeDefinition,
-} from '@eve-fabric/domain';
-import { idSchema, semanticTypeId } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import { idSchema, semanticTypeId } from '@eve-fabric/core';
 import type { z } from 'zod';
 
 /** A type named by its id, or the definition itself. */

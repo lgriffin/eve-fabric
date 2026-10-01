@@ -16,7 +16,7 @@ function makeValidOptions(): ExportOptions {
       inputs: [
         {
           name: 'regionId',
-          semanticType: 'eve.region.reference' as import('@eve-fabric/domain').SemanticTypeId,
+          semanticType: 'eve.region.reference' as import('@eve-fabric/core').SemanticTypeId,
           required: true,
         },
       ],
@@ -24,7 +24,7 @@ function makeValidOptions(): ExportOptions {
         {
           id: 'fetch-orders',
           capability: {
-            id: 'market.orders' as import('@eve-fabric/domain').CapabilityId,
+            id: 'market.orders' as import('@eve-fabric/core').CapabilityId,
           },
         },
       ],

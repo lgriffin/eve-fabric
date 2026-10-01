@@ -3,7 +3,7 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createFabric, type DraftView } from '@eve-fabric/fabric';
 import { corePack, WALLET_SCOPE } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 import { createDraftRoutes, MAX_DRAFT_STEPS } from '../../src/routes/draft-routes.js';
 import {

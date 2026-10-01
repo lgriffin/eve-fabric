@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { Clock } from '@eve-fabric/domain';
+import type { Clock } from '@eve-fabric/core';
 import { MemoryCache } from '../src/memory-cache.js';
 
 function steppingClock(start: number): Clock & { advance(ms: number): void } {

@@ -1,5 +1,5 @@
-import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { Weave } from '@eve-fabric/kit';
 
 function node(id: string, capability: string): PipelineDefinition['nodes'][number] {
@@ -15,7 +15,7 @@ function input(name: string, type: string, description: string) {
  * run side by side, joined by the profit per unit after sales tax.
  */
 const tradeProfitAfterTax: PipelineDefinition = {
-  id: 'pack-core.trade-profit-after-tax',
+  id: 'pack-core-trade-profit-after-tax',
   version: 1,
   name: 'Trade profit after tax',
   description: "Profit per unit buying at one region's lowest sell and selling at another's",
@@ -52,7 +52,7 @@ const tradeProfitAfterTax: PipelineDefinition = {
  * never rivals), then compared.
  */
 const myUndercutOrders: PipelineDefinition = {
-  id: 'pack-core.undercut-orders',
+  id: 'pack-core-undercut-orders',
   version: 1,
   name: 'Undercut orders',
   description: 'The sell orders a rival undercuts in their own region',

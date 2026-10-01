@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { corePack } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import { tranquilityEsi, tranquilitySde, REGION, SYSTEM, TYPE } from '@eve-fabric/test-support';
 import {
   createFabric,

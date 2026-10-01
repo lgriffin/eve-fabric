@@ -1,4 +1,4 @@
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import type { CompilerDiagnostic } from './diagnostics.js';
 
 export interface ParseResult {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isGatewayError } from '@eve-fabric/domain';
+import { isGatewayError } from '@eve-fabric/core';
 import { SYSTEM, tranquilitySdeData } from '@eve-fabric/test-support';
 import {
   SdeLoadError,

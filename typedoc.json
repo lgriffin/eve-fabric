@@ -2,7 +2,7 @@
   "$schema": "https://typedoc.org/schema.json",
   "entryPointStrategy": "packages",
   "entryPoints": [
-    "packages/domain",
+    "packages/core",
     "packages/kit",
     "packages/pack-core",
     "packages/fabric",

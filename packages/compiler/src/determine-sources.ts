@@ -5,8 +5,8 @@
  * DERIVED, CACHE, COMPOSITE) and groups capabilities by source.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { SourceRequirement } from './execution-types.js';
 

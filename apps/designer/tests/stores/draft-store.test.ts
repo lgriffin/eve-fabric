@@ -13,7 +13,7 @@ import {
   type Fabric,
 } from '@eve-fabric/fabric';
 import { corePack, ORDERS_SCOPE, WALLET_SCOPE } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import {
   CHARACTER,
   tranquilityCharacter,

@@ -6,8 +6,8 @@
  * inputs have incoming edges wired to them.
  */
 
-import type { CapabilityCatalog, CapabilityDefinition, Clock } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog, CapabilityDefinition, Clock } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import { splitPortPath } from './port-path.js';
 import {

@@ -4,7 +4,7 @@ import {
   SemanticTypeRegistry,
   fixedClock,
   type CapabilityDefinition,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import {
   ORDERS,
   REGION,

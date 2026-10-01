@@ -1,4 +1,4 @@
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 export interface PipelineRepository {
   save(pipeline: PipelineDefinition): Promise<void>;

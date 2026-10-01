@@ -5,6 +5,7 @@
  * system can really answer.
  */
 import assert from 'node:assert/strict';
+import { join } from 'node:path';
 import { Given, When, Then, World, setWorldConstructor } from '@cucumber/cucumber';
 import {
   createFabric,
@@ -14,22 +15,28 @@ import {
   type FabricIdentity,
 } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import {
   CHARACTER,
   tranquilityCharacter,
   tranquilityEsi,
   tranquilitySde,
 } from '@eve-fabric/test-support';
+import { directoryIndex, type WeaveFile } from '@eve-fabric/weave';
 import { incursionsPack } from '../../examples/incursions-pack/pack.js';
 
-const PENDING = 'pending';
+/**
+ * Where Q8's weave comes from: the index committed under weaves/, exported by
+ * a fabric in another checkout, or WEAVE_INDEX when CI hands one across jobs.
+ */
+const WEAVE_INDEX = process.env['WEAVE_INDEX'] ?? join(process.cwd(), 'weaves');
 
 class BankWorld extends World {
   fabric: Fabric | undefined;
   draft: Draft | undefined;
   me: FabricIdentity | undefined;
   answer: unknown;
+  weave: WeaveFile | undefined;
 
   get theFabric(): Fabric {
     assert.ok(this.fabric, 'no fabric: start with "Given a fabric over ..."');
@@ -72,7 +79,9 @@ Given('I am a character without the scope {string}', function (this: BankWorld, 
     ),
   );
 });
-Given('a weave exported from Q3 by another fabric', () => PENDING);
+Given('a weave exported from Q3 by another fabric', async function (this: BankWorld) {
+  this.weave = await directoryIndex(WEAVE_INDEX).resolve('lgriffin.trade.opportunity@^1');
+});
 
 When('I start a draft from the type {string}', function (this: BankWorld, name: string) {
   this.draft = this.theFabric.draft({ type: name });
@@ -99,7 +108,10 @@ When(
 When('I run the draft', async function (this: BankWorld) {
   this.answer = (await this.theFabric.query(this.theDraft)).answer;
 });
-When('I import the weave', () => PENDING);
+When('I import the weave', async function (this: BankWorld) {
+  assert.ok(this.weave, 'no weave: start with "Given a weave exported ..."');
+  await this.theFabric.add(this.weave);
+});
 
 Then('the draft has no holes', function (this: BankWorld) {
   assert.deepEqual(
