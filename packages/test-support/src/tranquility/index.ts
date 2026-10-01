@@ -7,7 +7,7 @@
  * the real ESI.ts pipeline (URL building, pagination, validation) and only
  * the network is replaced (constitution: BDD mocks only at the transport seam).
  */
-import { createEsi, type Esi } from '@lgriffin/esi.ts/client';
+import { createEsi, identityFromToken, type Esi, type Identity } from '@lgriffin/esi.ts/client';
 import { createMockTransport, type MockTransport } from '@lgriffin/esi.ts/testing';
 import { MemorySdeProvider, SdeTestDataFactory as F } from '@lgriffin/esi.ts/sde';
 import type { IStaticDataProvider, MemorySdeData } from '@lgriffin/esi.ts/sde';
@@ -190,6 +190,70 @@ export const INCURSIONS = [
   },
 ] as const;
 
+export const CHARACTER = {
+  ava: 2112000001,
+  bo: 2112000002,
+} as const;
+
+const NAMES: Readonly<Record<number, string>> = {
+  [CHARACTER.ava]: 'Ava Trader',
+  [CHARACTER.bo]: 'Bo Miner',
+};
+
+function entry(id: number, date: string, refType: string, amount: number) {
+  return { id, date, ref_type: refType, amount, balance: 0, description: refType };
+}
+
+/**
+ * Each character's wallet journal. The fixture clock reads 2026-10-01, so
+ * the week runs from 2026-09-24. Ava spent most on market transactions
+ * (2,000,000 ISK); an older contract does not count. Bo spent most on
+ * industry job tax.
+ */
+export const JOURNALS: Readonly<Record<number, readonly Record<string, unknown>[]>> = {
+  [CHARACTER.ava]: [
+    entry(1, '2026-09-30T18:00:00Z', 'market_transaction', -800_000),
+    entry(2, '2026-09-30T17:00:00Z', 'brokers_fee', -50_000),
+    entry(3, '2026-09-29T12:00:00Z', 'market_transaction', -1_200_000),
+    entry(4, '2026-09-28T12:00:00Z', 'bounty_prizes', 3_000_000),
+    entry(5, '2026-09-01T12:00:00Z', 'contract_price', -5_000_000),
+  ],
+  [CHARACTER.bo]: [
+    entry(11, '2026-09-28T09:00:00Z', 'industry_job_tax', -300_000),
+    entry(12, '2026-09-27T09:00:00Z', 'planetary_import_tax', -100_000),
+  ],
+};
+
+function ownOrder(id: number, type: number, price: number, buy = false) {
+  return {
+    order_id: id,
+    type_id: type,
+    region_id: REGION.theForge,
+    location_id: STATION.jita44,
+    price,
+    volume_remain: 1000,
+    volume_total: 1000,
+    issued: '2026-09-30T12:00:00Z',
+    duration: 90,
+    range: buy ? 'station' : 'region',
+    is_corporation: false,
+    ...(buy ? { is_buy_order: true, min_volume: 1, escrow: 0 } : {}),
+  };
+}
+
+/**
+ * Ava's open orders in Jita. A rival sells Tritanium below her 4.40 and
+ * buys it above her 3.50; nobody beats her Pyerite at 9.00.
+ */
+export const CHARACTER_ORDERS: Readonly<Record<number, readonly Record<string, unknown>[]>> = {
+  [CHARACTER.ava]: [
+    ownOrder(9001, TYPE.tritanium, 4.4),
+    ownOrder(9002, TYPE.pyerite, 9.0),
+    ownOrder(9003, TYPE.tritanium, 3.5, true),
+  ],
+  [CHARACTER.bo]: [],
+};
+
 /** A mock transport answering the fixture's ESI routes. */
 export function tranquilityTransport(): MockTransport {
   const transport = createMockTransport();
@@ -216,6 +280,38 @@ export function tranquilityTransport(): MockTransport {
     body: { route: [...JITA_TO_AMARR] },
   });
   transport.respond({ method: 'GET', path: '/incursions', body: INCURSIONS });
+  for (const [id, name] of Object.entries(NAMES)) {
+    transport.respond({
+      method: 'GET',
+      path: `/characters/${id}/wallet/journal`,
+      headers: { 'x-pages': '1' },
+      body: JOURNALS[Number(id)],
+    });
+    transport.respond({
+      method: 'GET',
+      path: `/characters/${id}/orders`,
+      body: CHARACTER_ORDERS[Number(id)],
+    });
+    transport.respond({
+      method: 'GET',
+      path: `/characters/${id}`,
+      body: {
+        name,
+        corporation_id: 1000125,
+        birthday: '2015-03-24T11:37:00Z',
+        gender: 'female',
+        race_id: 1,
+        bloodline_id: 1,
+      },
+    });
+  }
+  transport.respond({
+    method: 'POST',
+    path: '/universe/ids',
+    body: {
+      characters: Object.entries(NAMES).map(([id, name]) => ({ id: Number(id), name })),
+    },
+  });
   transport.respond({
     method: 'POST',
     path: `/route/${SYSTEM.amarr}/${SYSTEM.jita}`,
@@ -239,4 +335,19 @@ export function tranquilityEsi(): TranquilityEsi {
     logLevel: 'fatal',
   });
   return { esi, transport };
+}
+
+/** A character as a fabric caller: its id, the scopes its token holds, and ESI.ts's identity. */
+export interface FixtureCharacter {
+  readonly characterId: number;
+  readonly scopes: readonly string[];
+  readonly esi: Identity;
+}
+
+/** A fixture character whose token holds `scopes`. The token is a placeholder the mock accepts. */
+export function tranquilityCharacter(
+  characterId: number,
+  scopes: readonly string[],
+): FixtureCharacter {
+  return { characterId, scopes, esi: identityFromToken(`fixture-token-${characterId}`) };
 }

@@ -1,5 +1,6 @@
 import { defineCapability } from '@eve-fabric/kit';
 import { buyOrders, collect, requireId, sellOrders, asOrders } from '../support.js';
+import { EveCharacterOrder, EveCharacterOrders, EveCurrencyIsk, EveIskAmounts } from '../types.js';
 
 export const orders = defineCapability({
   id: 'market.orders',
@@ -54,5 +55,77 @@ export const aggregate = defineCapability({
       lowestSell: sells.length > 0 ? Math.min(...sells.map((o) => o.price)) : null,
       highestBuy: buys.length > 0 ? Math.max(...buys.map((o) => o.price)) : null,
     };
+  },
+});
+
+interface OwnOrder {
+  readonly order_id: number;
+  readonly type_id: number;
+  readonly region_id: number;
+  readonly location_id: number;
+  readonly price: number;
+  readonly is_buy_order?: boolean;
+}
+
+export const bestRival = defineCapability({
+  id: 'market.order.rival',
+  version: '2.0.0',
+  name: 'Best Rival Price',
+  description:
+    "The best price another trader offers against one of your orders: the lowest other sell, or the highest other buy, in the order's region",
+  inputs: {
+    order: { type: EveCharacterOrder, description: 'Your order' },
+    mine: {
+      type: EveCharacterOrders,
+      description: 'All your open orders, none of which counts as a rival',
+      required: false,
+    },
+  },
+  outputs: { best: { type: EveCurrencyIsk, description: 'The best rival price, if any' } },
+  uses: ['esi.public', 'sde'],
+  cost: { estimatedLatencyMs: 500 },
+  async run({ order, mine }, { esi, sde }) {
+    const own = order as OwnOrder;
+    // Your other orders on the same item are not rivals.
+    const yours = new Set([
+      own.order_id,
+      ...((mine ?? []) as readonly OwnOrder[]).map((o) => o.order_id),
+    ]);
+    // The region the order trades in, from where it sits: a station's
+    // system's region in the SDE, else the region ESI reported.
+    const station = sde.getNpcStation(own.location_id);
+    const system = station === null ? null : sde.getSolarSystem(station.solarSystemId);
+    const region = system?.regionId ?? requireId(own.region_id, 'order.region_id');
+    const buying = own.is_buy_order === true;
+    const market = await collect(
+      esi.market(region).orders.get({ order_type: buying ? 'buy' : 'sell', type_id: own.type_id }),
+    );
+    const prices = market
+      .filter((o) => o.is_buy_order === buying && !yours.has(o.order_id))
+      .map((o) => o.price);
+    if (prices.length === 0) return { best: null };
+    return { best: buying ? Math.max(...prices) : Math.min(...prices) };
+  },
+});
+
+export const undercutOrders = defineCapability({
+  id: 'market.orders.undercut',
+  version: '2.0.0',
+  name: 'Undercut Orders',
+  description:
+    'The sell orders a rival undercuts with a cheaper sell. Rival prices line up with the orders',
+  inputs: {
+    orders: { type: EveCharacterOrders, description: 'Your orders' },
+    rivals: { type: EveIskAmounts, description: 'The best rival price for each order' },
+  },
+  outputs: { undercut: { type: EveCharacterOrders, description: 'The sell orders undercut' } },
+  run({ orders: value, rivals }) {
+    const own = value as readonly OwnOrder[];
+    const best = rivals as readonly (number | null | undefined)[];
+    const undercut = own.filter((order, i) => {
+      const rival = best[i];
+      return order.is_buy_order !== true && typeof rival === 'number' && rival < order.price;
+    });
+    return { undercut };
   },
 });

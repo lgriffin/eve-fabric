@@ -71,17 +71,6 @@ const regionOrders = defineCapability({
   run: ({ region }, { esi }) => ({ orders: [{ esi: typeof esi, region }] }),
 });
 
-const walletRead = defineCapability({
-  id: 'test.wallet',
-  version: '1.0.0',
-  name: 'Wallet',
-  description: 'Needs a scope',
-  inputs: { character: { type: 'eve.character.reference' } },
-  outputs: { balance: { type: 'eve.currency.isk' } },
-  uses: ['esi:esi-wallet.read_character_wallet.v1'],
-  run: () => ({ balance: 0 }),
-});
-
 function catalogWith(...defs: CapabilityDefinition[]): CapabilityCatalog {
   const catalog = new CapabilityCatalog({ executable: true });
   for (const def of defs) catalog.register(def);
@@ -350,24 +339,64 @@ describe('Executor', () => {
       ).rejects.toBeInstanceOf(SourceUnavailableError);
     });
 
-    it('fails a scoped ESI capability until identities arrive', async () => {
-      const catalog = catalogWith(walletRead);
-      const executor = new Executor({
-        catalog,
-        sources: { esi: { public: {}, compatibilityDate: '2026-08-18' } },
+    describe('a scoped ESI capability', () => {
+      const scope = 'esi-wallet.read_character_wallet.v1';
+      const seen: unknown[] = [];
+      const wallet = defineCapability({
+        id: 'test.wallet.view',
+        version: '1.0.0',
+        name: 'Wallet',
+        description: 'Needs a scope',
+        inputs: { character: { type: 'eve.character.reference' } },
+        outputs: { balance: { type: 'eve.currency.isk' } },
+        uses: [`esi:${scope}`],
+        cache: { cacheable: true, defaultTtlSeconds: 60 },
+        run: (_inputs, { esi }) => {
+          seen.push(esi);
+          return { balance: 0 };
+        },
       });
-      await expect(
-        executor.execute(
-          planFor(single(walletRead, 'c', 'eve.character.reference'), catalog),
+      const run = (caller?: { key: string; scopes: string[]; credentials: unknown }) => {
+        const catalog = catalogWith(wallet);
+        const executor = new Executor({
+          catalog,
+          sources: {
+            esi: { public: {}, compatibilityDate: '2026-08-18', as: (c) => ({ viewOf: c }) },
+          },
+        });
+        return executor.execute(
+          planFor(single(wallet, 'c', 'eve.character.reference'), catalog),
           new Map([['c', 1]]),
-        ),
-      ).rejects.toThrow('(no identity)');
+          { caller },
+        );
+      };
+
+      it('fails without a caller, naming the scope', async () => {
+        await expect(run()).rejects.toThrow(scope);
+        await expect(run()).rejects.toThrow(/run it as an identity/);
+      });
+
+      it('fails for a caller whose token lacks the scope', async () => {
+        await expect(run({ key: 'character:1', scopes: [], credentials: 'a' })).rejects.toThrow(
+          /does not hold/,
+        );
+      });
+
+      it("runs on the caller's own view", async () => {
+        seen.length = 0;
+        await run({ key: 'character:1', scopes: [scope], credentials: 'token-a' });
+        expect(seen).toEqual([{ viewOf: 'token-a' }]);
+      });
     });
   });
 
   describe('sources and provenance', () => {
     const sources: SourcePorts = {
-      esi: { public: { marker: 'public view' }, compatibilityDate: '2026-08-18' },
+      esi: {
+        public: { marker: 'public view' },
+        compatibilityDate: '2026-08-18',
+        as: (identity: unknown) => ({ viewOf: identity }),
+      },
       sde: {
         provider: { getType: (id: number) => (id === 34 ? { name: 'Tritanium' } : undefined) },
         buildVersion: () => '3142455',
@@ -504,13 +533,34 @@ describe('Executor', () => {
       const executor = new Executor({
         catalog,
         cache,
-        sources: { esi: { public: {}, compatibilityDate: '2026-08-18' } },
+        sources: { esi: { public: {}, compatibilityDate: '2026-08-18', as: () => ({}) } },
       });
       await executor.execute(
         planFor(single(cachedEsi, 'r', 'eve.region.reference'), catalog),
         new Map([['r', 1]]),
       );
       expect(cache.set).not.toHaveBeenCalled();
+    });
+
+    it("keys a step that sees one caller's data by the caller", async () => {
+      const mine: CapabilityDefinition = {
+        ...double,
+        cache: { ...double.cache, cacheable: true, defaultTtlSeconds: 60, identityInKey: true },
+      };
+      const catalog = catalogWith(mine);
+      const cache = memoryCache();
+      const executor = new Executor({ catalog, cache });
+      const plan = planFor(single(mine, 'v', 'eve.quantity'), catalog);
+      const as = (key: string) => ({ caller: { key, scopes: [], credentials: key } });
+      await executor.execute(plan, new Map([['v', 2]]), as('character:1'));
+      await executor.execute(plan, new Map([['v', 2]]), as('character:2'));
+      const keys = [...cache.store.keys()];
+      expect(keys).toHaveLength(2);
+      expect(keys[0]).toContain('{character:1}');
+      expect(keys[1]).toContain('{character:2}');
+      // Without a caller there is no one to key it by, so nothing is kept.
+      await executor.execute(plan, new Map([['v', 2]]));
+      expect(cache.store.size).toBe(2);
     });
 
     it('does not cache a step whose policy says not to', async () => {

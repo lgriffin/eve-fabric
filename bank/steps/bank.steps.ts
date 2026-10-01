@@ -6,10 +6,21 @@
  */
 import assert from 'node:assert/strict';
 import { Given, When, Then, World, setWorldConstructor } from '@cucumber/cucumber';
-import { createFabric, type Draft, type DraftPlan, type Fabric } from '@eve-fabric/fabric';
+import {
+  createFabric,
+  type Draft,
+  type DraftPlan,
+  type Fabric,
+  type FabricIdentity,
+} from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/domain';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import {
+  CHARACTER,
+  tranquilityCharacter,
+  tranquilityEsi,
+  tranquilitySde,
+} from '@eve-fabric/test-support';
 import { incursionsPack } from '../../examples/incursions-pack/pack.js';
 
 const PENDING = 'pending';
@@ -17,6 +28,7 @@ const PENDING = 'pending';
 class BankWorld extends World {
   fabric: Fabric | undefined;
   draft: Draft | undefined;
+  me: FabricIdentity | undefined;
   answer: unknown;
 
   get theFabric(): Fabric {
@@ -49,8 +61,17 @@ Given('a fabric over the recorded Tranquility fixture', function (this: BankWorl
 Given('the example incursions pack is installed', function (this: BankWorld) {
   this.theFabric.install(incursionsPack);
 });
-Given('I am a character with the scope {string}', (_scope: string) => PENDING);
-Given('I am a character without the scope {string}', (_scope: string) => PENDING);
+Given('I am a character with the scope {string}', function (this: BankWorld, scope: string) {
+  this.me = tranquilityCharacter(CHARACTER.ava, [scope]);
+});
+Given('I am a character without the scope {string}', function (this: BankWorld, scope: string) {
+  this.me = tranquilityCharacter(
+    CHARACTER.ava,
+    ['esi-markets.read_character_orders.v1', 'esi-wallet.read_character_wallet.v1'].filter(
+      (s) => s !== scope,
+    ),
+  );
+});
 Given('a weave exported from Q3 by another fabric', () => PENDING);
 
 When('I start a draft from the type {string}', function (this: BankWorld, name: string) {
@@ -62,7 +83,10 @@ When('I start a draft from the system {string}', function (this: BankWorld, name
 When('I start a draft from {string}', function (this: BankWorld, subject: string) {
   this.draft = this.theFabric.draft(subject);
 });
-When('I start a draft from my character', () => PENDING);
+When('I start a draft from my character', function (this: BankWorld) {
+  assert.ok(this.me, 'no character: start with "Given I am a character ..."');
+  this.draft = this.theFabric.draft({ character: this.me.characterId }, { as: this.me });
+});
 When('I apply the move {string}', function (this: BankWorld, move: string) {
   this.draft = this.theDraft.apply(move);
 });
@@ -132,6 +156,22 @@ Then('the answer is a list of solar systems', function (this: BankWorld) {
     assert.equal(typeof system.name, 'string');
   }
 });
-Then('the answer is a list of market orders', () => PENDING);
-Then('the move {string} is unavailable for want of {string}', (_m: string, _s: string) => PENDING);
-Then('the move {string} is offered', (_move: string) => PENDING);
+Then('the answer is a list of market orders', function (this: BankWorld) {
+  assert.ok(Array.isArray(this.answer), 'the answer is not a list');
+  for (const order of this.answer as { order_id?: unknown; price?: unknown }[]) {
+    assert.equal(typeof order.order_id, 'number');
+    assert.equal(typeof order.price, 'number');
+  }
+});
+Then(
+  'the move {string} is unavailable for want of {string}',
+  function (this: BankWorld, name: string, scope: string) {
+    const move = this.theDraft.moves().find((m) => m.name === name);
+    assert.ok(move, `"${name}" is not offered at all`);
+    assert.deepEqual(move.unavailable?.scopes, [scope]);
+  },
+);
+Then('the move {string} is offered', function (this: BankWorld, name: string) {
+  const move = this.theDraft.moves().find((m) => m.name === name);
+  assert.ok(move && move.unavailable === undefined, `"${name}" is not offered`);
+});

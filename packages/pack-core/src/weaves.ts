@@ -46,6 +46,30 @@ const tradeProfitAfterTax: PipelineDefinition = {
   outputs: [{ name: 'profit', source: 'profit.profit' }],
 };
 
+/**
+ * Which of my sell orders have been undercut: the best rival price for each
+ * order, looked up once per order in that order's region (my own orders are
+ * never rivals), then compared.
+ */
+const myUndercutOrders: PipelineDefinition = {
+  id: 'pack-core.undercut-orders',
+  version: 1,
+  name: 'Undercut orders',
+  description: 'The sell orders a rival undercuts in their own region',
+  inputs: [input('orders', 'eve.character.order.collection', 'Your open orders')],
+  nodes: [
+    { ...node('rival', 'market.order.rival'), each: { port: 'order' } },
+    node('undercut', 'market.orders.undercut'),
+  ],
+  edges: [
+    { from: 'input.orders', to: 'rival.order' },
+    { from: 'input.orders', to: 'rival.mine' },
+    { from: 'input.orders', to: 'undercut.orders' },
+    { from: 'rival.best', to: 'undercut.rivals' },
+  ],
+  outputs: [{ name: 'undercut', source: 'undercut.undercut' }],
+};
+
 /** Joins the core pack publishes as capabilities when it is installed. */
 export const coreWeaves: readonly Weave[] = [
   {
@@ -57,6 +81,17 @@ export const coreWeaves: readonly Weave[] = [
       description:
         "Profit per unit buying at one region's lowest sell price and selling at another's, after sales tax",
       attach: { on: 'eve.type', as: 'trade profit after tax', subject: 'item' },
+    },
+  },
+  {
+    pipeline: myUndercutOrders,
+    capability: {
+      id: 'market.my.undercut',
+      version: '1.0.0',
+      name: 'Undercut Orders',
+      description:
+        'Which of your sell orders a rival undercuts: each order checked against its own region market',
+      attach: { on: 'eve.character.order.collection', as: 'undercut', subject: 'orders' },
     },
   },
 ];

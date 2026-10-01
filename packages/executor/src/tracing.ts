@@ -1,5 +1,5 @@
 import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/domain';
-import type { Executor, ExecutionResult } from './executor.js';
+import type { ExecuteOptions, Executor, ExecutionResult } from './executor.js';
 
 interface Span {
   setAttribute(key: string, value: string | number | boolean): void;
@@ -40,6 +40,7 @@ export function createTracedExecutor(executor: Executor): Executor {
   (traced as { execute: typeof original }).execute = async (
     plan: ExecutionPlan,
     inputs: ReadonlyMap<string, unknown>,
+    options?: ExecuteOptions,
   ): Promise<ExecutionResult> => {
     const span = tracer.startSpan('pipeline.execute', {
       attributes: {
@@ -49,7 +50,7 @@ export function createTracedExecutor(executor: Executor): Executor {
     });
 
     try {
-      const result = await original(plan, inputs);
+      const result = await original(plan, inputs, options);
 
       span.setAttribute('pipeline.cacheHits', result.metrics.cacheHits);
       span.setAttribute('pipeline.cacheMisses', result.metrics.cacheMisses);
