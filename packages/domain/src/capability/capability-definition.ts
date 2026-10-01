@@ -32,6 +32,8 @@ export interface RunContext {
   readonly esi?: unknown;
   /** ESI.ts's `IStaticDataProvider`, when `uses` names `sde`. */
   readonly sde?: unknown;
+  /** The caller's character, for a capability that declares an ESI scope. */
+  readonly characterId?: number | undefined;
 }
 
 /** Port values in, port values out, keyed by port name. */

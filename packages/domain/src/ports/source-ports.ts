@@ -24,6 +24,8 @@ export interface Caller {
   /** The ESI scopes the caller's token holds. */
   readonly scopes: readonly string[];
   readonly credentials: unknown;
+  /** The character the token belongs to; scoped capabilities read only its data. */
+  readonly characterId?: number | undefined;
 }
 
 export interface StaticSource {

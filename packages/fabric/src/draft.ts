@@ -38,6 +38,9 @@ export interface FabricIdentity {
   readonly esi: Identity;
 }
 
+/** The entity an identity is: its private data is read only with its own token. */
+const CHARACTER_ENTITY = 'eve.character';
+
 /** One subject, named by kind: a name (non-empty text) or a positive integer id. */
 const subjectSchema = z
   .record(z.string(), z.union([z.string().trim().min(1), z.number().int().positive()]))
@@ -54,6 +57,7 @@ export interface DraftHost {
   runOne(
     capability: CapabilityDefinition,
     inputs: Readonly<Record<string, unknown>>,
+    as?: FabricIdentity,
   ): Promise<Readonly<Record<string, unknown>>>;
 }
 
@@ -82,7 +86,13 @@ export interface Move {
    * Set when the caller lacks a scope the move needs: the move is shown but
    * cannot be applied, and these are the scopes it waits for (FAB-VAL-07).
    */
-  readonly unavailable?: { readonly scopes: readonly string[] } | undefined;
+  readonly unavailable?:
+    | {
+        readonly scopes: readonly string[];
+        /** The draft's character, when the identity asking is someone else. */
+        readonly character?: number | undefined;
+      }
+    | undefined;
 }
 
 /** A value the person may pick for a hole. */
@@ -152,18 +162,40 @@ export class MoveNotOfferedError extends Error {
   }
 }
 
-/** A move offered as unavailable: the caller lacks a scope it needs (FAB-VAL-07). */
+/**
+ * A move offered as unavailable: the caller lacks a scope it needs, or is a
+ * different character from the one the draft asks about (FAB-VAL-07).
+ */
 export class MoveUnavailableError extends Error {
   readonly move: string;
   readonly scopes: readonly string[];
+  readonly character: number | undefined;
 
-  constructor(move: string, scopes: readonly string[]) {
+  constructor(move: string, scopes: readonly string[], character?: number) {
     super(
-      `"${move}" needs the ESI scope ${scopes.join(', ')}; ask as a character whose token holds it`,
+      scopes.length > 0
+        ? `"${move}" needs the ESI scope ${scopes.join(', ')}; ask as a character whose token holds it`
+        : `"${move}" reads character ${String(character)}'s private data; ask as that character`,
     );
     this.name = 'MoveUnavailableError';
     this.move = move;
     this.scopes = scopes;
+    this.character = character;
+  }
+}
+
+/** A draft about one character was asked, with scoped steps, as another. */
+export class CharacterMismatchError extends Error {
+  readonly character: number;
+  readonly caller: number;
+
+  constructor(character: number, caller: number) {
+    super(
+      `This draft reads character ${String(character)}'s private data, but is asked as character ${String(caller)}; ask as that character`,
+    );
+    this.name = 'CharacterMismatchError';
+    this.character = character;
+    this.caller = caller;
   }
 }
 
@@ -451,7 +483,8 @@ export class Draft {
       );
     }
     if (chosen.move.unavailable !== undefined) {
-      throw new MoveUnavailableError(name, chosen.move.unavailable.scopes);
+      const { scopes, character } = chosen.move.unavailable;
+      throw new MoveUnavailableError(name, scopes, character);
     }
     return new Draft(this.host, chosen.state, this.identity);
   }
@@ -587,29 +620,56 @@ export class Draft {
       // The oracle: offered only if the result compiles, holes aside (FAB-VAL-02).
       const compiled = this.host.compile(new Draft(this.host, candidate.state).pipeline());
       if (!holesOnly(compiled.diagnostics)) continue;
-      const missing = this.missingScopes(candidate.state);
+      const needed = this.scopesAdded(candidate.state);
+      const held = new Set(this.identity?.scopes ?? []);
+      const missing = needed.filter((scope) => !held.has(scope));
+      const character = needed.length > 0 ? this.foreignCharacter() : undefined;
       found.set(
         candidate.move.name,
-        missing.length === 0
+        missing.length === 0 && character === undefined
           ? candidate
-          : { ...candidate, move: { ...candidate.move, unavailable: { scopes: missing } } },
+          : {
+              ...candidate,
+              move: {
+                ...candidate.move,
+                unavailable: {
+                  scopes: missing,
+                  ...(character === undefined ? {} : { character }),
+                },
+              },
+            },
       );
     }
     return [...found.values()];
   }
 
-  /** Scopes the steps a move adds need and the identity's token does not hold. */
-  private missingScopes(next: DraftState): string[] {
-    const held = new Set(this.identity?.scopes ?? []);
-    const missing = new Set<string>();
+  /** Scopes the steps a move adds need. */
+  private scopesAdded(next: DraftState): string[] {
+    const needed = new Set<string>();
     for (const node of next.nodes.slice(this.state.nodes.length)) {
       const capability = this.host.catalog.get(
         capabilityId(node.capability.id),
         node.capability.version,
       );
-      for (const scope of capability.auth.scopes) if (!held.has(scope)) missing.add(scope);
+      for (const scope of capability.auth.scopes) needed.add(scope);
     }
-    return [...missing];
+    return [...needed];
+  }
+
+  /**
+   * The character this draft is about, given by id, when it is not the
+   * identity asking: a token reads only its own character's private data.
+   */
+  foreignCharacter(): number | undefined {
+    const identity = this.identity;
+    if (identity === undefined) return undefined;
+    for (const input of this.state.inputs) {
+      const value = this.state.values[input.name];
+      if (typeof value !== 'number' || value === identity.characterId) continue;
+      const type = this.host.types.get(input.semanticType);
+      if (type.kind === 'reference' && type.entity === CHARACTER_ENTITY) return value;
+    }
+    return undefined;
   }
 
   /** The reference type that names this record, found among its fields. */
@@ -876,9 +936,11 @@ export class Draft {
     if (definition.kind !== 'reference' || definition.choices === undefined) return [];
     const { capability, input, output } = definition.choices;
     if (!this.host.catalog.has(capabilityId(capability))) return [];
-    const result = await this.host.runOne(this.host.catalog.get(capabilityId(capability)), {
-      [input]: text ?? '',
-    });
+    const result = await this.host.runOne(
+      this.host.catalog.get(capabilityId(capability)),
+      { [input]: text ?? '' },
+      this.identity,
+    );
     const matches = result[output];
     return Array.isArray(matches) ? (matches as Choice[]) : [];
   }

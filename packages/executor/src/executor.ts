@@ -518,6 +518,7 @@ export class Executor {
     const id = definition.id as string;
     let esi: unknown;
     let sde: unknown;
+    let characterId: number | undefined;
     const scopes = uses.filter((use) => use.startsWith('esi:')).map((use) => use.slice(4));
     if (scopes.length > 0) {
       // A scoped capability gets the caller's view, and only with every scope it declared.
@@ -531,6 +532,7 @@ export class Executor {
         );
       }
       esi = this.sources.esi.as(caller.credentials);
+      characterId = caller.characterId;
     }
     for (const use of uses) {
       if (use === 'sde') {
@@ -541,7 +543,7 @@ export class Executor {
         esi ??= this.sources.esi.public;
       }
     }
-    return { clock: this.clock, esi, sde };
+    return { clock: this.clock, esi, sde, ...(characterId === undefined ? {} : { characterId }) };
   }
 
   /** The ESI compatibility date or SDE build a capability's result depends on. */

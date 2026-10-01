@@ -47,14 +47,15 @@ const tradeProfitAfterTax: PipelineDefinition = {
 };
 
 /**
- * Which of my orders have been undercut: the best rival price for each order,
- * looked up once per order in that order's region, then compared.
+ * Which of my sell orders have been undercut: the best rival price for each
+ * order, looked up once per order in that order's region (my own orders are
+ * never rivals), then compared.
  */
 const myUndercutOrders: PipelineDefinition = {
   id: 'pack-core.undercut-orders',
   version: 1,
   name: 'Undercut orders',
-  description: 'The orders a rival beats in their own region',
+  description: 'The sell orders a rival undercuts in their own region',
   inputs: [input('orders', 'eve.character.order.collection', 'Your open orders')],
   nodes: [
     { ...node('rival', 'market.order.rival'), each: { port: 'order' } },
@@ -62,6 +63,7 @@ const myUndercutOrders: PipelineDefinition = {
   ],
   edges: [
     { from: 'input.orders', to: 'rival.order' },
+    { from: 'input.orders', to: 'rival.mine' },
     { from: 'input.orders', to: 'undercut.orders' },
     { from: 'rival.best', to: 'undercut.rivals' },
   ],
@@ -88,7 +90,7 @@ export const coreWeaves: readonly Weave[] = [
       version: '1.0.0',
       name: 'Undercut Orders',
       description:
-        'Which of your orders a rival beats: each order checked against its own region market',
+        'Which of your sell orders a rival undercuts: each order checked against its own region market',
       attach: { on: 'eve.character.order.collection', as: 'undercut', subject: 'orders' },
     },
   },

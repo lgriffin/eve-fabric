@@ -8,6 +8,7 @@ import {
   tranquilitySde,
 } from '@eve-fabric/test-support';
 import {
+  CharacterMismatchError,
   createFabric,
   MoveUnavailableError,
   ScopeMissingError,
@@ -69,7 +70,8 @@ describe('asking as a character', () => {
     expect(perItem).toHaveLength(1);
     expect(perItem[0]!.each).toMatchObject({ callsPerItem: 1, esiCallsPerItem: 1 });
     const { answer } = await fabric.query(draft);
-    expect((answer as { order_id: number }[]).map((o) => o.order_id)).toEqual([9001, 9003]);
+    // 9003 is a buy order a rival outbids: the question is about sell orders.
+    expect((answer as { order_id: number }[]).map((o) => o.order_id)).toEqual([9001]);
     expect(transport.sent.filter((r) => r.url.includes('/markets/'))).toHaveLength(3);
   });
 
@@ -107,6 +109,44 @@ describe('asking as a character', () => {
       await expect(fabric.query(draft.as(undefined))).rejects.toThrow(/run it as an identity/);
       expect(transport.sent.filter((r) => r.url.includes('/wallet/'))).toEqual([]);
     });
+  });
+
+  describe('about another character', () => {
+    it('offers their private moves as unavailable, naming them', () => {
+      const { fabric } = tranquility();
+      const draft = fabric.draft({ character: CHARACTER.bo }, { as: ava });
+      expect(draft.moves().find((m) => m.name === 'my orders')?.unavailable).toEqual({
+        scopes: [],
+        character: CHARACTER.bo,
+      });
+      expect(draft.moves().find((m) => m.name === 'details')?.unavailable).toBeUndefined();
+      expect(() => draft.apply('my orders')).toThrow(MoveUnavailableError);
+      expect(() => draft.apply('my orders')).toThrow(/ask as that character/);
+    });
+
+    it('refuses to run a draft as someone else before any call', async () => {
+      const { fabric, transport } = tranquility();
+      const draft = biggestSpend(fabric, bo);
+      await expect(fabric.query(draft, { as: ava })).rejects.toThrow(CharacterMismatchError);
+      expect(transport.sent.filter((r) => r.url.includes('/wallet/'))).toEqual([]);
+    });
+
+    it('refuses a character named by name before the scoped call', async () => {
+      const { fabric, transport } = tranquility();
+      const draft = fabric.draft({ character: 'Bo Miner' }, { as: ava }).apply('my orders');
+      await expect(fabric.query(draft)).rejects.toThrow(/needs that character's token/);
+      expect(transport.sent.filter((r) => r.url.includes('/orders/'))).toEqual([]);
+    });
+  });
+
+  it('runs a scoped capability on its own as an identity', async () => {
+    const { fabric } = tranquility();
+    const orders = fabric.catalog.get('character.orders' as never);
+    const out = await fabric.runOne(orders, { character: CHARACTER.ava }, ava);
+    expect((out.orders as unknown[]).length).toBe(3);
+    await expect(fabric.runOne(orders, { character: CHARACTER.ava })).rejects.toThrow(
+      ScopeMissingError,
+    );
   });
 
   it('starts from a character named by name', async () => {

@@ -29,7 +29,7 @@ import { MemoryCache } from '@eve-fabric/cache';
 import { publishAsComposite, type Pack } from '@eve-fabric/kit';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
-import { Draft, type DraftHost, type FabricIdentity } from './draft.js';
+import { CharacterMismatchError, Draft, type DraftHost, type FabricIdentity } from './draft.js';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
@@ -270,20 +270,30 @@ export class Fabric implements DraftHost {
     return { ...result, diagnostics: [...expanded.diagnostics, ...result.diagnostics] };
   }
 
-  execute(plan: ExecutionPlan, inputs: ReadonlyMap<string, unknown>): Promise<ExecutionResult> {
-    return this.executor.execute(plan, inputs);
+  /** Executes a plan, as `as` when its steps need ESI scopes. */
+  execute(
+    plan: ExecutionPlan,
+    inputs: ReadonlyMap<string, unknown>,
+    as?: FabricIdentity,
+  ): Promise<ExecutionResult> {
+    return this.executor.execute(plan, inputs, { caller: callerOf(as) });
   }
 
   /** Compiles and executes in one call. Throws {@link PipelineCompileError} when it does not compile. */
   async run(
     pipeline: PipelineDefinition,
     inputs: Readonly<Record<string, unknown>>,
+    as?: FabricIdentity,
   ): Promise<ExecutionResult> {
     const compiled = this.compile(pipeline);
     if (!compiled.success || compiled.plan === undefined) {
       throw new PipelineCompileError(pipeline.id, compiled.diagnostics);
     }
-    return this.execute(compiled.plan as unknown as ExecutionPlan, new Map(Object.entries(inputs)));
+    return this.execute(
+      compiled.plan as unknown as ExecutionPlan,
+      new Map(Object.entries(inputs)),
+      as,
+    );
   }
 
   /**
@@ -319,6 +329,8 @@ export class Fabric implements DraftHost {
     if (missing.length > 0) {
       throw new ScopeMissingError(missing, identity !== undefined);
     }
+    const foreign = scopes.length > 0 ? draft.as(identity).foreignCharacter() : undefined;
+    if (foreign !== undefined) throw new CharacterMismatchError(foreign, identity!.characterId);
     const cap = options.perItemCap;
     if (cap !== undefined && !(Number.isInteger(cap) && cap > 0)) {
       throw new RangeError(`perItemCap must be a positive whole number, not ${String(cap)}`);
@@ -340,10 +352,11 @@ export class Fabric implements DraftHost {
     return { answer: readAt(result, answer?.source ?? draft.cursor.ref), result };
   }
 
-  /** Runs one capability on its own, its inputs given by port. */
+  /** Runs one capability on its own, its inputs given by port, as `as` if given. */
   async runOne(
     capability: CapabilityDefinition,
     inputs: Readonly<Record<string, unknown>>,
+    as?: FabricIdentity,
   ): Promise<Readonly<Record<string, unknown>>> {
     const node = 'one';
     const names = [...capability.inputs.keys()].filter((port) => port in inputs);
@@ -363,7 +376,7 @@ export class Fabric implements DraftHost {
         source: `${node}.${port}`,
       })),
     };
-    const result = await this.run(pipeline, inputs);
+    const result = await this.run(pipeline, inputs, as);
     return result.outputs.get(node) ?? {};
   }
 
@@ -418,6 +431,7 @@ function callerOf(identity: FabricIdentity | undefined): Caller | undefined {
     key: `character:${identity.characterId}`,
     scopes: identity.scopes,
     credentials: identity.esi,
+    characterId: identity.characterId,
   };
 }
 

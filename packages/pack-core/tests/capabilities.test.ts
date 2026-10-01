@@ -113,6 +113,30 @@ describe('market', () => {
     );
   });
 
+  it('never counts your own orders as rivals', async () => {
+    const mineAt = (id: number, price: number) => ({
+      order_id: id,
+      type_id: TYPE.tritanium,
+      region_id: REGION.theForge,
+      location_id: STATION.jita44,
+      price,
+    });
+    const order = mineAt(9001, 4.4);
+    expect(await run(core.bestRival, { order })).toEqual({ best: 3.98 });
+    // 7002 is yours too, so the best rival is 7001's 4.12.
+    expect(await run(core.bestRival, { order, mine: [order, mineAt(7002, 3.98)] })).toEqual({
+      best: 4.12,
+    });
+  });
+
+  it('lists only sell orders as undercut', async () => {
+    const sell = { order_id: 1, price: 4.4 };
+    const buy = { order_id: 2, price: 3.5, is_buy_order: true };
+    expect(await run(core.undercutOrders, { orders: [sell, buy], rivals: [3.98, 3.71] })).toEqual({
+      undercut: [sell],
+    });
+  });
+
   it('accepts ids as decimal strings and rejects anything else', async () => {
     const { orders } = await run(core.orders, { region: '10000002', item: '35' });
     expect(orders).toHaveLength(2);

@@ -15,6 +15,7 @@ export {
   FillRejectedError,
   MoveNotOfferedError,
   MoveUnavailableError,
+  CharacterMismatchError,
   UnknownSubjectError,
   type Choice,
   type Cursor,

@@ -18,6 +18,21 @@ export const ORDERS_SCOPE = 'esi-markets.read_character_orders.v1';
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+/**
+ * The character a scoped read is for, which must be the caller's own: a
+ * token reads only its own character's wallet and orders, so asking about
+ * anyone else is refused before the call rather than rejected by ESI.
+ */
+function ownCharacter(character: unknown, caller: number | undefined): number {
+  const id = requireId(character, 'character');
+  if (caller !== undefined && caller !== id) {
+    throw new Error(
+      `Character ${String(id)}'s private data needs that character's token; this one is character ${String(caller)}'s`,
+    );
+  }
+  return id;
+}
+
 export const resolveCharacter = defineCapability({
   id: 'character.resolve',
   version: '2.0.0',
@@ -74,9 +89,9 @@ export const walletJournal = defineCapability({
   attach: { on: EveCharacter, as: 'wallet journal', subject: 'character' },
   uses: [`esi:${WALLET_SCOPE}`],
   cost: { estimatedLatencyMs: 500 },
-  async run({ character }, { esi }) {
+  async run({ character }, { esi, characterId }) {
     const journal = await collect(
-      esi.character(requireId(character, 'character')).wallet.journal.get(),
+      esi.character(ownCharacter(character, characterId)).wallet.journal.get(),
     );
     return { journal };
   },
@@ -122,8 +137,8 @@ export const characterOrders = defineCapability({
   attach: { on: EveCharacter, as: 'my orders', subject: 'character' },
   uses: [`esi:${ORDERS_SCOPE}`],
   cost: { estimatedLatencyMs: 500 },
-  async run({ character }, { esi }) {
-    const orders = await esi.character(requireId(character, 'character')).orders.get();
+  async run({ character }, { esi, characterId }) {
+    const orders = await esi.character(ownCharacter(character, characterId)).orders.get();
     return { orders };
   },
 });

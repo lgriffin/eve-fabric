@@ -38,13 +38,17 @@ type HasUse<U, M> = [Extract<U, M>] extends [never] ? false : true;
 /**
  * The context `run` receives, typed from `uses`: a capability that did not
  * declare `sde` has no `sde` to reach, and one that uses an ESI scope gets
- * the calling identity's view rather than the public one.
+ * the calling identity's view rather than the public one, and its character.
  */
 export type ContextFor<U extends CapabilityUse> = { readonly clock: Clock } & (HasUse<
   U,
   `esi:${string}`
 > extends true
-  ? { readonly esi: ScopeTree }
+  ? {
+      readonly esi: ScopeTree;
+      /** The calling identity's character, when the caller names one. */
+      readonly characterId?: number | undefined;
+    }
   : HasUse<U, 'esi.public'> extends true
     ? { readonly esi: PublicScopeTree }
     : unknown) &
