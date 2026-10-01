@@ -71,6 +71,21 @@ describe('Registry routes', () => {
     });
   });
 
+  it('shows which ports take names and where capabilities attach', async () => {
+    const response = await app.inject({ method: 'GET', url: '/api/registry?search=resolve' });
+    const body = JSON.parse(response.body) as {
+      capabilities: Array<{ id: string; inputs: Array<{ acceptsName?: boolean }> }>;
+    };
+    const lookup = body.capabilities.find((c) => c.id === 'universe.resolve.type');
+    expect(lookup?.inputs.some((p) => p.acceptsName === true)).toBe(true);
+
+    const orders = await app.inject({ method: 'GET', url: '/api/registry?search=market.orders' });
+    const found = (
+      JSON.parse(orders.body) as { capabilities: Array<{ id: string; attach?: unknown }> }
+    ).capabilities.find((c) => c.id === 'market.orders');
+    expect(found?.attach).toMatchObject({ on: 'eve.type', subject: 'item' });
+  });
+
   describe('GET /api/registry/:id', () => {
     it('returns a specific capability', async () => {
       const response = await app.inject({

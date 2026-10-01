@@ -26,6 +26,7 @@ export { type SemanticPort, semanticPortSchema } from './semantic-port.js';
 
 export {
   type CapabilityDefinition,
+  type CapabilityAttach,
   type PipelineRef,
   type CapabilityUse,
   type CapabilityRun,
@@ -44,6 +45,9 @@ export {
 export {
   CapabilityCatalog,
   CapabilityNotExecutableError,
+  UnresolvableReferenceError,
+  ResolverMissingError,
+  InvalidAttachError,
   type CapabilityCatalogOptions,
 } from './catalog.js';
 

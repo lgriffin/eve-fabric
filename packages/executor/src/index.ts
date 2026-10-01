@@ -1,6 +1,7 @@
 export {
   Executor,
   StepExecutionError,
+  PortValueError,
   SourceUnavailableError,
   type ExecutorConfig,
   type ExecutionResult,

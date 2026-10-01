@@ -61,6 +61,21 @@ export class SourceUnavailableError extends Error {
   }
 }
 
+/** A port value is not a value of the port's semantic type. */
+export class PortValueError extends Error {
+  readonly port: string;
+  readonly direction: 'input' | 'output';
+  readonly typeId: string;
+
+  constructor(direction: 'input' | 'output', port: string, typeId: string, reason: string) {
+    super(`${direction === 'input' ? 'Input' : 'Output'} "${port}" is not a ${typeId}: ${reason}`);
+    this.name = 'PortValueError';
+    this.port = port;
+    this.direction = direction;
+    this.typeId = typeId;
+  }
+}
+
 const DEFAULT_MAX_CONCURRENCY = 5;
 const DEFAULT_CACHE_TTL_SECONDS = 300;
 
@@ -117,6 +132,8 @@ export class Executor {
   private readonly cache: CachePort | undefined;
   private readonly maxConcurrency: number;
   private readonly clock: Clock;
+  /** Port values that passed an output check, so the next step need not parse them again. */
+  private readonly checkedValues = new WeakSet<object>();
 
   constructor(config: ExecutorConfig) {
     this.catalog = config.catalog;
@@ -296,10 +313,11 @@ export class Executor {
         new Error(`Capability "${id}" has no run function (FAB-VAL-01)`),
       );
     }
+    const checked = this.checkPorts(step, definition, 'input', inputs);
     const context = this.contextFor(definition);
     let result: unknown;
     try {
-      result = await definition.run(inputs, context);
+      result = await definition.run(checked, context);
     } catch (err) {
       throw new StepExecutionError(step.id, id, err);
     }
@@ -310,7 +328,45 @@ export class Executor {
         new Error('run must return an object of output port values'),
       );
     }
-    return result as Readonly<Record<string, unknown>>;
+    return this.checkPorts(step, definition, 'output', result as Readonly<Record<string, unknown>>);
+  }
+
+  /**
+   * Port values must be values of the port's type (constitution XVI, phase
+   * 3). An absent value (null or undefined) is not checked: an optional input
+   * left out, or an output with nothing to report, such as the lowest sell
+   * price in a market with no sellers. A catalog without types checks nothing.
+   */
+  private checkPorts(
+    step: ExecutionStep,
+    definition: CapabilityDefinition,
+    direction: 'input' | 'output',
+    values: Readonly<Record<string, unknown>>,
+  ): Readonly<Record<string, unknown>> {
+    const types = this.catalog.types;
+    if (types === undefined) return values;
+    const ports = direction === 'input' ? definition.inputs : definition.outputs;
+    const parsed: Record<string, unknown> = { ...values };
+    for (const [name, port] of ports) {
+      const value = values[name];
+      if (value === undefined || value === null) continue;
+      // An output this run already checked arrives as the same object: no second parse.
+      if (typeof value === 'object' && this.checkedValues.has(value)) continue;
+      const check = types.checkPort(port, value);
+      if (!check.ok) {
+        throw new StepExecutionError(
+          step.id,
+          definition.id,
+          new PortValueError(direction, name, port.semanticType, check.message),
+        );
+      }
+      // Steps get the parsed value: an id sent as text arrives as a number.
+      parsed[name] = check.value;
+      if (direction === 'output' && typeof check.value === 'object' && check.value !== null) {
+        this.checkedValues.add(check.value);
+      }
+    }
+    return parsed;
   }
 
   private contextFor(definition: CapabilityDefinition): RunContext {

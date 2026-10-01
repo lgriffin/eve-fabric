@@ -6,12 +6,13 @@
  * inputs have incoming edges wired to them.
  */
 
-import type { CapabilityCatalog, Clock } from '@eve-fabric/domain';
+import type { CapabilityCatalog, CapabilityDefinition, Clock } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import {
   type CompilerDiagnostic,
   capabilityNotFound,
+  invalidConfiguredValue,
   missingInput,
   unknownPipelineInput,
 } from './diagnostics.js';
@@ -83,10 +84,35 @@ export function resolveCapabilities(
           diagnostics.push(missingInput(node.capability.id, portName));
         }
       }
+      diagnostics.push(...checkConfiguredValues(node.id, def, nodeConfigured, catalog));
     } catch {
       diagnostics.push(capabilityNotFound(node.capability.id));
     }
   }
 
+  return diagnostics;
+}
+
+/**
+ * A configured value must be a value of its port's type, so a wrongly typed
+ * fill does not compile. Checked only when the catalog knows its types.
+ */
+function checkConfiguredValues(
+  nodeId: string,
+  def: CapabilityDefinition,
+  values: Readonly<Record<string, unknown>>,
+  catalog: CapabilityCatalog,
+): CompilerDiagnostic[] {
+  const types = catalog.types;
+  if (types === undefined) return [];
+  const diagnostics: CompilerDiagnostic[] = [];
+  for (const [portName, value] of Object.entries(values)) {
+    const port = def.inputs.get(portName);
+    if (port === undefined || value === undefined || value === null) continue;
+    const check = types.checkPort(port, value);
+    if (!check.ok) {
+      diagnostics.push(invalidConfiguredValue(nodeId, portName, port.semanticType, check.message));
+    }
+  }
   return diagnostics;
 }

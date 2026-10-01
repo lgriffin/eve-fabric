@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   CapabilityNotExecutableError,
+  UnknownSemanticTypeError,
+  UnresolvableReferenceError,
   capabilityId,
   capabilityVersion,
   fixedClock,
@@ -8,18 +10,27 @@ import {
   type PipelineDefinition,
   type PipelineNode,
 } from '@eve-fabric/domain';
-import { defineCapability, defineContract, definePack } from '@eve-fabric/kit';
+import { z } from 'zod';
+import { defineCapability, defineContract, definePack, defineType } from '@eve-fabric/kit';
+import { PortValueError, StepExecutionError } from '@eve-fabric/executor';
 import { corePack } from '@eve-fabric/pack-core';
 import { memoryStaticSource } from '@eve-fabric/source-sde';
 import {
   REGION,
+  STATION,
   SYSTEM,
   TYPE,
   tranquilityEsi,
   tranquilitySde,
   tranquilitySdeData,
 } from '@eve-fabric/test-support';
-import { createFabric, PipelineCompileError, PublishRefusedError } from '../src/index.js';
+import {
+  createFabric,
+  PipelineCompileError,
+  PublishRefusedError,
+  ResolverMissingError,
+  TypeConflictError,
+} from '../src/index.js';
 
 function node(id: string, capability: string, version: string): PipelineNode {
   return { id, capability: { id: capabilityId(capability), version: capabilityVersion(version) } };
@@ -145,7 +156,14 @@ describe('the catalog gate (FAB-VAL-01)', () => {
   });
 
   it('executes a capability defined outside this repository', async () => {
-    // What a third-party pack does: depend on the kit, define, install.
+    // What a third-party pack does: depend on the kit, define, install. It
+    // uses the core's ISK type and defines its own for the text.
+    const label = defineType({
+      kind: 'value',
+      id: 'someone.isk.label',
+      description: 'An ISK amount written out',
+      schema: z.string(),
+    });
     const thirdParty = definePack({
       id: '@someone/pack-isk',
       capabilities: [
@@ -155,12 +173,13 @@ describe('the catalog gate (FAB-VAL-01)', () => {
           name: 'Format ISK',
           description: 'Formats an amount as ISK',
           inputs: { amount: { type: 'eve.currency.isk' } },
-          outputs: { text: { type: 'eve.quantity' } },
+          outputs: { text: { type: label } },
           run: ({ amount }) => ({ text: `${Number(amount).toFixed(2)} ISK` }),
         }),
       ],
     });
-    const fabric = createFabric({ packs: [thirdParty] });
+    expect(thirdParty.types).toEqual([label]);
+    const fabric = createFabric({ packs: [corePack, thirdParty] });
     const result = await fabric.run(
       {
         id: 'format',
@@ -363,5 +382,346 @@ describe('composites', () => {
       outputs: [{ name: 'jumps', source: 'r.jumps' }],
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('types that can represent a traversal (phase 3)', () => {
+  const widgetRef = (resolver?: { capability: string; input: string; output: string }) =>
+    defineType({
+      kind: 'reference',
+      id: 'someone.widget.reference',
+      description: 'A widget, by id',
+      entity: 'someone.widget',
+      resolver,
+    });
+  const widget = defineType({
+    kind: 'record',
+    id: 'someone.widget',
+    description: 'A widget',
+    fields: { widget_id: 'someone.widget.reference', name: 'eve.text' },
+  });
+  const makeWidget = (ref: ReturnType<typeof widgetRef>) =>
+    defineCapability({
+      id: 'someone.widget.make',
+      version: '1.0.0',
+      name: 'Make widget',
+      description: 'Makes a widget id',
+      inputs: {},
+      outputs: { widget: { type: ref } },
+      run: () => ({ widget: 1 }),
+    });
+  const lookUpWidget = (ref: ReturnType<typeof widgetRef>, output = 'widget') =>
+    defineCapability({
+      id: 'someone.widget',
+      version: '1.0.0',
+      name: 'Widget',
+      description: 'The widget behind an id',
+      inputs: { id: { type: ref } },
+      outputs: { [output]: { type: widget } },
+      run: ({ id }) => ({ [output]: { widget_id: id, name: 'Sprocket' } }),
+    });
+
+  it('refuses a capability that emits a reference type with no resolver', () => {
+    const ref = widgetRef();
+    const pack = definePack({ id: '@someone/widgets', capabilities: [makeWidget(ref)] });
+    expect(() => createFabric({ packs: [corePack, pack] })).toThrow(UnresolvableReferenceError);
+  });
+
+  it('refuses a resolver that is not installed, or whose ports do not fit', () => {
+    const named = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const missing = definePack({ id: '@someone/widgets', capabilities: [makeWidget(named)] });
+    expect(() => createFabric({ packs: [corePack, missing] })).toThrow(/is not installed/);
+
+    const wrongInput = widgetRef({ capability: 'someone.widget', input: 'key', output: 'widget' });
+    expect(() =>
+      createFabric({
+        packs: [
+          corePack,
+          definePack({
+            id: '@someone/widgets',
+            types: [widget],
+            capabilities: [makeWidget(wrongInput), lookUpWidget(wrongInput)],
+          }),
+        ],
+      }),
+    ).toThrow(/no input "key"/);
+
+    const wrongOutput = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    expect(() =>
+      createFabric({
+        packs: [
+          corePack,
+          definePack({
+            id: '@someone/widgets',
+            types: [widget],
+            capabilities: [makeWidget(wrongOutput), lookUpWidget(wrongOutput, 'thing')],
+          }),
+        ],
+      }),
+    ).toThrow(ResolverMissingError);
+  });
+
+  it('installs nothing of a pack it refuses', () => {
+    const named = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const fabric = createFabric({ packs: [corePack] });
+    const before = fabric.describe();
+    const refused = definePack({
+      id: '@someone/widgets',
+      types: [widget],
+      capabilities: [
+        defineCapability({
+          id: 'someone.widget.count',
+          version: '1.0.0',
+          name: 'Count',
+          description: 'Counts widgets',
+          inputs: {},
+          outputs: { count: { type: 'eve.quantity' } },
+          run: () => ({ count: 1 }),
+        }),
+        makeWidget(named),
+      ],
+    });
+    expect(() => fabric.install(refused)).toThrow(ResolverMissingError);
+    expect(fabric.describe().capabilities).toHaveLength(before.capabilities.length);
+    expect(fabric.types.has('someone.widget')).toBe(false);
+    expect(fabric.types.has('someone.widget.reference')).toBe(false);
+  });
+
+  it('checks resolvers for a capability registered straight into the catalog', () => {
+    const named = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const fabric = createFabric({
+      packs: [
+        corePack,
+        definePack({ id: '@someone/widget-types', types: [widget, named], capabilities: [] }),
+      ],
+    });
+    expect(() => fabric.catalog.register(makeWidget(named))).toThrow(ResolverMissingError);
+    expect(() => fabric.registry.register(makeWidget(named))).toThrow(ResolverMissingError);
+    fabric.registry.registerAll([lookUpWidget(named), makeWidget(named)]);
+    expect(fabric.catalog.has(capabilityId('someone.widget.make'))).toBe(true);
+  });
+
+  it('installs a reference whose resolver is in the same pack, and follows it', async () => {
+    const ref = widgetRef({ capability: 'someone.widget', input: 'id', output: 'widget' });
+    const fabric = createFabric({
+      packs: [
+        corePack,
+        definePack({
+          id: '@someone/widgets',
+          types: [widget],
+          capabilities: [makeWidget(ref), lookUpWidget(ref)],
+        }),
+      ],
+    });
+    expect(fabric.describe().types.map((t) => t.id)).toContain('someone.widget.reference');
+    const result = await fabric.run(
+      {
+        id: 'w',
+        version: 1,
+        name: 'Widget',
+        inputs: [],
+        nodes: [
+          node('make', 'someone.widget.make', '1.0.0'),
+          node('get', 'someone.widget', '1.0.0'),
+        ],
+        edges: [{ from: 'make.widget', to: 'get.id' }],
+        outputs: [{ name: 'widget', source: 'get.widget' }],
+      },
+      {},
+    );
+    expect(result.outputs.get('get')).toEqual({ widget: { widget_id: 1, name: 'Sprocket' } });
+  });
+
+  it('reserves eve.* for the core pack and refuses a second definition of a type', () => {
+    const squatter = defineType({
+      kind: 'value',
+      id: 'eve.squatter',
+      description: 'Not ours',
+      schema: z.string(),
+    });
+    expect(() =>
+      createFabric({ packs: [definePack({ id: 'x', types: [squatter], capabilities: [] })] }),
+    ).toThrow(TypeConflictError);
+    const a = defineType({ kind: 'value', id: 'someone.a', description: 'A', schema: z.string() });
+    const b = defineType({ kind: 'value', id: 'someone.a', description: 'B', schema: z.number() });
+    const fabric = createFabric({ packs: [definePack({ id: 'x', types: [a], capabilities: [] })] });
+    fabric.install(definePack({ id: 'x', types: [a], capabilities: [] })); // the same definition again is fine
+    expect(() => fabric.install(definePack({ id: 'y', types: [b], capabilities: [] }))).toThrow(
+      /already installed/,
+    );
+  });
+
+  it('refuses a port whose type it does not know', () => {
+    const pack = definePack({
+      id: 'x',
+      capabilities: [
+        defineCapability({
+          id: 'someone.mystery',
+          version: '1.0.0',
+          name: 'Mystery',
+          description: 'Speaks an unknown type',
+          inputs: {},
+          outputs: { out: { type: 'someone.unknown' } },
+          run: () => ({ out: 1 }),
+        }),
+      ],
+    });
+    expect(() => createFabric({ packs: [pack] })).toThrow(UnknownSemanticTypeError);
+  });
+
+  it('attaches capabilities to the types they hang off', () => {
+    const { fabric } = tranquilityFabric();
+    const onType = fabric.catalog.attachedTo('eve.type').map((c) => c.attach?.as);
+    expect(onType).toEqual(expect.arrayContaining(['orders', 'blueprint']));
+    const onOrders = fabric.catalog
+      .attachedTo('eve.market.order.collection')
+      .map((c) => c.attach?.as);
+    expect(onOrders).toEqual(expect.arrayContaining(['prices', 'spread', 'cheapest']));
+  });
+
+  it('does not compile a wrongly typed fill', () => {
+    const { fabric } = tranquilityFabric();
+    const orders: PipelineDefinition = {
+      id: 'orders',
+      version: 1,
+      name: 'Orders',
+      inputs: [],
+      nodes: [node('orders', 'market.orders', '2.0.0')],
+      edges: [],
+      outputs: [{ name: 'orders', source: 'orders.orders' }],
+    };
+    const wrong = fabric.compile(orders, {
+      configuredInputs: { orders: { region: 'The Forge', item: TYPE.tritanium } },
+    });
+    expect(wrong.success).toBe(false);
+    expect(wrong.diagnostics).toContainEqual(
+      expect.objectContaining({
+        code: 'INVALID_CONFIGURED_VALUE',
+        location: expect.objectContaining({ nodeId: 'orders', field: 'region' }),
+      }),
+    );
+    const right = fabric.compile(orders, {
+      configuredInputs: { orders: { region: REGION.theForge, item: TYPE.tritanium } },
+    });
+    expect(right.success).toBe(true);
+  });
+
+  it('compiles a name filled into a lookup, which takes names', () => {
+    const { fabric } = tranquilityFabric();
+    const result = fabric.compile(
+      {
+        id: 'lookup',
+        version: 1,
+        name: 'Lookup',
+        inputs: [],
+        nodes: [node('region', 'universe.resolve.region', '2.0.0')],
+        edges: [],
+        outputs: [{ name: 'region', source: 'region.region' }],
+      },
+      { configuredInputs: { region: { query: 'The Forge' } } },
+    );
+    expect(result.success).toBe(true);
+  });
+
+  it('refuses a wrongly typed value at a port when it runs', async () => {
+    const { fabric } = tranquilityFabric();
+    const pipeline: PipelineDefinition = {
+      id: 'route',
+      version: 1,
+      name: 'Route',
+      inputs: [
+        input('origin', 'eve.system.reference'),
+        input('destination', 'eve.system.reference'),
+      ],
+      nodes: [node('route', 'route.distance', '2.0.0')],
+      edges: [
+        { from: 'input.origin', to: 'route.origin' },
+        { from: 'input.destination', to: 'route.destination' },
+      ],
+      outputs: [{ name: 'jumps', source: 'route.distance' }],
+    };
+    const failure = await fabric
+      .run(pipeline, { origin: 'Jita', destination: SYSTEM.amarr })
+      .catch((err: unknown) => err);
+    expect(failure).toBeInstanceOf(StepExecutionError);
+    expect((failure as Error).cause).toBeInstanceOf(PortValueError);
+    expect((failure as Error).message).toContain('Input "origin" is not a eve.system.reference');
+  });
+
+  it('takes ids sent as text, and gives steps numbers', async () => {
+    const { fabric } = tranquilityFabric();
+    const result = await fabric.run(
+      {
+        id: 'orders-by-text',
+        version: 1,
+        name: 'Orders by text',
+        inputs: [input('item', 'eve.type.reference'), input('region', 'eve.region.reference')],
+        nodes: [node('orders', 'market.orders', '2.0.0')],
+        edges: [
+          { from: 'input.item', to: 'orders.item' },
+          { from: 'input.region', to: 'orders.region' },
+        ],
+        outputs: [{ name: 'orders', source: 'orders.orders' }],
+      },
+      { item: String(TYPE.tritanium), region: String(REGION.theForge) },
+    );
+    const orders = result.outputs.get('orders')?.['orders'] as { type_id: number }[];
+    expect(orders.length).toBeGreaterThan(0);
+    expect(orders.every((o) => o.type_id === TYPE.tritanium)).toBe(true);
+  });
+
+  it('values orders given by hand with only what names and prices them', async () => {
+    const { fabric } = tranquilityFabric();
+    const order = (order_id: number, price: number, volume_remain?: number) => ({
+      order_id,
+      type_id: TYPE.tritanium,
+      location_id: STATION.jita44,
+      price,
+      is_buy_order: false,
+      ...(volume_remain === undefined ? {} : { volume_remain }),
+    });
+    const result = await fabric.run(
+      {
+        id: 'cargo',
+        version: 1,
+        name: 'Cargo',
+        inputs: [input('orders', 'eve.market.order.collection')],
+        nodes: [node('value', 'logistics.cargo.value', '2.0.0')],
+        edges: [{ from: 'input.orders', to: 'value.orders' }],
+        outputs: [{ name: 'total', source: 'value.totalValue' }],
+      },
+      { orders: [order(1, 4, 10), order(2, 5)] },
+    );
+    expect(result.outputs.get('value')).toEqual({ totalValue: 45 });
+  });
+
+  it('follows an order to its location, and the location to its system', async () => {
+    const { fabric } = tranquilityFabric();
+    const pipeline: PipelineDefinition = {
+      id: 'follow',
+      version: 1,
+      name: 'Follow',
+      inputs: [input('location', 'eve.location.reference')],
+      nodes: [
+        node('location', 'universe.location', '2.0.0'),
+        node('system', 'universe.system', '2.0.0'),
+      ],
+      edges: [
+        { from: 'input.location', to: 'location.id' },
+        { from: 'input.location', to: 'system.id' },
+      ],
+      outputs: [{ name: 'location', source: 'location.location' }],
+    };
+    // Wiring a location straight into a system is a type error: it has to be followed.
+    expect(fabric.compile(pipeline).diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'SEMANTIC_TYPE_MISMATCH' }),
+    );
+    const result = await fabric.run(
+      { ...pipeline, nodes: [pipeline.nodes[0]!], edges: [pipeline.edges[0]!] },
+      { location: STATION.jita44 },
+    );
+    expect(result.outputs.get('location')).toEqual({
+      location: { location_id: STATION.jita44, kind: 'station', system_id: SYSTEM.jita },
+    });
   });
 });

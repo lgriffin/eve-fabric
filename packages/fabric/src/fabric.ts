@@ -4,12 +4,14 @@ import type {
   Clock,
   ExecutionPlan,
   PipelineDefinition,
+  SemanticTypeDefinition,
   SourcePorts,
   StaticSource,
 } from '@eve-fabric/domain';
 import {
   CapabilityCatalog,
   InMemoryFabricRegistry,
+  SemanticTypeRegistry,
   capabilityId,
   capabilityVersion,
   systemClock,
@@ -83,6 +85,20 @@ export class PublishRefusedError extends PipelineCompileError {
   }
 }
 
+/** A pack defines a type in a namespace it does not own, or one already defined. */
+export class TypeConflictError extends Error {
+  readonly typeId: string;
+
+  constructor(packId: string, typeId: string, reason: string) {
+    super(`Pack "${packId}" cannot define "${typeId}": ${reason}`);
+    this.name = 'TypeConflictError';
+    this.typeId = typeId;
+  }
+}
+
+/** The pack that owns the eve.* namespace. */
+const CORE_PACK_ID = '@eve-fabric/pack-core';
+
 const MAX_COMPOSITE_DEPTH = 10;
 
 function isStaticSource(value: IStaticDataProvider | StaticSource): value is StaticSource {
@@ -98,6 +114,8 @@ function asStaticSource(value: IStaticDataProvider | StaticSource): StaticSource
  * The gateway, the designer's back end and any CLI are transports over this.
  */
 export class Fabric {
+  /** The semantic types every port here is checked against. */
+  readonly types: SemanticTypeRegistry;
   readonly catalog: CapabilityCatalog;
   readonly registry: InMemoryFabricRegistry;
   readonly executor: Executor;
@@ -108,7 +126,13 @@ export class Fabric {
   constructor(options: FabricOptions = {}) {
     this.clock = options.clock ?? systemClock;
     // The catalog gate: everything registered here can execute (constitution XXVIII).
-    this.catalog = new CapabilityCatalog({ executable: true });
+    // With types: every port type known, every emitted reference followable.
+    this.types = new SemanticTypeRegistry();
+    this.catalog = new CapabilityCatalog({
+      executable: true,
+      types: this.types,
+      requireResolvers: true,
+    });
     this.registry = new InMemoryFabricRegistry(this.catalog);
     this.sources = {
       esi:
@@ -131,14 +155,44 @@ export class Fabric {
     for (const pack of options.packs ?? []) this.install(pack);
   }
 
-  /** Registers every capability in a pack. Throws on the first one the catalog refuses. */
+  /**
+   * Registers a pack's types, then its capabilities. Throws when a type
+   * conflicts, when a reference a capability emits has no resolver here, or
+   * on the first capability the catalog refuses.
+   */
   install(pack: Pack): void {
-    for (const capability of pack.capabilities) this.registry.register(capability);
+    const fresh = (pack.types ?? []).filter((type) => this.checkType(pack, type));
+    for (const type of fresh) this.types.register(type);
+    try {
+      // All the pack's capabilities, or none of them.
+      this.registry.registerAll(pack.capabilities);
+    } catch (error) {
+      for (const type of fresh) this.types.unregister(type.id);
+      throw error;
+    }
   }
 
-  /** The catalog: every capability that can run here. */
-  describe(): { readonly capabilities: readonly CapabilityDefinition[] } {
-    return { capabilities: this.catalog.list() };
+  /** Whether the type is new here; throws when it conflicts. */
+  private checkType(pack: Pack, type: SemanticTypeDefinition): boolean {
+    const id = type.id as string;
+    if (id.startsWith('eve.') && pack.id !== CORE_PACK_ID) {
+      throw new TypeConflictError(
+        pack.id,
+        id,
+        `the eve.* namespace is reserved for ${CORE_PACK_ID}`,
+      );
+    }
+    if (!this.types.has(id)) return true;
+    if (this.types.get(id) === type) return false;
+    throw new TypeConflictError(pack.id, id, 'another definition is already installed');
+  }
+
+  /** The catalog: every capability that can run here, and the types they speak. */
+  describe(): {
+    readonly capabilities: readonly CapabilityDefinition[];
+    readonly types: readonly SemanticTypeDefinition[];
+  } {
+    return { capabilities: this.catalog.list(), types: this.types.list() };
   }
 
   /** A composite's pipeline, by its `pipelineRef`. */

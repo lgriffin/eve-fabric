@@ -62,6 +62,7 @@ export const cargoValue = defineCapability({
   outputs: {
     totalValue: { type: 'eve.currency.isk', description: 'Total estimated ISK value' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'value', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const total = asOrders(orders).reduce((s, o) => s + o.price * (o.volume_remain ?? 1), 0);

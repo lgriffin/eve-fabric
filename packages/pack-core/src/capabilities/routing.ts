@@ -14,6 +14,7 @@ export const distance = defineCapability({
   outputs: {
     distance: { type: 'eve.route.distance', description: 'Jump count' },
   },
+  attach: { on: 'eve.system', as: 'jumpsTo', subject: 'origin' },
   uses: ['esi.public'],
   cost: { estimatedLatencyMs: 300 },
   async run({ origin, destination }, { esi }) {

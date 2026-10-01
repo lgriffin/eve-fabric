@@ -14,6 +14,7 @@ export const orders = defineCapability({
   outputs: {
     orders: { type: 'eve.market.order.collection', description: 'List of market orders' },
   },
+  attach: { on: 'eve.type', as: 'orders', subject: 'item' },
   uses: ['esi.public'],
   dependencies: ['universe.resolve.region', 'universe.resolve.type'],
   cost: { estimatedLatencyMs: 500 },
@@ -43,6 +44,7 @@ export const aggregate = defineCapability({
     lowestSell: { type: 'eve.currency.isk', description: 'Lowest sell price' },
     highestBuy: { type: 'eve.currency.isk', description: 'Highest buy price' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'prices', subject: 'orders' },
   cost: { estimatedLatencyMs: 5 },
   run({ orders: value }) {
     const all = asOrders(value);

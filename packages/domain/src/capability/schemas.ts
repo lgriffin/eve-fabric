@@ -35,6 +35,15 @@ export const capabilityDefinitionSchema = z.object({
   cache: cachePolicySchema,
   cost: costModelSchema,
   pipelineRef: pipelineRefSchema.optional(),
+  attach: z
+    .object({
+      on: z
+        .string()
+        .regex(/^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/, 'Must be a valid semantic type ID'),
+      as: z.string().min(1),
+      subject: z.string().min(1),
+    })
+    .optional(),
 });
 
 export type CapabilityManifest = z.infer<typeof capabilityDefinitionSchema>;

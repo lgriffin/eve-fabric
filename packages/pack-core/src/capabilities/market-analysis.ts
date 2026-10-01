@@ -21,6 +21,7 @@ export const marketSpread = defineCapability({
     lowestSell: { type: 'eve.currency.isk', description: 'Lowest sell price' },
     highestBuy: { type: 'eve.currency.isk', description: 'Highest buy price' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'spread', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const all = asOrders(orders);
@@ -47,6 +48,7 @@ export const marketVolumeTotal = defineCapability({
     sellVolume: { type: 'eve.quantity', description: 'Total sell order volume' },
     buyVolume: { type: 'eve.quantity', description: 'Total buy order volume' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'volume', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const all = asOrders(orders);
@@ -71,6 +73,7 @@ export const marketCheapest = defineCapability({
     cheapest: { type: 'eve.market.order', description: 'The cheapest sell order' },
     price: { type: 'eve.currency.isk', description: 'The lowest price found' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'cheapest', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const sells = sellOrders(asOrders(orders));
@@ -93,6 +96,7 @@ export const marketHighestBuyer = defineCapability({
     highest: { type: 'eve.market.order', description: 'The highest buy order' },
     price: { type: 'eve.currency.isk', description: 'The highest buy price' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'highestBuyer', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const buys = buyOrders(asOrders(orders));
@@ -116,6 +120,7 @@ export const marketOrderCount = defineCapability({
     sellOrders: { type: 'eve.quantity', description: 'Number of sell orders' },
     buyOrders: { type: 'eve.quantity', description: 'Number of buy orders' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'counts', subject: 'orders' },
   cost: PURE,
   run({ orders }) {
     const all = asOrders(orders);

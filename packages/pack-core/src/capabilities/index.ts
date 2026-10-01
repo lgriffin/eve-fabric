@@ -1,5 +1,14 @@
 import type { CapabilityDefinition } from '@eve-fabric/domain';
-import { resolveType, resolveRegion, resolveSolarSystem, resolveLocation } from './universe.js';
+import {
+  resolveType,
+  resolveRegion,
+  resolveSolarSystem,
+  resolveLocation,
+  typeRecord,
+  regionRecord,
+  systemRecord,
+  locationRecord,
+} from './universe.js';
 import { orders, aggregate } from './market.js';
 import { distance } from './routing.js';
 import { filter, sort, limit } from './collection.js';
@@ -28,6 +37,10 @@ export const allCapabilities: readonly CapabilityDefinition[] = [
   resolveRegion,
   resolveSolarSystem,
   resolveLocation,
+  typeRecord,
+  regionRecord,
+  systemRecord,
+  locationRecord,
   orders,
   aggregate,
   distance,

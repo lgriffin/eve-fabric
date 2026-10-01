@@ -1,7 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { z } from 'zod';
-import { SemanticTypeRegistry } from '../../src/semantic-type/registry.js';
-import { createSemanticType, semanticTypeId } from '../../src/semantic-type/semantic-type.js';
+import {
+  SemanticTypeRegistry,
+  UnknownSemanticTypeError,
+} from '../../src/semantic-type/registry.js';
+import {
+  createSemanticType,
+  idSchema,
+  semanticTypeId,
+  type SemanticTypeDefinition,
+} from '../../src/semantic-type/semantic-type.js';
 
 function makeType(id: string, category = 'test') {
   return createSemanticType({
@@ -98,5 +106,165 @@ describe('SemanticTypeRegistry', () => {
       const regionRef = semanticTypeId('eve.region.reference');
       expect(registry.isCompatible(typeRef, regionRef)).toBe(false);
     });
+  });
+});
+
+describe('SemanticTypeRegistry: references, records and lists', () => {
+  const ref = (id: string, entity: string, resolver = true): SemanticTypeDefinition => ({
+    kind: 'reference',
+    id: semanticTypeId(id),
+    description: id,
+    category: 'test',
+    schema: idSchema,
+    entity: semanticTypeId(entity),
+    resolver: resolver ? { capability: `${entity}.get`, input: 'id', output: 'record' } : undefined,
+  });
+  const record = (
+    id: string,
+    fields: Record<string, [string, boolean]>,
+  ): SemanticTypeDefinition => ({
+    kind: 'record',
+    id: semanticTypeId(id),
+    description: id,
+    category: 'test',
+    fields: new Map(
+      Object.entries(fields).map(([name, [type, optional]]) => [
+        name,
+        { type: semanticTypeId(type), optional },
+      ]),
+    ),
+  });
+  const list = (item: string): SemanticTypeDefinition => ({
+    kind: 'list',
+    id: semanticTypeId(`${item}.collection`),
+    description: item,
+    category: 'test',
+    item: semanticTypeId(item),
+  });
+
+  function registry(): SemanticTypeRegistry {
+    const r = new SemanticTypeRegistry();
+    r.register(
+      createSemanticType({
+        id: 'test.text',
+        description: 'Text',
+        schema: z.string(),
+        category: 't',
+      }),
+    );
+    r.register(ref('test.place.reference', 'test.place'));
+    r.register(ref('test.owner.reference', 'test.owner', false));
+    // A record that names itself through its reference, and one registered later.
+    r.register(
+      record('test.place', {
+        place_id: ['test.place.reference', false],
+        name: ['test.text', false],
+        owner_id: ['test.owner.reference', true],
+      }),
+    );
+    r.register(record('test.order', { location_id: ['test.place.reference', false] }));
+    r.register(list('test.order'));
+    return r;
+  }
+
+  it('checks a record field by field, naming the field that is wrong', () => {
+    const r = registry();
+    expect(r.check('test.place', { place_id: 1, name: 'Jita' }).ok).toBe(true);
+    expect(r.check('test.place', { place_id: 1, name: 'Jita', owner_id: null }).ok).toBe(true);
+    const wrong = r.check('test.place', { place_id: 'one', name: 'Jita' });
+    expect(wrong.ok).toBe(false);
+    expect(!wrong.ok && wrong.message).toMatch(/^place_id: /);
+    expect(r.check('test.place', { name: 'Jita' }).ok).toBe(false);
+  });
+
+  it('keeps fields a record does not name, as ESI may add them', () => {
+    expect(registry().check('test.place', { place_id: 1, name: 'Jita', extra: true })).toEqual({
+      ok: true,
+      value: { place_id: 1, name: 'Jita', extra: true },
+    });
+  });
+
+  it('gives back the parsed value: an id sent as text is a number', () => {
+    const r = registry();
+    expect(r.check('test.place.reference', '60003760')).toEqual({ ok: true, value: 60003760 });
+    expect(r.check('test.place', { place_id: '1', name: 'Jita' })).toEqual({
+      ok: true,
+      value: { place_id: 1, name: 'Jita' },
+    });
+    expect(r.check('test.place.reference', '6e7').ok).toBe(false);
+    expect(r.check('test.place.reference', '0').ok).toBe(false);
+  });
+
+  it('takes a name on a port that accepts one, trimmed, and nothing else that is not a value', () => {
+    const r = registry();
+    const lookup = { semanticType: 'test.place.reference', acceptsName: true };
+    expect(r.checkPort(lookup, '  Jita ')).toEqual({ ok: true, value: 'Jita' });
+    expect(r.checkPort(lookup, 42)).toEqual({ ok: true, value: 42 });
+    expect(r.checkPort(lookup, '   ').ok).toBe(false);
+    expect(r.checkPort({ semanticType: 'test.place.reference' }, 'Jita').ok).toBe(false);
+    expect(r.checkPort({ semanticType: 'not.registered' }, 'anything').ok).toBe(true);
+  });
+
+  it('names an unknown type nested in a record field', () => {
+    const r = new SemanticTypeRegistry();
+    r.register({
+      kind: 'record',
+      id: semanticTypeId('test.box'),
+      description: 'A box',
+      category: 'test',
+      fields: new Map([['inner', { type: semanticTypeId('test.missing'), optional: false }]]),
+    });
+    expect(() => r.assertKnown('test.box', 'input "box" of test.cap')).toThrow(
+      /test\.missing.*input "box" of test\.cap, at inner/,
+    );
+  });
+
+  it('forgets a type it unregisters', () => {
+    const r = registry();
+    r.unregister('test.place');
+    expect(r.has('test.place')).toBe(false);
+  });
+
+  it('checks a list item by item', () => {
+    const r = registry();
+    expect(r.check('test.order.collection', [{ location_id: 1 }, { location_id: 2 }]).ok).toBe(
+      true,
+    );
+    const wrong = r.check('test.order.collection', [{ location_id: 1 }, { location_id: -2 }]);
+    expect(!wrong.ok && wrong.message).toMatch(/^1\.location_id: /);
+    expect(r.check('test.order.collection', 'orders').ok).toBe(false);
+  });
+
+  it('checks a reference as a positive integer id', () => {
+    const r = registry();
+    expect(r.check('test.place.reference', 60003760).ok).toBe(true);
+    expect(r.check('test.place.reference', 'Jita 4-4').ok).toBe(false);
+  });
+
+  it('finds every reference a type carries, through records and lists', () => {
+    const r = registry();
+    expect(r.referencesIn('test.order.collection').map((t) => t.id)).toEqual([
+      'test.place.reference',
+    ]);
+    expect(
+      r
+        .referencesIn('test.place')
+        .map((t) => t.id)
+        .sort(),
+    ).toEqual(['test.owner.reference', 'test.place.reference']);
+    expect(r.referencesIn('test.text')).toEqual([]);
+  });
+
+  it('names the record a reference resolves to', () => {
+    const r = registry();
+    expect(r.entityOf('test.place.reference')).toBe('test.place');
+    expect(r.entityOf('test.place')).toBe('test.place');
+  });
+
+  it('reports a field whose type is not registered when it is checked', () => {
+    const r = new SemanticTypeRegistry();
+    r.register(record('test.orphan', { x: ['test.missing', false] }));
+    expect(() => r.check('test.orphan', { x: 1 })).toThrow(UnknownSemanticTypeError);
+    expect(() => r.schemaOf('test.nothing')).toThrow('not registered');
   });
 });
