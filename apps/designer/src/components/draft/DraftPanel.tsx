@@ -133,23 +133,25 @@ function HoleInput({ view, hole }: { view: DraftView; hole: DraftView['holes'][n
   const fill = useDraftStore((s) => s.fill);
   const subject = useDraftStore((s) => s.subject);
   const steps = useDraftStore((s) => s.steps);
+  const token = useDraftStore((s) => s.token);
+  const busy = useDraftStore((s) => s.busy);
   const [text, setText] = useState('');
   const [choices, setChoices] = useState<Choice[]>([]);
 
   useEffect(() => {
     if (subject === null) return;
     const timer = setTimeout(() => {
-      void getChoices({ subject, steps }, hole.name, text).then(
+      void getChoices({ subject, steps }, hole.name, text, token).then(
         (r) => r.ok && setChoices(r.data.choices),
       );
     }, 200);
     return () => clearTimeout(timer);
-  }, [subject, steps, hole.name, text]);
+  }, [subject, steps, hole.name, text, token]);
 
   const submit = (value: string) => {
     const picked = choices.find((c) => c.name === value);
     const trimmed = value.trim();
-    if (trimmed.length === 0) return;
+    if (trimmed.length === 0 || busy) return;
     void fill(
       hole.name,
       picked?.id ?? (/^-?\d+(\.\d+)?$/.test(trimmed) ? Number(trimmed) : trimmed),
@@ -175,7 +177,11 @@ function HoleInput({ view, hole }: { view: DraftView; hole: DraftView['holes'][n
           <option key={c.id} value={c.name} />
         ))}
       </datalist>
-      <button onClick={() => submit(text)} style={button(text.trim().length > 0)}>
+      <button
+        onClick={() => submit(text)}
+        disabled={busy}
+        style={button(text.trim().length > 0 && !busy)}
+      >
         Fill {hole.name}
       </button>
     </div>
@@ -211,7 +217,11 @@ export function DraftPanel() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <p style={heading}>Question</p>
             <span>
-              <button onClick={() => void undo()} style={button(view.steps.length > 0)}>
+              <button
+                onClick={() => void undo()}
+                disabled={busy || view.steps.length === 0}
+                style={button(view.steps.length > 0 && !busy)}
+              >
                 Undo
               </button>{' '}
               <button onClick={clear} style={button(true)}>

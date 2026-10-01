@@ -8,6 +8,8 @@ interface HistorySnapshot {
 export interface HistoryActions {
   undo: () => void;
   redo: () => void;
+  /** Forgets every snapshot: what is on the canvas now has no history. */
+  clearHistory: () => void;
   canUndo: boolean;
   canRedo: boolean;
   undoCount: number;
@@ -73,6 +75,12 @@ export const withHistory: WithHistory = (f: any, options) => (set, get, api) => 
     canRedo: false,
     undoCount: 0,
     redoCount: 0,
+
+    clearHistory: () => {
+      undoStack.length = 0;
+      redoStack.length = 0;
+      updateFlags();
+    },
 
     undo: () => {
       const entry = undoStack.pop();

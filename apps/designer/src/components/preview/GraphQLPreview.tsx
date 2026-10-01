@@ -4,10 +4,12 @@ import { useDraftStore } from '../../stores/draft-store.js';
 import { colors } from '../../tokens.js';
 
 export function GraphQLPreview() {
-  // A question shows its saved form; a loaded pipeline, its generated schema.
-  const question = useDraftStore((s) => s.view?.graphql ?? null);
+  // A question shows its saved form, which it has once its holes are
+  // filled; a loaded pipeline, its generated schema.
+  const view = useDraftStore((s) => s.view);
+  const question = view?.graphql ?? null;
   const generated = usePipelineStore((s) => s.graphqlSdl);
-  const sdl = question ?? generated;
+  const sdl = view === null ? generated : question;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -29,7 +31,7 @@ export function GraphQLPreview() {
         }}
       >
         <span style={{ color: colors.text.secondary, fontSize: '11px', fontWeight: 600 }}>
-          {question !== null ? 'Question as GraphQL' : 'Generated SDL'}
+          {view !== null ? 'Question as GraphQL' : 'Generated SDL'}
         </span>
         {sdl && (
           <button
@@ -71,7 +73,9 @@ export function GraphQLPreview() {
               padding: 20,
             }}
           >
-            Start a question to see it as GraphQL.
+            {view !== null
+              ? 'Fill the holes to see the question as GraphQL.'
+              : 'Start a question to see it as GraphQL.'}
           </div>
         )}
       </div>

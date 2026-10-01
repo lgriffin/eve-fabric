@@ -43,7 +43,8 @@ export interface DraftView {
   readonly holes: readonly HoleView[];
   readonly pipeline: PipelineDefinition;
   readonly values: Readonly<Record<string, unknown>>;
-  readonly graphql: string;
+  /** The saved form; present once the draft is complete. */
+  readonly graphql?: string | undefined;
   /** Present once the draft is complete. */
   readonly plan?:
     | {
@@ -77,9 +78,12 @@ export function viewOf(draft: Draft): DraftView {
     })),
     pipeline: draft.pipeline(),
     values: draft.values,
-    graphql: draft.toGraphQL(),
   };
   if (!draft.complete) return base;
   const { steps, esiCalls, maxEsiCalls, scopes } = draft.plan();
-  return { ...base, plan: { steps, esiCalls, maxEsiCalls, scopes } };
+  return {
+    ...base,
+    graphql: draft.toGraphQL(),
+    plan: { steps, esiCalls, maxEsiCalls, scopes },
+  };
 }

@@ -50,8 +50,9 @@ export function getChoices(
   request: DraftRequest,
   hole: string,
   text: string,
+  token?: string,
 ): Promise<DraftResult<{ choices: Choice[] }>> {
-  return call('/api/drafts/choices', post({ ...request, hole, text }), undefined);
+  return call('/api/drafts/choices', post({ ...request, hole, text }), token);
 }
 
 export function runDraft(

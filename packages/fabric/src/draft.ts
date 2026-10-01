@@ -185,6 +185,14 @@ export class MoveUnavailableError extends Error {
   }
 }
 
+/** Fields read at the end of a draft that the record there does not have. */
+export class SelectionRejectedError extends Error {
+  constructor(reason: string) {
+    super(`Cannot read those fields: ${reason}`);
+    this.name = 'SelectionRejectedError';
+  }
+}
+
 /** A draft about one character was asked, with scoped steps, as another. */
 export class CharacterMismatchError extends Error {
   readonly character: number;
@@ -258,6 +266,8 @@ interface DraftState {
   readonly inputs: readonly PipelineInput[];
   readonly values: Readonly<Record<string, unknown>>;
   readonly cursor: Cursor;
+  /** Fields of the record at the cursor the answer is narrowed to; none for all of it. */
+  readonly selection?: readonly string[] | undefined;
 }
 
 interface Candidate {
@@ -537,9 +547,29 @@ export class Draft {
     return copyOf(this.state.subject);
   }
 
-  /** The draft as a GraphQL document: its saved, shareable form. */
+  /** The draft as a GraphQL document: its saved, shareable form. Throws while it has holes. */
   toGraphQL(): string {
     return printDraft(this, this.host);
+  }
+
+  /** The fields of the record at the cursor the answer is narrowed to; empty for all of it. */
+  get selection(): readonly string[] {
+    return [...(this.state.selection ?? [])];
+  }
+
+  /** The draft answering with only these fields of the record at its cursor. */
+  select(fields: readonly string[]): Draft {
+    const record = this.host.types.get(this.state.cursor.type);
+    if (record.kind !== 'record') {
+      throw new SelectionRejectedError(`${this.state.cursor.type} is not a record with fields`);
+    }
+    const unknown = fields.filter((f) => !record.fields.has(f));
+    if (unknown.length > 0 || new Set(fields).size !== fields.length) {
+      throw new SelectionRejectedError(
+        `${this.state.cursor.type} has the fields ${[...record.fields.keys()].join(', ')}; not ${unknown.join(', ') || 'one twice'}`,
+      );
+    }
+    return new Draft(this.host, { ...this.state, selection: [...fields] }, this.identity);
   }
 
   /** The moves applied and holes filled, in order. */
@@ -641,7 +671,7 @@ export class Draft {
     };
     return new Draft(
       this.host,
-      { ...chosen.state, steps: [...this.state.steps, step] },
+      { ...chosen.state, selection: undefined, steps: [...this.state.steps, step] },
       this.identity,
     );
   }
@@ -659,6 +689,27 @@ export class Draft {
       );
     }
     const target = `${hole.node}.${hole.port}`;
+    // A fill is recorded after the move that opened its hole, which is where
+    // the saved form writes it. Filled after later moves, the draft is
+    // rebuilt in that order, so it and its GraphQL reopen as the same draft.
+    const steps = this.state.steps;
+    const owner = steps.findIndex((s) => s.kind === 'move' && s.added.includes(hole.node));
+    let at = owner + 1;
+    while (at < steps.length && steps[at]!.kind === 'fill') at++;
+    if (at < steps.length) {
+      const changes = steps.map((s) =>
+        s.kind === 'move'
+          ? { kind: 'move' as const, move: s.move }
+          : { kind: 'fill' as const, hole: s.hole, value: s.value },
+      );
+      changes.splice(at, 0, { kind: 'fill', hole: target, value });
+      const rebuilt = Draft.replay(this.host, this.state.subject, changes, this.identity);
+      return new Draft(
+        this.host,
+        { ...rebuilt.state, selection: this.state.selection },
+        this.identity,
+      );
+    }
     // A value of the hole's type (an id, even sent as text) is used as it is;
     // only text that is not one is a name to look up.
     const check = this.host.types.check(hole.type, value);

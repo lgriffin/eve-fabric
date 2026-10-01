@@ -16,6 +16,7 @@ import { PublishDialog } from './components/publish/PublishDialog.js';
 import { BreadcrumbNav } from './components/drilldown/BreadcrumbNav.js';
 import { CompositeOverlay } from './components/drilldown/CompositeOverlay.js';
 import { usePipelineStore } from './stores/pipeline-store.js';
+import { useDraftStore } from './stores/draft-store.js';
 import { colors, fontFamily, fontSize } from './tokens.js';
 import { useLoadCatalog } from './hooks/useGatewayApi.js';
 import { useYamlImportExport } from './hooks/useYamlImportExport.js';
@@ -34,8 +35,17 @@ export function App() {
   const closeComposite = usePipelineStore((s) => s.closeComposite);
   const removeNode = usePipelineStore((s) => s.removeNode);
   const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
-  const undo = usePipelineStore((s) => s.undo);
-  const redo = usePipelineStore((s) => s.redo);
+  const undoCanvas = usePipelineStore((s) => s.undo);
+  const redoCanvas = usePipelineStore((s) => s.redo);
+  const drafting = useDraftStore((s) => s.subject !== null);
+  const undoChange = useDraftStore((s) => s.undo);
+  // While a question is open the canvas only shows it, so undo takes back
+  // the question's last change and there is no canvas history to redo.
+  const undo = useMemo(
+    () => (drafting ? () => void undoChange() : undoCanvas),
+    [drafting, undoChange, undoCanvas],
+  );
+  const redo = useMemo(() => (drafting ? () => {} : redoCanvas), [drafting, redoCanvas]);
 
   useLoadCatalog();
   const { handleSave, handleExport, handleImport } = useYamlImportExport();

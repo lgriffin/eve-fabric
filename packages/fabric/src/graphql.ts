@@ -33,7 +33,13 @@ import {
 } from 'graphql';
 import type { CapabilityDefinition, SemanticTypeId } from '@eve-fabric/domain';
 import { semanticTypeId } from '@eve-fabric/domain';
-import { Draft, type DraftHost, type DraftSubject, type FabricIdentity } from './draft.js';
+import {
+  Draft,
+  DraftIncompleteError,
+  type DraftHost,
+  type DraftSubject,
+  type FabricIdentity,
+} from './draft.js';
 
 /** A document that is not a draft: more than one path, or a field no move matches. */
 export class GraphQLDraftError extends Error {
@@ -91,19 +97,37 @@ interface Level {
   cursor: string;
 }
 
-/** The draft as a GraphQL document. */
+/** The subject's field: a capability needing nothing, a kind by name, or a kind by id. */
+function rootLevel(subject: DraftSubject, first: string | undefined, origin: string): Level {
+  if ('start' in subject) {
+    return { field: fieldName(subject.start), added: [first!], args: [], cursor: origin };
+  }
+  if (typeof subject.value === 'number') {
+    const args = [`id: ${literal(subject.value)}`];
+    return { field: `${subject.kind}ById`, added: [], args, cursor: origin };
+  }
+  return {
+    field: subject.kind,
+    added: [],
+    args: [`name: ${literal(subject.value)}`],
+    cursor: origin,
+  };
+}
+
+/**
+ * The draft as a GraphQL document. Only a complete draft has one: every hole
+ * is a required argument in the schema, so a document with one open would
+ * not be valid.
+ */
 export function printDraft(draft: Draft, host: DraftHost): string {
+  if (!draft.complete)
+    throw new DraftIncompleteError(
+      'print as GraphQL',
+      draft.holes.map((h) => h.name),
+    );
   const subject = draft.subject;
   const nodes = draft.pipeline().nodes;
-  const root: Level =
-    'start' in subject
-      ? { field: fieldName(subject.start), added: [nodes[0]!.id], args: [], cursor: draft.origin }
-      : {
-          field: subject.kind,
-          added: [],
-          args: [`${typeof subject.value === 'number' ? 'id' : 'name'}: ${literal(subject.value)}`],
-          cursor: draft.origin,
-        };
+  const root = rootLevel(subject, nodes[0]?.id, draft.origin);
   const levels: Level[] = [root];
   for (const step of draft.steps) {
     if (step.kind === 'fill') {
@@ -123,7 +147,10 @@ export function printDraft(draft: Draft, host: DraftHost): string {
       });
     }
   }
-  let inner = isObject(host, draft.cursor.type) ? '{ __typename }' : '';
+  const reads = draft.selection;
+  let inner = '';
+  if (reads.length > 0) inner = `{ ${reads.join(' ')} }`;
+  else if (isObject(host, draft.cursor.type)) inner = '{ __typename }';
   for (const level of [...levels].reverse()) {
     const [node, port] = splitRef(level.cursor);
     const capability = draft.capabilityAt(node);
@@ -144,9 +171,12 @@ function fieldsOf(selection: SelectionSetNode | undefined): FieldNode[] {
     if (s.kind !== Kind.FIELD) {
       throw new GraphQLDraftError('Fragments are not part of a draft; write the fields out');
     }
-    return s.name.value !== '__typename';
+    return !META.has(s.name.value);
   });
 }
+
+/** Fields any object answers that say nothing about the path: read and ignored. */
+const META = new Set(['__typename', '_value']);
 
 function argumentsOf(field: FieldNode): Record<string, unknown> {
   const args: Record<string, unknown> = {};
@@ -181,7 +211,10 @@ export function parseDraft(host: DraftHost, source: string, identity?: FabricIde
     const chosen = choosePort(draft, field);
     if (chosen.output !== undefined) draft = draft.apply(chosen.output);
     const next = nextMove(host, draft, chosen.selection);
-    if (next === undefined) return draft;
+    if (next === undefined) {
+      const reads = fieldsOf(chosen.selection).map((f) => f.name.value);
+      return reads.length > 0 ? draft.select(reads) : draft;
+    }
     const name = next.name.value;
     const move = draft.moves().find((m) => fieldName(m.name) === name)!;
     const before = new Set(draft.pipeline().nodes.map((n) => n.id));
@@ -202,15 +235,26 @@ export function parseDraft(host: DraftHost, source: string, identity?: FabricIde
 function subjectOf(host: DraftHost, field: FieldNode): DraftSubject {
   const args = argumentsOf(field);
   const name = field.name.value;
-  const given = Object.entries(args);
-  if (given.length === 1 && (given[0]![0] === 'name' || given[0]![0] === 'id')) {
-    const value = given[0]![1];
-    if (typeof value !== 'string' && typeof value !== 'number') {
-      throw new GraphQLDraftError(`"${name}" takes a name or an id`);
+  const kinds = new Set(Draft.subjects(host).map((s) => s.kind));
+  const given = Object.keys(args);
+  const byId = name.endsWith('ById') ? name.slice(0, -'ById'.length) : undefined;
+  if (byId !== undefined && kinds.has(byId)) {
+    const id = args['id'];
+    if (given.length !== 1 || typeof id !== 'number' || !Number.isInteger(id) || id <= 0) {
+      throw new GraphQLDraftError(`"${name}" takes one argument, a positive id`);
     }
-    return { kind: name, value };
+    return { kind: byId, value: id };
   }
-  if (given.length > 0) throw new GraphQLDraftError(`"${name}" takes one argument, name or id`);
+  if (kinds.has(name)) {
+    const text = args['name'];
+    if (given.length !== 1 || typeof text !== 'string' || text.trim() === '') {
+      throw new GraphQLDraftError(
+        `"${name}" takes one argument, a name; use ${name}ById for an id`,
+      );
+    }
+    return { kind: name, value: text };
+  }
+  if (given.length > 0) throw new GraphQLDraftError(`"${name}" takes no arguments`);
   const root = roots(host).find((c) => fieldName(c.name) === name);
   if (root === undefined)
     throw new GraphQLDraftError(`Nothing in this fabric starts from "${name}"`);
@@ -262,6 +306,11 @@ function nextMove(
       throw new GraphQLDraftError(`"${f.name.value}" is not a move here`);
     }
   }
+  if (moves.length === 1 && fields.length > 1) {
+    throw new GraphQLDraftError(
+      `A draft reads fields only where its path ends; "${moves[0]!.name.value}" goes on`,
+    );
+  }
   if (moves.length === 0 && fields.length > 0 && !readsRecord(host, draft, fields)) {
     throw new GraphQLDraftError(
       `"${fields[0]!.name.value}" is not a move here; the moves are ${[...offered].join(', ')}`,
@@ -291,6 +340,17 @@ const Value = new GraphQLScalarType({
 const NameOrId = new GraphQLScalarType({
   name: 'NameOrId',
   description: 'A name to look up, or an id',
+  parseValue(value) {
+    const ok = typeof value === 'string' || (typeof value === 'number' && Number.isInteger(value));
+    if (!ok) throw new TypeError('A name or an id');
+    return value;
+  },
+  parseLiteral(node) {
+    if (node.kind !== Kind.STRING && node.kind !== Kind.INT) {
+      throw new TypeError('A name or an id');
+    }
+    return valueFromASTUntyped(node);
+  },
 });
 
 /**
@@ -304,7 +364,8 @@ export function deriveSchema(host: DraftHost): GraphQLSchema {
   const scalars = new Map<string, GraphQLScalarType>();
 
   const scalarFor = (type: SemanticTypeId): GraphQLScalarType => {
-    const name = typeName(type);
+    // A value with moves is also an object type; its plain value takes another name.
+    const name = `${typeName(type)}${isObject(host, type) ? 'Value' : ''}`;
     let scalar = scalars.get(name);
     if (scalar === undefined) {
       const definition = host.types.get(type);
@@ -369,7 +430,9 @@ export function deriveSchema(host: DraftHost): GraphQLSchema {
 
   const moveDescription = (from: Draft, move: string): string | undefined => {
     const found = from.moves().find((m) => m.name === move);
-    if (found?.unavailable === undefined) return found?.description;
+    if (found?.unavailable === undefined || found.unavailable.scopes.length === 0) {
+      return found?.description;
+    }
     return `${found.description} Needs ${found.unavailable.scopes.join(', ')}.`;
   };
 
@@ -416,8 +479,13 @@ export function deriveSchema(host: DraftHost): GraphQLSchema {
       for (const { kind, type } of Draft.subjects(host)) {
         fields[kind] = {
           type: outputFor(type),
-          args: { name: { type: GraphQLString }, id: { type: GraphQLInt } },
-          description: `Start from a ${kind}, by name or id`,
+          args: { name: { type: new GraphQLNonNull(GraphQLString) } },
+          description: `Start from a ${kind}, by name`,
+        };
+        fields[`${kind}ById`] = {
+          type: outputFor(type),
+          args: { id: { type: new GraphQLNonNull(GraphQLInt) } },
+          description: `Start from a ${kind}, by id`,
         };
       }
       for (const root of roots(host)) {

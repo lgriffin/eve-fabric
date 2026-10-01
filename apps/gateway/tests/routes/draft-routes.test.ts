@@ -1,17 +1,48 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { generateKeyPairSync, sign } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createFabric, type DraftView } from '@eve-fabric/fabric';
 import { corePack, WALLET_SCOPE } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/domain';
 import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
-import { createDraftRoutes } from '../../src/routes/draft-routes.js';
-import { identityFromAuthorization } from '../../src/auth/eve-identity.js';
+import { createDraftRoutes, MAX_DRAFT_STEPS } from '../../src/routes/draft-routes.js';
+import {
+  identityFromAuthorization,
+  InvalidTokenError,
+  jwtVerifier,
+} from '../../src/auth/eve-identity.js';
 
-/** An unsigned token shaped like EVE SSO's: enough to name a character and its scopes. */
-function ssoToken(characterId: number, scopes: string[]): string {
-  const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
-  const sub = `CHARACTER:EVE:${characterId}`;
-  return `${part({ alg: 'none' })}.${part({ sub, scp: scopes })}.sig`;
+const NOW = Date.UTC(2026, 9, 1);
+const clock = fixedClock(NOW);
+
+/** A key standing in for EVE SSO's, and the verifier that trusts it. */
+const sso = generateKeyPairSync('rsa', { modulusLength: 2048 });
+const verifier = jwtVerifier({
+  clock,
+  keys: () =>
+    Promise.resolve([{ ...sso.publicKey.export({ format: 'jwk' }), kid: 'JWT-Signature-Key' }]),
+});
+
+const part = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+
+/** A token signed the way EVE SSO signs one, naming a character and its scopes. */
+function ssoToken(
+  characterId: number,
+  scopes: string | string[],
+  claims: Record<string, unknown> = {},
+  key = sso.privateKey,
+): string {
+  const head = part({ alg: 'RS256', kid: 'JWT-Signature-Key', typ: 'JWT' });
+  const body = part({
+    sub: `CHARACTER:EVE:${characterId}`,
+    scp: scopes,
+    iss: 'https://login.eveonline.com',
+    aud: ['client-id', 'EVE Online'],
+    exp: NOW / 1000 + 1200,
+    ...claims,
+  });
+  const signature = sign('RSA-SHA256', Buffer.from(`${head}.${body}`), key).toString('base64url');
+  return `${head}.${body}.${signature}`;
 }
 
 const Q1 = {
@@ -33,10 +64,10 @@ describe('Draft routes', () => {
       esi: tranquilityEsi().esi,
       sde: tranquilitySde(),
       packs: [corePack],
-      clock: fixedClock(Date.UTC(2026, 9, 1)),
+      clock,
     });
     app = Fastify();
-    await app.register(createDraftRoutes(fabric));
+    await app.register(createDraftRoutes(fabric, { verifier }));
     await app.ready();
   });
 
@@ -103,6 +134,23 @@ describe('Draft routes', () => {
     expect(body['answer']).toMatchObject({ name: 'Perimeter' });
   });
 
+  it('answers 400 for a body that is not a draft request', async () => {
+    for (const payload of [{}, { subject: {} }, { subject: Q1.subject, steps: [{ kind: 'x' }] }]) {
+      const { status, body } = await post('/api/drafts', payload);
+      expect(status).toBe(400);
+      expect(body['error']).toMatchObject({ code: 'BAD_REQUEST' });
+    }
+    const many = Array.from({ length: MAX_DRAFT_STEPS + 1 }, () => ({ kind: 'move', move: 'x' }));
+    expect((await post('/api/drafts', { subject: Q1.subject, steps: many })).status).toBe(400);
+  });
+
+  it('answers 401 for a bearer token that does not verify', async () => {
+    const forged = `${part({ alg: 'none' })}.${part({ sub: 'CHARACTER:EVE:1' })}.x`;
+    const { status, body } = await post('/api/drafts', Q1, `Bearer ${forged}`);
+    expect(status).toBe(401);
+    expect(body['error']).toMatchObject({ code: 'InvalidTokenError' });
+  });
+
   it('refuses a move it did not offer, saying what it offers', async () => {
     const { status, body } = await post('/api/drafts', {
       subject: Q1.subject,
@@ -125,6 +173,15 @@ describe('Draft routes', () => {
       expect(mine.moves.find((m) => m.name === 'wallet journal')?.unavailable).toBeUndefined();
     });
 
+    it('replays scoped moves as that character when listing choices', async () => {
+      const request = { ...start, steps: [{ kind: 'move', move: 'wallet journal' }], hole: 'x' };
+      const anonymous = await post('/api/drafts/choices', request);
+      expect(anonymous.body['error']).toMatchObject({ code: 'MoveUnavailableError' });
+      const token = `Bearer ${ssoToken(CHARACTER.ava, [WALLET_SCOPE])}`;
+      const mine = await post('/api/drafts/choices', request, token);
+      expect(mine.body['error']).toMatchObject({ code: 'NO_SUCH_HOLE' });
+    });
+
     it('runs as that character', async () => {
       const token = `Bearer ${ssoToken(CHARACTER.ava, [WALLET_SCOPE])}`;
       const { body } = await post(
@@ -144,21 +201,45 @@ describe('Draft routes', () => {
 });
 
 describe('identityFromAuthorization', () => {
-  it('reads the character and scopes an EVE SSO token names', () => {
-    const identity = identityFromAuthorization(`Bearer ${ssoToken(42, ['a', 'b'])}`);
+  it('reads the character and scopes a signed EVE SSO token names', async () => {
+    const identity = await identityFromAuthorization(
+      `Bearer ${ssoToken(42, ['a', 'b'])}`,
+      verifier,
+    );
     expect(identity).toMatchObject({ characterId: 42, scopes: ['a', 'b'] });
   });
 
-  it('takes one scope given as text', () => {
-    const part = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
-    const token = `${part({})}.${part({ sub: 'CHARACTER:EVE:7', scp: 'only' })}.x`;
-    expect(identityFromAuthorization(`Bearer ${token}`)?.scopes).toEqual(['only']);
+  it('takes one scope given as text', async () => {
+    const identity = await identityFromAuthorization(`Bearer ${ssoToken(7, 'only')}`, verifier);
+    expect(identity?.scopes).toEqual(['only']);
   });
 
-  it('is nobody without an EVE token', () => {
-    expect(identityFromAuthorization(undefined)).toBeUndefined();
-    expect(identityFromAuthorization('Basic abc')).toBeUndefined();
-    expect(identityFromAuthorization('Bearer not-a-jwt')).toBeUndefined();
-    expect(identityFromAuthorization('Bearer a.bm90IGpzb24.c')).toBeUndefined();
+  it('is nobody without a bearer token', async () => {
+    expect(await identityFromAuthorization(undefined, verifier)).toBeUndefined();
+    expect(await identityFromAuthorization('Basic abc', verifier)).toBeUndefined();
+  });
+
+  it.each([
+    ['not a JWT', 'not-a-jwt'],
+    ['unsigned', `${part({ alg: 'none' })}.${part({ sub: 'CHARACTER:EVE:42' })}.sig`],
+    [
+      'signed by another key',
+      ssoToken(42, [], {}, generateKeyPairSync('rsa', { modulusLength: 2048 }).privateKey),
+    ],
+    ['expired', ssoToken(42, [], { exp: NOW / 1000 - 1 })],
+    ['from another issuer', ssoToken(42, [], { iss: 'evil.example' })],
+    ['for another audience', ssoToken(42, [], { aud: 'someone' })],
+  ])('refuses a token that is %s', async (_why, token) => {
+    await expect(identityFromAuthorization(`Bearer ${token}`, verifier)).rejects.toThrow(
+      InvalidTokenError,
+    );
+  });
+
+  it('refuses a token whose claims were changed after signing', async () => {
+    const [head, , signature] = ssoToken(42, []).split('.');
+    const forged = `${head}.${part({ sub: 'CHARACTER:EVE:43', iss: 'login.eveonline.com', aud: 'EVE Online', exp: NOW })}.${signature}`;
+    await expect(identityFromAuthorization(`Bearer ${forged}`, verifier)).rejects.toThrow(
+      /signature/,
+    );
   });
 });

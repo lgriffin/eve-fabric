@@ -188,7 +188,7 @@ const same = fabric.fromGraphQL(document); // replays the moves and fills it nam
 fabric.schema(); // the derived schema, for introspection and tooling
 ```
 
-`fromGraphQL` rebuilds a document through `apply` and `fill`, so a document either becomes a draft the fabric offered or is refused with the reason. The derived schema is read from the moves the draft engine offers on each type, so a document valid against it always plans. The designer builds questions the same way: its panel shows the moves and holes the fabric offers, and its canvas shows the steps that result.
+`fromGraphQL` checks a document against the derived schema, then rebuilds it through `apply` and `fill`, so a document either becomes a draft the fabric offered or is refused with the reason. A subject is named by `type(name: "Tritanium")` or by `typeById(id: 34)`. Fields of the record where the path ends may be selected, and the answer then carries only those fields. Only a complete draft has a saved form; while a hole is open, `toGraphQL` throws. The derived schema is read from the moves the draft engine offers on each type, so a document valid against it always plans. The designer builds questions the same way: its panel shows the moves and holes the fabric offers, and its canvas shows the steps that result.
 
 #### Asking as a character
 
@@ -358,7 +358,7 @@ The gateway serves GraphQL at `http://localhost:3000/graphql` with a health chec
 pnpm --filter @eve-fabric/designer run dev
 ```
 
-The designer runs at `http://localhost:5173`. Start from a subject, apply the moves it offers and fill the holes it names; paste an EVE SSO token to ask about your own character.
+The designer runs at `http://localhost:5173`. Start from a subject, apply the moves it offers and fill the holes it names; paste an EVE SSO token to ask about your own character. The gateway checks the token's signature against EVE SSO's published keys, along with its issuer, audience and expiry, before believing the character and scopes it names, and answers 401 for one that fails.
 
 ## Examples
 

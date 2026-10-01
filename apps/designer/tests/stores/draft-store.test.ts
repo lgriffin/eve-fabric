@@ -113,15 +113,18 @@ const BANK: Record<
   },
 };
 
+function tranquilityFabric(): Fabric {
+  return createFabric({
+    esi: tranquilityEsi().esi,
+    sde: tranquilitySde(),
+    packs: [corePack, incursionsPack],
+    clock: fixedClock(Date.UTC(2026, 9, 1)),
+  });
+}
+
 describe('building a question in the designer', () => {
   beforeEach(() => {
-    const fabric = createFabric({
-      esi: tranquilityEsi().esi,
-      sde: tranquilitySde(),
-      packs: [corePack, incursionsPack],
-      clock: fixedClock(Date.UTC(2026, 9, 1)),
-    });
-    vi.stubGlobal('fetch', vi.fn(serve(fabric)));
+    vi.stubGlobal('fetch', vi.fn(serve(tranquilityFabric())));
     useDraftStore.getState().clear();
     useDraftStore.getState().setToken(TOKEN);
   });
@@ -181,7 +184,7 @@ describe('building a question in the designer', () => {
     await store().fill('region', 'The Forge');
     const { graphql } = store().view!;
     store().clear();
-    expect(await store().load(graphql)).toBe(true);
+    expect(await store().load(graphql!)).toBe(true);
     expect(store().steps.map((s) => s.kind)).toEqual(['move', 'fill']);
     expect(store().view!.graphql).toBe(graphql);
   });
@@ -193,5 +196,42 @@ describe('building a question in the designer', () => {
     expect(store().view!.moves.find((m) => m.name === 'wallet journal')?.unavailable).toEqual({
       scopes: [WALLET_SCOPE],
     });
+  });
+
+  it('has no saved form while a hole is open', async () => {
+    const store = useDraftStore.getState;
+    await store().start({ kind: 'type', value: 'Tritanium' });
+    await store().apply('orders');
+    expect(store().view!.graphql).toBeUndefined();
+  });
+
+  it('drops a reply that a newer change overtook', async () => {
+    const answer = serve(tranquilityFabric());
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (calls++ === 1) await new Promise((resolve) => setTimeout(resolve, 50));
+        return answer(path, init);
+      }),
+    );
+    const store = useDraftStore.getState;
+    await store().start({ kind: 'type', value: 'Tritanium' });
+    const slow = store().apply('orders');
+    const fast = store().start({ kind: 'system', value: 'Jita' });
+    expect(await fast).toBe(true);
+    expect(await slow).toBe(false);
+    expect(store().subject).toEqual({ kind: 'system', value: 'Jita' });
+    expect(store().steps).toEqual([]);
+  });
+
+  it('keeps no canvas history of its own, and leaves the canvas to an imported pipeline', async () => {
+    const store = useDraftStore.getState;
+    await store().start({ kind: 'type', value: 'Tritanium' });
+    await store().apply('orders');
+    expect(usePipelineStore.getState().canUndo).toBe(false);
+    store().leave();
+    expect(store().subject).toBeNull();
+    expect(usePipelineStore.getState().nodes.length).toBeGreaterThan(0);
   });
 });
