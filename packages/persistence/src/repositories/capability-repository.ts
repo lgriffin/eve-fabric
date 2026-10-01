@@ -1,5 +1,5 @@
-import type { CapabilityDefinition } from '@eve-fabric/domain';
-import { compareVersions } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
+import { compareVersions } from '@eve-fabric/core';
 
 export interface CapabilityRepository {
   save(def: CapabilityDefinition): Promise<void>;

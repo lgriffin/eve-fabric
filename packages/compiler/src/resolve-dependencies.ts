@@ -1,5 +1,5 @@
-import type { CapabilityDefinition } from '@eve-fabric/domain';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 export interface DependencyNode {
   readonly nodeId: string;

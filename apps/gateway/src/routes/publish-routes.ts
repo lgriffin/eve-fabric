@@ -5,8 +5,8 @@ import {
   capabilityVersion,
   capabilityIdSchema,
   capabilityVersionSchema,
-} from '@eve-fabric/domain';
-import type { CapabilityDefinition, FabricRegistry, PipelineDefinition } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import type { CapabilityDefinition, FabricRegistry, PipelineDefinition } from '@eve-fabric/core';
 
 /** Publishes a pipeline as a composite; throws when it does not compile (the publish gate). */
 type PublishComposite = (

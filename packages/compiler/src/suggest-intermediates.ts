@@ -1,5 +1,5 @@
-import type { CapabilityCatalog, SemanticTypeId } from '@eve-fabric/domain';
-import { DiscoveryEngine } from '@eve-fabric/domain';
+import type { CapabilityCatalog, SemanticTypeId } from '@eve-fabric/core';
+import { DiscoveryEngine } from '@eve-fabric/core';
 import { type CompilerDiagnostic, semanticSuggestion } from './diagnostics.js';
 
 export function suggestIntermediates(

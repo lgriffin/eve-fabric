@@ -1,4 +1,4 @@
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import { stringify } from 'yaml';
 
 export function emitPipelineYaml(pipeline: PipelineDefinition): string {

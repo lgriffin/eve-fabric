@@ -12,7 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/domain": "workspace:*",
+    "@eve-fabric/core": "workspace:*",
     "graphql": "^16.9.0"
   },
   "devDependencies": {

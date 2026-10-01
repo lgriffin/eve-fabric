@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { importSchemaPackage } from '../src/importer.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 
 function makeCatalog(): CapabilityCatalog {
   const catalog = new CapabilityCatalog();

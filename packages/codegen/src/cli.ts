@@ -7,8 +7,8 @@ import {
   capabilityId,
   capabilityVersion,
   semanticTypeId,
-} from '@eve-fabric/domain';
-import type { CapabilityDefinition, SemanticPort } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import type { CapabilityDefinition, SemanticPort } from '@eve-fabric/core';
 import { generate } from './generator.js';
 
 const portSchema = z.object({

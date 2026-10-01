@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { exportSchemaPackage } from '../src/exporter.js';
 import { importSchemaPackage } from '../src/importer.js';
 import { scanForSecrets } from '../src/secret-scanner.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import type { ExportOptions } from '../src/exporter.js';
 
 function makeCapabilityDef(id: string, version = 1) {

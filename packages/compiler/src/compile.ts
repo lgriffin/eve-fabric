@@ -6,8 +6,8 @@
  * for any validation issues discovered during compilation.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { systemClock } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { systemClock } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionPlan } from './execution-types.js';
 import type { CompilerDiagnostic } from './diagnostics.js';

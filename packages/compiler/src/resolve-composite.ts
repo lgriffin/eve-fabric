@@ -1,5 +1,5 @@
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
 import { outputBinding, splitPortPath } from './port-path.js';

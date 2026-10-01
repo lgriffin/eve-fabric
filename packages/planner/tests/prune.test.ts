@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { prunePlan } from '../src/prune.js';
-import type { ExecutionPlan, ExecutionStep, PipelineDefinition } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
+import type { ExecutionPlan, ExecutionStep, PipelineDefinition } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
 
 function makeStep(
   overrides: Partial<ExecutionStep> & { id: string; capId: string },

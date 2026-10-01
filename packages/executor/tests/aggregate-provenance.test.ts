@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { aggregateProvenance } from '../src/aggregate-provenance.js';
-import { capabilityId } from '@eve-fabric/domain';
-import type { ProvenanceRecord } from '@eve-fabric/domain';
+import { capabilityId } from '@eve-fabric/core';
+import type { ProvenanceRecord } from '@eve-fabric/core';
 
 function record(
   id: string,

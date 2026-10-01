@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
-import type { CapabilityDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
 import {
   Draft,
   draftFrom,
@@ -34,7 +34,8 @@ const subjectSchema = z.union([
   z.object({ start: z.string().min(1) }),
 ]);
 
-const draftRequestSchema = z.union([
+/** A draft as the client holds it: a GraphQL document, or a subject and its changes. */
+export const draftRequestSchema = z.union([
   z.object({ graphql: z.string().min(1).max(MAX_DRAFT_DOCUMENT) }),
   z.object({
     subject: subjectSchema,

@@ -8,7 +8,7 @@
  */
 import { createPublicKey, verify, type JsonWebKey } from 'node:crypto';
 import { identityFromToken } from '@lgriffin/esi.ts/client';
-import type { Clock } from '@eve-fabric/domain';
+import type { Clock } from '@eve-fabric/core';
 import type { FabricIdentity } from '@eve-fabric/fabric';
 import { z } from 'zod';
 

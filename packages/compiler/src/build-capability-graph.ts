@@ -6,7 +6,7 @@
  * into parallel groups.
  */
 
-import { DEFAULT_PER_ITEM_CAP, type CapabilityCatalog } from '@eve-fabric/domain';
+import { DEFAULT_PER_ITEM_CAP, type CapabilityCatalog } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
 import { outputBinding, splitPortPath } from './port-path.js';

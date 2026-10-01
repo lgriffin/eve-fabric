@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { TokenInfo, TokenProvider } from '@eve-fabric/domain';
+import type { TokenInfo, TokenProvider } from '@eve-fabric/core';
 
 const envSchema = z.object({
   ESI_TOKEN: z.string().min(1).optional(),

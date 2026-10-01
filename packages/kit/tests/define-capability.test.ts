@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import {
   defineCapability,
   defineContract,

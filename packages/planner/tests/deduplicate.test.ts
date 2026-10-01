@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deduplicateSteps } from '../src/deduplicate.js';
-import type { ExecutionStep } from '@eve-fabric/domain';
+import type { ExecutionStep } from '@eve-fabric/core';
 
 function makeStep(overrides: Partial<ExecutionStep> & { id: string }): ExecutionStep {
   return {

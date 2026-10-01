@@ -17,7 +17,7 @@ import { join, relative } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
 const BASELINE = join(ROOT, 'scripts', 'baselines', 'determinism.json');
-const ALLOWED = new Set(['packages/domain/src/ports/clock.ts']);
+const ALLOWED = new Set(['packages/core/src/ports/clock.ts']);
 const PATTERN = /Date\.now\(\)|new Date\(\)|Math\.random\(\)/g;
 
 function listSources(dir: string): string[] {

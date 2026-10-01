@@ -69,7 +69,7 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 
 | Package                      | Purpose                                                                                                                      |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `@eve-fabric/domain`         | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
+| `@eve-fabric/core`           | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
 | `@eve-fabric/compiler`       | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
 | `@eve-fabric/planner`        | Dependency ordering, parallel group detection, request coalescing                                                            |
 | `@eve-fabric/executor`       | Concurrent execution engine with provenance tracking                                                                         |
@@ -80,8 +80,9 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 | `@eve-fabric/source-esi`     | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
 | `@eve-fabric/source-sde`     | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
 | `@eve-fabric/cache`          | In-memory cache with TTL and stale-while-revalidate                                                                          |
-| `@eve-fabric/schema-package` | Schema export/import with secret scanning                                                                                    |
-| `@eve-fabric/persistence`    | Drizzle ORM schema and repository implementations                                                                            |
+| `@eve-fabric/weave`          | Package format v2: a weave as data, its digest, version ranges, and a git index to find weaves in                            |
+| `@eve-fabric/schema-package` | Schema export/import (format v1) with secret scanning                                                                        |
+| `@eve-fabric/persistence`    | Drizzle ORM schema, repositories, and the `Store` port over SQLite (`node:sqlite`)                                           |
 | `@eve-fabric/test-support`   | BDD world class and shared test helpers                                                                                      |
 
 ### Apps
@@ -299,6 +300,44 @@ const composite = fabric.publishComposite(marketSnapshotPipeline, {
 Only a pipeline that compiles is published. The fabric expands composite nodes,
 however deeply nested, into the steps that run.
 
+### Sharing a Question as a Weave
+
+A weave is a question someone else can add to their fabric: a pipeline, the
+capability versions it requires, the scopes it needs, what it was checked
+against, and a digest over all of it. It carries no code, so adding one runs
+nothing the operator did not already install. Code travels as a pack, by npm.
+
+```typescript
+const q3 = fabric
+  .draft({ type: 'Tritanium' })
+  .apply('trade profit after tax')
+  .fill('from', 'The Forge')
+  .fill('to', 'Domain');
+
+// The names typed into the draft become inputs: a move on any item.
+const file = fabric.export(
+  fabric.weave(q3, { id: 'lgriffin.trade.opportunity', version: '1.0.0', as: 'trade opportunity' }),
+);
+
+// In another fabric: refused whole, adding nothing, unless the digest
+// matches, every requirement is here in a version its range accepts, it
+// compiles, and its scopes and ports are the ones it compiles to (FAB-VAL-08).
+await other.add(weaveToYaml(file));
+other.draft({ type: 'Pyerite' }).apply('trade opportunity');
+```
+
+`weaves/` is a git index: one directory per weave and a generated
+`index.json`. `pnpm run weaves` exports this repository's weaves into it;
+`pnpm run weaves:check` fails when a fresh export differs by a byte. A fabric
+given an index adds a weave by name, `await fabric.add('lgriffin.trade.opportunity@^1')`,
+and `gitIndex(url)` reads a remote repository the same way. Given a `store`,
+a fabric keeps what it adds and `restore()` brings it back after a restart,
+skipping (and naming) any that no longer add; `remove(id, version)` takes one
+back unless another is built on it. A changed weave needs a new version. The
+gateway uses SQLite at `FABRIC_DB` and an index at `FABRIC_WEAVE_INDEX`, logs
+the weaves a restart skipped, and serves `/api/weaves` to add, list, export
+and remove them (`DELETE /api/weaves/:id?version=x.y.z`).
+
 ### Provenance Tracking
 
 Every result carries provenance metadata:
@@ -341,7 +380,7 @@ pnpm -r run test
 pnpm --filter @eve-fabric/compiler run test
 
 # BDD scenarios only
-pnpm --filter @eve-fabric/domain run test:bdd
+pnpm --filter @eve-fabric/core run test:bdd
 ```
 
 ### Start the Gateway
@@ -351,6 +390,15 @@ pnpm --filter @eve-fabric/gateway run dev
 ```
 
 The gateway serves GraphQL at `http://localhost:3000/graphql` with a health check at `/health`.
+Set `FABRIC_DB` to a file to keep added weaves across restarts.
+
+### Published Packages
+
+`@eve-fabric/core`, `@eve-fabric/kit` and `@eve-fabric/pack-core` are versioned
+0.1.0 and set up for npm, so a pack can be written outside this repository.
+`pnpm run packages:check` packs them, installs them into an empty project and
+imports them; pushing a `v*` tag publishes them (the Release workflow needs an
+`NPM_TOKEN` secret).
 
 ### Start the Designer
 
@@ -372,16 +420,16 @@ Three example pipelines are included in `examples/`:
 
 ## Tooling
 
-| Tool        | Command                                         | Purpose                               |
-| ----------- | ----------------------------------------------- | ------------------------------------- |
-| Vitest      | `pnpm -r run test`                              | Unit and integration tests            |
-| Cucumber.js | `pnpm --filter @eve-fabric/domain run test:bdd` | Behavior-driven scenarios             |
-| Stryker     | `pnpm run mutate`                               | Mutation testing (compiler + planner) |
-| TypeDoc     | `pnpm run docs`                                 | API documentation generation          |
-| ESLint      | `pnpm run lint`                                 | Linting with TypeScript rules         |
-| Prettier    | `pnpm run format`                               | Code formatting                       |
-| Changesets  | `pnpm changeset`                                | Version management                    |
-| Husky       | automatic                                       | Pre-commit secret scanning            |
+| Tool        | Command                                       | Purpose                               |
+| ----------- | --------------------------------------------- | ------------------------------------- |
+| Vitest      | `pnpm -r run test`                            | Unit and integration tests            |
+| Cucumber.js | `pnpm --filter @eve-fabric/core run test:bdd` | Behavior-driven scenarios             |
+| Stryker     | `pnpm run mutate`                             | Mutation testing (compiler + planner) |
+| TypeDoc     | `pnpm run docs`                               | API documentation generation          |
+| ESLint      | `pnpm run lint`                               | Linting with TypeScript rules         |
+| Prettier    | `pnpm run format`                             | Code formatting                       |
+| Changesets  | `pnpm changeset`                              | Version management                    |
+| Husky       | automatic                                     | Pre-commit secret scanning            |
 
 ## Project Constitution
 

@@ -9,8 +9,8 @@ import type {
   SourcePorts,
   DataSource,
   Caller,
-} from '@eve-fabric/domain';
-import { CapabilityCatalog, systemClock } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import { CapabilityCatalog, systemClock } from '@eve-fabric/core';
 import { planExecution } from '@eve-fabric/planner';
 import { aggregateProvenance } from './aggregate-provenance.js';
 

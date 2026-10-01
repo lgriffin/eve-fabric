@@ -1,4 +1,4 @@
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import { compile } from '@eve-fabric/compiler';
 import type { PipelineDefinition } from '@eve-fabric/compiler';
 import { planExecution } from '@eve-fabric/planner';

@@ -3,8 +3,9 @@ import type {
   ExecutionPlan,
   InMemoryFabricRegistry,
   StaticSource,
+  Store,
   TokenProvider,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type { GraphQLSchema } from 'graphql';
 import { createEsi, type Esi } from '@lgriffin/esi.ts/client';
 import { createFabric, type Fabric } from '@eve-fabric/fabric';
@@ -12,7 +13,8 @@ import type { Executor } from '@eve-fabric/executor';
 import { corePack } from '@eve-fabric/pack-core';
 import { DEFAULT_COMPATIBILITY_DATE } from '@eve-fabric/source-esi';
 import { lazySdeDirectory, memoryStaticSource } from '@eve-fabric/source-sde';
-import { InMemoryPipelineRepository } from '@eve-fabric/persistence';
+import { InMemoryPipelineRepository, sqliteStore } from '@eve-fabric/persistence';
+import { directoryIndex, type WeaveIndex } from '@eve-fabric/weave';
 import type { PipelineRepository } from '@eve-fabric/persistence';
 import { buildSchema as buildGraphQLSchema } from '@eve-fabric/graphql';
 import type { PipelineRegistration } from '@eve-fabric/graphql';
@@ -28,6 +30,22 @@ interface GatewayRuntimeConfig {
   /** The SDE, when not loaded from `sdeDataPath`. */
   readonly sde?: StaticSource | undefined;
   readonly tokenProvider?: TokenProvider | undefined;
+  /** Where added weaves are kept. Defaults to SQLite at FABRIC_DB, or none. */
+  readonly store?: Store | undefined;
+  /** Where `id@range` weaves are found. Defaults to the directory at FABRIC_WEAVE_INDEX. */
+  readonly index?: WeaveIndex | undefined;
+}
+
+function storeFor(config: GatewayRuntimeConfig | undefined): Store | undefined {
+  if (config?.store !== undefined) return config.store;
+  const path = process.env['FABRIC_DB'];
+  return path ? sqliteStore(path) : undefined;
+}
+
+function indexFor(config: GatewayRuntimeConfig | undefined): WeaveIndex | undefined {
+  if (config?.index !== undefined) return config.index;
+  const path = process.env['FABRIC_WEAVE_INDEX'];
+  return path ? directoryIndex(path) : undefined;
 }
 
 /** Who is calling ESI, as CCP asks every application to say. */
@@ -66,6 +84,8 @@ export class GatewayRuntime {
       esiCompatibilityDate: DEFAULT_COMPATIBILITY_DATE,
       sde: staticSourceFor(config),
       packs: [corePack],
+      store: storeFor(config),
+      index: indexFor(config),
     });
     seedDemoComposites(this.fabric);
 

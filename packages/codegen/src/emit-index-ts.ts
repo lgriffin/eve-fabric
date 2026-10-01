@@ -1,4 +1,4 @@
-import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/domain';
+import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/core';
 import { semanticTypeToTs } from './type-mapper.js';
 
 function toCamelCase(str: string): string {
@@ -112,7 +112,7 @@ export function emitIndexTs(
   lines.push(`import { corePack } from '@eve-fabric/pack-core';`);
   lines.push(`import type { ExecutionResult } from '@eve-fabric/executor';`);
   lines.push(
-    `import { capabilityId, capabilityVersion, type ExecutionPlan } from '@eve-fabric/domain';`,
+    `import { capabilityId, capabilityVersion, type ExecutionPlan } from '@eve-fabric/core';`,
   );
   if (usesEsi) lines.push(`import { createEsi } from '@lgriffin/esi.ts/client';`);
   if (usesSde) lines.push(`import { lazySdeDirectory } from '@eve-fabric/source-sde';`);

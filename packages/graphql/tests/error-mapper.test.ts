@@ -7,7 +7,7 @@ import {
   DerivedComputationError,
   PolicyRejectionError,
   SchemaError,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 
 describe('mapErrorToGraphQL', () => {
   it('maps a GatewayError to a GraphQLError with code and category', () => {

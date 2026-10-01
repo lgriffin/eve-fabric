@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
+import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/core';
 import { createFabric } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { REGION, SYSTEM, TYPE, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';

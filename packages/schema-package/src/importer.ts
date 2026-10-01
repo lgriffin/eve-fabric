@@ -1,10 +1,10 @@
-import type { SchemaPackage } from '@eve-fabric/domain';
+import type { SchemaPackage } from '@eve-fabric/core';
 import {
   schemaPackageSchema,
   type CapabilityCatalog,
   capabilityId,
   capabilityVersion,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { scanForSecrets } from './secret-scanner.js';
 
 export interface ImportDiagnostic {

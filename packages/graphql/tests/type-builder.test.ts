@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { GraphQLString, isNonNullType, isListType } from 'graphql';
 import { buildOutputType } from '../src/type-builder.js';
-import { CapabilityCatalog, capabilityId, capabilityVersion } from '@eve-fabric/domain';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import { CapabilityCatalog, capabilityId, capabilityVersion } from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 function makeCapDef(overrides: {
   id: string;

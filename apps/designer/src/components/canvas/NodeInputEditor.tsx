@@ -1,6 +1,6 @@
 import { useCallback, type MouseEvent, type KeyboardEvent } from 'react';
-import { getEditorType } from '@eve-fabric/domain';
-import type { SemanticTypeId } from '@eve-fabric/domain';
+import { getEditorType } from '@eve-fabric/core';
+import type { SemanticTypeId } from '@eve-fabric/core';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
 import { SearchableSelector } from '../input-editors/SearchableSelector.js';
 import { EnumSelector } from '../input-editors/EnumSelector.js';

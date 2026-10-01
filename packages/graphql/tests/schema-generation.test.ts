@@ -9,14 +9,14 @@ import {
   mapErrorToGraphQL,
   analyzeSelectionSet,
 } from '../src/index.js';
-import type { PipelineDefinition, SemanticPort } from '@eve-fabric/domain';
+import type { PipelineDefinition, SemanticPort } from '@eve-fabric/core';
 import {
   CapabilityCatalog,
   capabilityId,
   capabilityVersion,
   semanticTypeId,
   SourceUnavailableError,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 
 function makePort(semanticType: string, required = true): SemanticPort {
   return {

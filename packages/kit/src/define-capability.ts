@@ -6,14 +6,14 @@ import type {
   Clock,
   SemanticPort,
   SemanticTypeDefinition,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import {
   capabilityId,
   capabilityVersion,
   isCapabilityUse,
   scopesFromUses,
   sourceFromUses,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type { PublicScopeTree, ScopeTree } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 import { typeIdOf, type TypeRef } from './define-type.js';

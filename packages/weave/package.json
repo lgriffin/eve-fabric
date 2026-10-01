@@ -1,7 +1,8 @@
 {
-  "name": "@eve-fabric/domain",
+  "name": "@eve-fabric/weave",
   "version": "0.0.0",
   "private": true,
+  "description": "Package format v2: a weave as data, its digest, and an index to find it in.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,11 +13,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@eve-fabric/core": "workspace:*",
+    "@eve-fabric/schema-package": "workspace:*",
+    "yaml": "^2.5.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^11.0.0",
-    "@eve-fabric/compiler": "workspace:*",
+    "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

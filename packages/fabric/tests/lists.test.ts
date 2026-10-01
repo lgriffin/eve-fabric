@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { corePack } from '@eve-fabric/pack-core';
 import { PerItemCapError, StepExecutionError } from '@eve-fabric/executor';
-import { capabilityId, capabilityVersion, fixedClock } from '@eve-fabric/domain';
-import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/domain';
+import { capabilityId, capabilityVersion, fixedClock } from '@eve-fabric/core';
+import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/core';
 import { tranquilityEsi, tranquilitySde, SYSTEM } from '@eve-fabric/test-support';
 import { incursionsPack } from '../../../examples/incursions-pack/pack.js';
 import { createFabric, type Fabric } from '../src/index.js';

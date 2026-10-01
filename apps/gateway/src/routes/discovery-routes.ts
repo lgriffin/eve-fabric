@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import type { CapabilityCatalog, SemanticTypeId } from '@eve-fabric/domain';
-import { DiscoveryEngine, semanticTypeId } from '@eve-fabric/domain';
-import type { CapabilityId } from '@eve-fabric/domain';
+import type { CapabilityCatalog, SemanticTypeId } from '@eve-fabric/core';
+import { DiscoveryEngine, semanticTypeId } from '@eve-fabric/core';
+import type { CapabilityId } from '@eve-fabric/core';
 
 const SEMANTIC_TYPE_PATTERN = /^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$/;
 

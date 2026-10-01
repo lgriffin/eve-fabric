@@ -4,8 +4,8 @@ import {
   capabilityId,
   capabilityVersion,
   semanticTypeId,
-} from '@eve-fabric/domain';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import { publishAsComposite } from '@eve-fabric/kit';
 import { compile } from '@eve-fabric/compiler';
 import { resolveComposites } from '@eve-fabric/compiler';

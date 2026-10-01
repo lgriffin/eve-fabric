@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/domain';
+import type { ExecutionPlan, ProvenanceRecord } from '@eve-fabric/core';
 import type { Executor } from '../src/executor.js';
 import {
   setTracerProvider,

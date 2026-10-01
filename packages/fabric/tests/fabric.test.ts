@@ -9,7 +9,7 @@ import {
   semanticTypeId,
   type PipelineDefinition,
   type PipelineNode,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { z } from 'zod';
 import { defineCapability, defineContract, definePack, defineType, listOf } from '@eve-fabric/kit';
 import { PortValueError, StepExecutionError } from '@eve-fabric/executor';

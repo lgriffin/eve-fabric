@@ -1,5 +1,5 @@
-import type { PipelineDefinition, PipelineInput, PipelineNode } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
+import type { PipelineDefinition, PipelineInput, PipelineNode } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/core';
 import type { Fabric } from '@eve-fabric/fabric';
 
 function input(name: string, type: string, description: string): PipelineInput {

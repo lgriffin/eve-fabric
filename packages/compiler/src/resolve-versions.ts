@@ -1,5 +1,5 @@
-import type { CapabilityCatalog } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion, compareVersions } from '@eve-fabric/domain';
+import type { CapabilityCatalog } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion, compareVersions } from '@eve-fabric/core';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { CompilerDiagnostic } from './diagnostics.js';
 

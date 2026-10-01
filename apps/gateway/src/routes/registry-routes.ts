@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
-import type { FabricRegistry, CapabilityDefinition } from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
-import type { CapabilitySource } from '@eve-fabric/domain';
+import type { FabricRegistry, CapabilityDefinition } from '@eve-fabric/core';
+import { capabilityId, capabilityVersion } from '@eve-fabric/core';
+import type { CapabilitySource } from '@eve-fabric/core';
 
 function serializeDefinition(def: CapabilityDefinition): Record<string, unknown> {
   return {

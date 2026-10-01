@@ -5,8 +5,8 @@ import {
   capabilityId,
   capabilityVersion,
   semanticTypeId,
-} from '@eve-fabric/domain';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 
 describe('publishAsComposite', () => {
   let catalog: CapabilityCatalog;

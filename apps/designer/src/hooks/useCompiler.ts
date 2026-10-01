@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { compile, type CompileResult } from '@eve-fabric/compiler';
-import { CapabilityCatalog, semanticTypeId } from '@eve-fabric/domain';
+import { CapabilityCatalog, semanticTypeId } from '@eve-fabric/core';
 import { usePipelineStore } from '../stores/pipeline-store.js';
 import { useCatalogStore } from '../stores/catalog-store.js';
 import { flowToPipeline } from '../services/pipeline-serializer.js';

@@ -1,4 +1,4 @@
-import type { ProvenanceRecord } from '@eve-fabric/domain';
+import type { ProvenanceRecord } from '@eve-fabric/core';
 
 export function aggregateProvenance(
   childRecords: readonly ProvenanceRecord[],

@@ -14,7 +14,7 @@ import {
   semanticTypeId,
   type PipelineDefinition,
   type PipelineNode,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { createFabric } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { tranquilitySde } from '@eve-fabric/test-support';

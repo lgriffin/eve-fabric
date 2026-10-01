@@ -48,6 +48,18 @@ export function unknownField(ref: string, recordType: string, field: string): Co
   };
 }
 
+export const UNKNOWN_PORT = 'UNKNOWN_PORT';
+
+/** An edge or output names a node the pipeline does not have, or a port its capability does not have. */
+export function unknownPort(ref: string, reason: string): CompilerDiagnostic {
+  return {
+    code: UNKNOWN_PORT,
+    severity: 'error',
+    message: `"${ref}" names nothing: ${reason}`,
+    location: { edgeFrom: ref },
+  };
+}
+
 export const FIELD_ON_INPUT = 'FIELD_ON_INPUT';
 
 /** An edge feeds a field of an input port; an edge feeds a port whole. */

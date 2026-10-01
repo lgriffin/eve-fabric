@@ -4,13 +4,13 @@ import {
   capabilityId,
   capabilityVersion,
   semanticTypeId,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type {
   CapabilityDefinition,
   PipelineDefinition,
   ExecutionPlan,
   SemanticPort,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { generate } from '../src/generator.js';
 import { semanticTypeToTs } from '../src/type-mapper.js';
 import { emitPipelineYaml } from '../src/emit-pipeline-yaml.js';

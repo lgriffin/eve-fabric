@@ -1,4 +1,4 @@
-import type { SchemaPackage, SchemaPackageRepository } from '@eve-fabric/domain';
+import type { SchemaPackage, SchemaPackageRepository } from '@eve-fabric/core';
 
 export class InMemorySchemaPackageRepository implements SchemaPackageRepository {
   private readonly store = new Map<string, SchemaPackage>();

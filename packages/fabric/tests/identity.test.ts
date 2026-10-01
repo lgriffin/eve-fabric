@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { corePack, ORDERS_SCOPE, WALLET_SCOPE } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/domain';
+import { fixedClock } from '@eve-fabric/core';
 import {
   CHARACTER,
   tranquilityCharacter,

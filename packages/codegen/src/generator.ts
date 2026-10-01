@@ -1,5 +1,5 @@
-import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/domain';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/core';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import { emitIndexTs } from './emit-index-ts.js';
 import { emitPackageJson } from './emit-package-json.js';
 import { emitPipelineYaml } from './emit-pipeline-yaml.js';

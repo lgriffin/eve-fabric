@@ -1,5 +1,5 @@
 import { GraphQLError } from 'graphql';
-import { GatewayError } from '@eve-fabric/domain';
+import { GatewayError } from '@eve-fabric/core';
 
 interface ErrorExtensions {
   readonly code: string;

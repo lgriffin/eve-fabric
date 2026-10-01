@@ -12,8 +12,8 @@ import type {
   CachePolicy,
   CostModel,
   CapabilityRef,
-} from '@eve-fabric/domain';
-import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import { capabilityId, capabilityVersion, semanticTypeId } from '@eve-fabric/core';
 
 export interface DefineContractConfig {
   id: string;

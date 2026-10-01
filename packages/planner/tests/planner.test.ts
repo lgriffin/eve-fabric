@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { planExecution } from '../src/planner.js';
-import type {
-  ExecutionPlan,
-  ExecutionStep,
-  StepGroup,
-  SourceRequirement,
-} from '@eve-fabric/domain';
+import type { ExecutionPlan, ExecutionStep, StepGroup, SourceRequirement } from '@eve-fabric/core';
 
 // Helper to build a minimal ExecutionPlan for testing
 function makePlan(overrides: {

@@ -5,7 +5,7 @@ import type {
   StepGroup,
   SourceRequirement,
   CacheStrategy,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 
 function collectNeededStepIds(
   plan: ExecutionPlan,

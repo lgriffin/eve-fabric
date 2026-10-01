@@ -22,8 +22,8 @@ import type {
   SemanticPort,
   SemanticTypeId,
   SemanticTypeRegistry,
-} from '@eve-fabric/domain';
-import { capabilityId, semanticTypeId } from '@eve-fabric/domain';
+} from '@eve-fabric/core';
+import { capabilityId, semanticTypeId } from '@eve-fabric/core';
 import type { CompileResult, CompilerDiagnostic } from '@eve-fabric/compiler';
 import { z } from 'zod';
 import type { Identity } from '@lgriffin/esi.ts/client';

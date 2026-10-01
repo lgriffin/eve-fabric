@@ -1,4 +1,4 @@
-import type { CapabilityDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
 import {
   resolveType,
   resolveRegion,

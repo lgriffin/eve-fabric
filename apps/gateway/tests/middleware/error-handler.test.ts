@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { MissingAuthScopeError, SourceRateLimitedError } from '@eve-fabric/domain';
+import { MissingAuthScopeError, SourceRateLimitedError } from '@eve-fabric/core';
 import { StepExecutionError } from '@eve-fabric/executor';
 import { gatewayErrorHandler } from '../../src/middleware/error-handler.js';
 

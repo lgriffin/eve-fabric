@@ -26,9 +26,9 @@ importers:
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:packages/domain
+        version: link:packages/core
       '@eve-fabric/fabric':
         specifier: workspace:*
         version: link:packages/fabric
@@ -41,6 +41,9 @@ importers:
       '@eve-fabric/test-support':
         specifier: workspace:*
         version: link:packages/test-support
+      '@eve-fabric/weave':
+        specifier: workspace:*
+        version: link:packages/weave
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -110,9 +113,9 @@ importers:
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../../packages/domain
+        version: link:../../packages/core
       '@eve-fabric/fabric':
         specifier: workspace:*
         version: link:../../packages/fabric
@@ -162,9 +165,9 @@ importers:
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../../packages/domain
+        version: link:../../packages/core
       '@eve-fabric/executor':
         specifier: workspace:*
         version: link:../../packages/executor
@@ -189,6 +192,9 @@ importers:
       '@eve-fabric/source-sde':
         specifier: workspace:*
         version: link:../../packages/source-sde
+      '@eve-fabric/weave':
+        specifier: workspace:*
+        version: link:../../packages/weave
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -220,12 +226,15 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
 
   packages/cache:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -236,9 +245,9 @@ importers:
 
   packages/codegen:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       yaml:
         specifier: ^2.0.0
         version: 2.9.0
@@ -258,9 +267,9 @@ importers:
 
   packages/compiler:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -272,7 +281,7 @@ importers:
         specifier: ^3.23.0
         version: 3.25.76
 
-  packages/domain:
+  packages/core:
     dependencies:
       zod:
         specifier: ^3.23.0
@@ -293,9 +302,9 @@ importers:
 
   packages/executor:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@eve-fabric/planner':
         specifier: workspace:*
         version: link:../planner
@@ -324,9 +333,9 @@ importers:
       '@eve-fabric/compiler':
         specifier: workspace:*
         version: link:../compiler
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@eve-fabric/executor':
         specifier: workspace:*
         version: link:../executor
@@ -339,6 +348,9 @@ importers:
       '@eve-fabric/source-sde':
         specifier: workspace:*
         version: link:../source-sde
+      '@eve-fabric/weave':
+        specifier: workspace:*
+        version: link:../weave
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -367,9 +379,9 @@ importers:
 
   packages/graphql:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       graphql:
         specifier: ^16.9.0
         version: 16.14.2
@@ -383,9 +395,9 @@ importers:
 
   packages/kit:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -405,9 +417,9 @@ importers:
 
   packages/pack-core:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@eve-fabric/kit':
         specifier: workspace:*
         version: link:../kit
@@ -430,13 +442,16 @@ importers:
 
   packages/persistence:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       drizzle-orm:
         specifier: ^0.33.0
         version: 0.33.0(@types/react@18.3.31)(react@18.3.1)
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
       drizzle-kit:
         specifier: ^0.24.0
         version: 0.24.2
@@ -449,9 +464,9 @@ importers:
 
   packages/planner:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -462,9 +477,9 @@ importers:
 
   packages/schema-package:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -475,9 +490,9 @@ importers:
 
   packages/source-esi:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -494,9 +509,9 @@ importers:
 
   packages/source-sde:
     dependencies:
-      '@eve-fabric/domain':
+      '@eve-fabric/core':
         specifier: workspace:*
-        version: link:../domain
+        version: link:../core
       '@lgriffin/esi.ts':
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
@@ -520,6 +535,31 @@ importers:
         specifier: 11.1.1
         version: 11.1.1(js-yaml@4.3.1)
     devDependencies:
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/weave:
+    dependencies:
+      '@eve-fabric/core':
+        specifier: workspace:*
+        version: link:../core
+      '@eve-fabric/schema-package':
+        specifier: workspace:*
+        version: link:../schema-package
+      yaml:
+        specifier: ^2.5.0
+        version: 2.9.0
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
       typescript:
         specifier: ^5.5.0
         version: 5.9.3

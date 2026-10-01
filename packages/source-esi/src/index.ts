@@ -3,7 +3,7 @@
  * It holds no per-capability code; capabilities call ESI.ts's generated
  * operations through the public view this hands them.
  */
-import type { EsiSource } from '@eve-fabric/domain';
+import type { EsiSource } from '@eve-fabric/core';
 import type { Esi, Identity, PublicScopeTree, ScopeTree } from '@lgriffin/esi.ts/client';
 
 /** The compatibility date ESI.ts 11 asks ESI for when none is configured. */

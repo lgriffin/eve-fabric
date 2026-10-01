@@ -8,7 +8,8 @@ import type {
   SemanticTypeDefinition,
   SourcePorts,
   StaticSource,
-} from '@eve-fabric/domain';
+  Store,
+} from '@eve-fabric/core';
 import {
   CapabilityCatalog,
   InMemoryFabricRegistry,
@@ -16,7 +17,7 @@ import {
   capabilityId,
   capabilityVersion,
   systemClock,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import {
   compile,
   resolveComposites,
@@ -26,11 +27,29 @@ import {
 } from '@eve-fabric/compiler';
 import { Executor, ScopeMissingError, type ExecutionResult } from '@eve-fabric/executor';
 import { MemoryCache } from '@eve-fabric/cache';
-import { publishAsComposite, type Pack } from '@eve-fabric/kit';
+import { publishAsComposite, type Pack, type Weave } from '@eve-fabric/kit';
+import {
+  canonicalJson,
+  readWeave,
+  sealWeave,
+  weaveFromYaml,
+  weaveToYaml,
+  type WeaveFile,
+  WeaveNotFoundError,
+  type WeaveIndex,
+} from '@eve-fabric/weave';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
 import { CharacterMismatchError, Draft, type DraftHost, type FabricIdentity } from './draft.js';
 import { deriveSchema, GraphQLDraftError, parseDraft } from './graphql.js';
+import {
+  describeWeave,
+  localWeave,
+  weaveFromDraft,
+  WeaveMismatchError,
+  WeaveRefusedError,
+  type WeaveOptions,
+} from './weaving.js';
 import { parse, validate, type GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
@@ -48,6 +67,10 @@ export interface FabricOptions {
   /** Caches SDE and DERIVED steps; `false` disables it. Defaults to an in-memory cache. */
   readonly cache?: CachePort | false | undefined;
   readonly maxConcurrency?: number | undefined;
+  /** Keeps the weaves added at run time; `restore` brings them back. Defaults to none. */
+  readonly store?: Store | undefined;
+  /** Where `add` looks up a weave named as `id@range`. */
+  readonly index?: WeaveIndex | undefined;
 }
 
 export interface PublishCompositeOptions {
@@ -116,6 +139,19 @@ function asStaticSource(value: IStaticDataProvider | StaticSource): StaticSource
   return isStaticSource(value) ? value : createStaticSource(value);
 }
 
+/** What {@link Fabric.restore} brought back, and what it could not, with why. */
+export interface RestoreResult {
+  readonly restored: number;
+  readonly skipped: readonly {
+    readonly id: string;
+    readonly version: string;
+    readonly error: Error;
+  }[];
+}
+
+const keyOf = (weave: { readonly id: string; readonly version: string }): string =>
+  `${weave.id}@${weave.version}`;
+
 /**
  * The composition root as a library: sources and packs in, a fabric out.
  * The gateway, the designer's back end and any CLI are transports over this.
@@ -129,10 +165,16 @@ export class Fabric implements DraftHost {
   readonly sources: SourcePorts;
   readonly clock: Clock;
   private readonly pipelines = new Map<string, PipelineDefinition>();
+  /** The digest of each weave added, by `id@version`. */
+  private readonly added = new Map<string, string>();
+  private readonly store: Store | undefined;
+  private readonly index: WeaveIndex | undefined;
   private derived: GraphQLSchema | undefined;
 
   constructor(options: FabricOptions = {}) {
     this.clock = options.clock ?? systemClock;
+    this.store = options.store;
+    this.index = options.index;
     // The catalog gate: everything registered here can execute (constitution XXVIII).
     // With types: every port type known, every emitted reference followable.
     this.types = new SemanticTypeRegistry();
@@ -192,6 +234,7 @@ export class Fabric implements DraftHost {
 
   /** Takes back a capability an install added: its entry, its edges, and a weave's pipeline. */
   private withdraw(capability: CapabilityDefinition): void {
+    this.derived = undefined;
     this.catalog.unregister(capability.id, capability.version);
     const graph = this.registry.getGraph();
     const ref = { id: capability.id, version: capability.version };
@@ -381,6 +424,206 @@ export class Fabric implements DraftHost {
     const answer = this.expand(draft.pipeline()).pipeline.outputs.find((o) => o.name === 'answer');
     const value = readAt(result, answer?.source ?? draft.cursor.ref);
     return { answer: narrowed(value, draft.selection), result };
+  }
+
+  /** A complete draft as a weave, offered `as` a move on what it started from. */
+  weave(draft: Draft, options: WeaveOptions): Weave {
+    return weaveFromDraft(draft, this.catalog, this.types, options);
+  }
+
+  /**
+   * A weave as package format v2, with what it requires, the scopes it
+   * needs, what it was checked against and its digest. Takes a weave, or the
+   * id of one already published here.
+   */
+  export(what: Weave | string, version?: string): WeaveFile {
+    const weave = typeof what === 'string' ? this.publishedWeave(what, version) : what;
+    const compiled = this.compile(weave.pipeline);
+    if (!compiled.success || compiled.plan === undefined) {
+      throw new PublishRefusedError(weave.pipeline.id, compiled.diagnostics);
+    }
+    return sealWeave(
+      describeWeave(weave, this.catalog, compiled.plan.authRequirements.scopes, {
+        esiCompatibilityDate: this.sources.esi?.compatibilityDate,
+        sdeBuild: this.sources.sde?.buildVersion(),
+      }),
+    );
+  }
+
+  /**
+   * Adds a weave: a file, its YAML, or `id@range` looked up in the index.
+   * Refused whole, adding nothing, unless its digest matches, every
+   * capability it requires is here in a version it accepts, it compiles, and
+   * the scopes and ports it declares are the ones it compiles to (FAB-VAL-08).
+   */
+  async add(
+    source: WeaveFile | string,
+    options: { readonly index?: WeaveIndex | undefined } = {},
+  ): Promise<CapabilityDefinition> {
+    const file = await this.weaveFile(source, options.index ?? this.index);
+    const key = `${file.id}@${file.version}`;
+    if (this.added.get(key) === file.digest) {
+      return this.catalog.get(capabilityId(file.id), capabilityVersion(file.version));
+    }
+    const capability = this.take(file);
+    try {
+      await this.store?.putWeave({
+        id: file.id,
+        version: file.version,
+        digest: file.digest,
+        document: weaveToYaml(file),
+      });
+    } catch (error) {
+      this.withdraw(capability);
+      this.added.delete(key);
+      throw error;
+    }
+    return capability;
+  }
+
+  /** The weaves added here, by id, version and digest. */
+  weaves(): readonly { readonly id: string; readonly version: string; readonly digest: string }[] {
+    return [...this.added].map(([key, digest]) => {
+      const at = key.lastIndexOf('@');
+      return { id: key.slice(0, at), version: key.slice(at + 1), digest };
+    });
+  }
+
+  /**
+   * Takes back a weave added here, and forgets it in the store. Refused while
+   * another capability is built on it.
+   */
+  async remove(id: string, version: string): Promise<void> {
+    const key = `${id}@${version}`;
+    if (!this.added.has(key)) throw new WeaveNotFoundError(key);
+    const capability = this.catalog.get(capabilityId(id), capabilityVersion(version));
+    const dependents = this.registry.getDependents({
+      id: capability.id,
+      version: capability.version,
+    });
+    if (dependents.length > 0) {
+      const names = dependents.map((d) => `${d.id}@${String(d.version)}`).join(', ');
+      throw new WeaveRefusedError(`"${key}" cannot be removed: ${names} is built on it`);
+    }
+    await this.store?.removeWeave(id, version);
+    this.withdraw(capability);
+    this.added.delete(key);
+  }
+
+  /**
+   * Adds back every weave the store kept, as many as can be added here. One
+   * that cannot (a capability it requires is gone, or it no longer compiles
+   * to what it declares) is skipped, with why, rather than stopping the rest.
+   */
+  async restore(): Promise<RestoreResult> {
+    const kept = (await this.store?.listWeaves()) ?? [];
+    const failed = new Map<string, Error>();
+    let pending = kept.filter((stored) => this.added.get(keyOf(stored)) !== stored.digest);
+    // A weave may require another; add what can be added until nothing changes.
+    for (;;) {
+      const left = pending.filter((stored) => {
+        try {
+          const key = keyOf(stored);
+          if (this.added.has(key)) {
+            throw new WeaveRefusedError(`"${key}" is already here with another digest`);
+          }
+          this.take(weaveFromYaml(stored.document));
+          failed.delete(key);
+          return false;
+        } catch (error) {
+          failed.set(keyOf(stored), error instanceof Error ? error : new Error(String(error)));
+          return true;
+        }
+      });
+      const stuck = left.length === pending.length;
+      pending = left;
+      if (pending.length === 0 || stuck) break;
+    }
+    return {
+      restored: kept.length - pending.length,
+      skipped: pending.map((stored) => ({
+        id: stored.id,
+        version: stored.version,
+        error: failed.get(keyOf(stored))!,
+      })),
+    };
+  }
+
+  private async weaveFile(
+    source: WeaveFile | string,
+    index: WeaveIndex | undefined,
+  ): Promise<WeaveFile> {
+    if (typeof source !== 'string') return readWeave(source);
+    if (source.includes('\n')) return weaveFromYaml(source);
+    if (index === undefined) {
+      throw new WeaveRefusedError(`"${source}" names a weave, but this fabric has no index`);
+    }
+    return index.resolve(source);
+  }
+
+  /** Every check first, then the publish: a refusal adds nothing. */
+  private take(file: WeaveFile): CapabilityDefinition {
+    if (file.id.startsWith('eve.')) {
+      throw new WeaveRefusedError(`"${file.id}": eve.* is reserved for ${CORE_PACK_ID}`);
+    }
+    const key = `${file.id}@${file.version}`;
+    if (
+      this.added.has(key) ||
+      this.catalog.has(capabilityId(file.id), capabilityVersion(file.version))
+    ) {
+      throw new WeaveRefusedError(`"${key}" is already here; a changed weave needs a new version`);
+    }
+    const weave = localWeave(file, this.catalog);
+    const compiled = this.compile(weave.pipeline);
+    if (!compiled.success || compiled.plan === undefined) {
+      throw new PublishRefusedError(weave.pipeline.id, compiled.diagnostics);
+    }
+    const computed = describeWeave(
+      weave,
+      this.catalog,
+      compiled.plan.authRequirements.scopes,
+      file.verifiedAgainst,
+    );
+    for (const field of ['scopes', 'provides'] as const) {
+      if (canonicalJson(computed[field]) !== canonicalJson(file[field])) {
+        throw new WeaveMismatchError(field, file[field], computed[field]);
+      }
+    }
+    const capability = this.publishComposite(weave.pipeline, weave.capability);
+    this.added.set(`${file.id}@${file.version}`, file.digest);
+    return capability;
+  }
+
+  /** A published composite as the weave it was published from. */
+  private publishedWeave(id: string, version: string | undefined): Weave {
+    const capability = this.catalog.get(
+      capabilityId(id),
+      version === undefined ? undefined : capabilityVersion(version),
+    );
+    const ref = capability.pipelineRef;
+    const own = ref === undefined ? undefined : this.getPipeline(ref.id, ref.version);
+    if (own === undefined) {
+      throw new WeaveRefusedError(`"${id}" runs code of its own, so it travels in a pack`);
+    }
+    return {
+      // Published under `${pipeline}@${capability}@${version}`; the weave carries the first.
+      pipeline: { ...own, id: own.id.slice(0, own.id.indexOf('@')) },
+      capability: {
+        id,
+        version: capability.version,
+        name: capability.name,
+        description: capability.description,
+        ...(capability.attach === undefined
+          ? {}
+          : {
+              attach: {
+                on: capability.attach.on,
+                as: capability.attach.as,
+                subject: capability.attach.subject,
+              },
+            }),
+      },
+    };
   }
 
   /** Runs one capability on its own, its inputs given by port, as `as` if given. */

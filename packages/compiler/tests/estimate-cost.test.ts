@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { estimateCost } from '../src/estimate-cost.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog } from '@eve-fabric/core';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 import type { StepGroup } from '../src/execution-types.js';
 

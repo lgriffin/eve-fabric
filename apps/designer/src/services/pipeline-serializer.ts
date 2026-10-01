@@ -4,7 +4,7 @@ import type {
   PipelineEdge,
   PipelineInput,
   PipelineOutput,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import type { Edge } from '@xyflow/react';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';

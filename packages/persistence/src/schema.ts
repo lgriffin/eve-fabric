@@ -68,3 +68,5 @@ export const versions = sqliteTable('versions', {
   snapshot: text('snapshot').notNull(),
   createdAt: text('created_at').notNull(),
 });
+
+export { weaves } from './store-schema.js';

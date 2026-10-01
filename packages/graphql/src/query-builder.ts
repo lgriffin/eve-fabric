@@ -12,7 +12,7 @@ import type {
   CapabilityCatalog,
   ExecutionPlan,
   ProvenanceRecord,
-} from '@eve-fabric/domain';
+} from '@eve-fabric/core';
 import { buildOutputType } from './type-builder.js';
 import { buildInputType } from './input-builder.js';
 import { DataProvenanceType } from './provenance-field.js';

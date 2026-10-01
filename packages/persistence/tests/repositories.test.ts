@@ -25,8 +25,8 @@ describe('InMemoryCapabilityRepository', () => {
 
   it('saves and retrieves a capability', async () => {
     const def = {
-      id: 'market.orders' as import('@eve-fabric/domain').CapabilityId,
-      version: '1.0.0' as import('@eve-fabric/domain').CapabilityVersion,
+      id: 'market.orders' as import('@eve-fabric/core').CapabilityId,
+      version: '1.0.0' as import('@eve-fabric/core').CapabilityVersion,
       name: 'Market Orders',
       description: 'Fetch market orders',
       inputs: new Map(),
@@ -56,8 +56,8 @@ describe('InMemoryCapabilityRepository', () => {
 
   it('deletes a capability', async () => {
     const def = {
-      id: 'market.orders' as import('@eve-fabric/domain').CapabilityId,
-      version: '1.0.0' as import('@eve-fabric/domain').CapabilityVersion,
+      id: 'market.orders' as import('@eve-fabric/core').CapabilityId,
+      version: '1.0.0' as import('@eve-fabric/core').CapabilityVersion,
       name: 'Market Orders',
       description: 'Fetch market orders',
       inputs: new Map(),
@@ -104,7 +104,7 @@ describe('InMemoryPipelineRepository', () => {
       nodes: [
         {
           id: 'node1',
-          capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+          capability: { id: 'market.orders' as import('@eve-fabric/core').CapabilityId },
         },
       ],
       edges: [],
@@ -149,7 +149,7 @@ describe('InMemorySchemaPackageRepository', () => {
         nodes: [
           {
             id: 'node1',
-            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+            capability: { id: 'market.orders' as import('@eve-fabric/core').CapabilityId },
           },
         ],
         edges: [],
@@ -190,7 +190,7 @@ describe('InMemorySchemaPackageRepository', () => {
         nodes: [
           {
             id: 'n1',
-            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+            capability: { id: 'market.orders' as import('@eve-fabric/core').CapabilityId },
           },
         ],
         edges: [],
@@ -234,7 +234,7 @@ describe('InMemorySchemaPackageRepository', () => {
         nodes: [
           {
             id: 'n1',
-            capability: { id: 'market.orders' as import('@eve-fabric/domain').CapabilityId },
+            capability: { id: 'market.orders' as import('@eve-fabric/core').CapabilityId },
           },
         ],
         edges: [],

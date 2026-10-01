@@ -1,8 +1,8 @@
 module.exports = {
   default: {
     requireModule: ['tsx'],
-    require: ['packages/domain/tests/bdd/steps/**/*.steps.ts'],
-    paths: ['packages/domain/tests/bdd/features/**/*.feature'],
+    require: ['packages/core/tests/bdd/steps/**/*.steps.ts'],
+    paths: ['packages/core/tests/bdd/features/**/*.feature'],
     worldParameters: {},
     format: ['progress-bar', 'html:reports/cucumber-report.html'],
   },

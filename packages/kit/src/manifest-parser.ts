@@ -1,7 +1,7 @@
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
-import type { CapabilityDefinition } from '@eve-fabric/domain';
-import { capabilitySourceSchema } from '@eve-fabric/domain';
+import type { CapabilityDefinition } from '@eve-fabric/core';
+import { capabilitySourceSchema } from '@eve-fabric/core';
 import { defineContract, type DefineContractConfig } from './define-contract.js';
 
 const portSchema = z.object({

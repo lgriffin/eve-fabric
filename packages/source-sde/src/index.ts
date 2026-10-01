@@ -3,8 +3,8 @@
  * provider. A configured export that will not load is an error, never an
  * empty provider (constitution XII, FAB-SRC-01).
  */
-import type { StaticSource } from '@eve-fabric/domain';
-import { GatewayError } from '@eve-fabric/domain';
+import type { StaticSource } from '@eve-fabric/core';
+import { GatewayError } from '@eve-fabric/core';
 import { MemorySdeProvider, SdeDataProvider } from '@lgriffin/esi.ts/sde';
 import type { IStaticDataProvider, MemorySdeData } from '@lgriffin/esi.ts/sde';
 

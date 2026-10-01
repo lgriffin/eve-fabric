@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import { pipelineDefinitionSchema } from '@eve-fabric/domain';
-import type { PipelineDefinition } from '@eve-fabric/domain';
+import { pipelineDefinitionSchema } from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import type { GatewayRuntime } from '../runtime.js';
 
 export function createPipelineRoutes(runtime: GatewayRuntime) {
