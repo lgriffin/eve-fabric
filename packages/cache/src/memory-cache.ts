@@ -1,4 +1,5 @@
-import type { CacheEntry, CachePort } from '@eve-fabric/domain';
+import type { CacheEntry, CachePort, Clock } from '@eve-fabric/domain';
+import { systemClock } from '@eve-fabric/domain';
 
 interface InternalEntry {
   readonly data: unknown;
@@ -9,13 +10,18 @@ interface InternalEntry {
 
 export class MemoryCache implements CachePort {
   private readonly store = new Map<string, InternalEntry>();
+  private readonly clock: Clock;
+
+  constructor(options?: { readonly clock?: Clock | undefined }) {
+    this.clock = options?.clock ?? systemClock;
+  }
 
   async get(key: string): Promise<CacheEntry | undefined> {
     const entry = this.store.get(key);
     if (entry === undefined) {
       return undefined;
     }
-    if (Date.now() >= entry.expiresAt) {
+    if (this.clock.now() >= entry.expiresAt) {
       this.store.delete(key);
       return undefined;
     }
@@ -27,12 +33,12 @@ export class MemoryCache implements CachePort {
   }
 
   async set(key: string, data: unknown, ttlSeconds: number): Promise<void> {
-    const storedAt = new Date();
+    const storedAt = new Date(this.clock.now());
     this.store.set(key, {
       data,
       storedAt,
       ttlSeconds,
-      expiresAt: Date.now() + ttlSeconds * 1000,
+      expiresAt: this.clock.now() + ttlSeconds * 1000,
     });
   }
 
@@ -41,7 +47,7 @@ export class MemoryCache implements CachePort {
     if (entry === undefined) {
       return false;
     }
-    if (Date.now() >= entry.expiresAt) {
+    if (this.clock.now() >= entry.expiresAt) {
       this.store.delete(key);
       return false;
     }

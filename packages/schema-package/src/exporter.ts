@@ -4,8 +4,9 @@ import type {
   FieldMapping,
   PackagePolicies,
   PackageMetadata,
+  Clock,
 } from '@eve-fabric/domain';
-import { schemaPackageSchema } from '@eve-fabric/domain';
+import { schemaPackageSchema, systemClock } from '@eve-fabric/domain';
 import { scanForSecrets } from './secret-scanner.js';
 
 export interface ExportOptions {
@@ -20,6 +21,8 @@ export interface ExportOptions {
   readonly metadata: Omit<PackageMetadata, 'createdAt'> & {
     createdAt?: Date | undefined;
   };
+  /** Stamps createdAt when the metadata has none. Defaults to the system clock. */
+  readonly clock?: Clock | undefined;
 }
 
 export interface ExportResult {
@@ -48,7 +51,7 @@ export function exportSchemaPackage(options: ExportOptions): ExportResult | Expo
     policies: options.policies,
     metadata: {
       ...options.metadata,
-      createdAt: options.metadata.createdAt ?? new Date(),
+      createdAt: options.metadata.createdAt ?? new Date((options.clock ?? systemClock).now()),
     },
   };
 

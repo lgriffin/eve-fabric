@@ -1,4 +1,4 @@
-import { InMemoryFabricRegistry } from '@eve-fabric/domain';
+import { GatewayError, InMemoryFabricRegistry } from '@eve-fabric/domain';
 import type {
   CapabilityCatalog,
   CapabilityDefinition,
@@ -8,7 +8,7 @@ import type {
   TokenProvider,
 } from '@eve-fabric/domain';
 import type { GraphQLSchema } from 'graphql';
-import { EsiClient } from '@lgriffin/esi.ts';
+import type { EsiClient } from '@lgriffin/esi.ts';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 import { EsiAdapter } from '@eve-fabric/esi-adapter';
 import { SdeAdapter } from '@eve-fabric/sde-adapter';
@@ -57,20 +57,40 @@ class LazySdeAdapter implements SourceAdapter {
   }
 }
 
+/**
+ * Thrown when a configured SDE export cannot be loaded. Never replaced by an
+ * empty provider. A source failure, so API clients see GATEWAY_SOURCE_UNAVAILABLE;
+ * the path stays server-side (on the error and in the logged cause).
+ */
+export class SdeLoadError extends GatewayError {
+  readonly code = 'GATEWAY_SOURCE_UNAVAILABLE' as const;
+  readonly category = 'runtime' as const;
+  readonly context = { source: 'SDE' as const };
+  readonly path: string;
+
+  constructor(path: string, cause: unknown) {
+    super('SDE source unavailable: the configured export could not be loaded');
+    this.cause = cause;
+    this.path = path;
+  }
+}
+
 async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
-  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
-    MemorySdeProvider: new () => IStaticDataProvider;
-  };
   if (sdeDataPath) {
     try {
       const sdeModule = (await import('@lgriffin/esi.ts/sde')) as {
         SdeDataProvider: { fromDirectory: (path: string) => IStaticDataProvider };
       };
       return sdeModule.SdeDataProvider.fromDirectory(sdeDataPath);
-    } catch {
-      return new memoryModule.MemorySdeProvider();
+    } catch (err) {
+      // Constitution XII: a configured source that fails is an error, not an empty source.
+      throw new SdeLoadError(sdeDataPath, err);
     }
   }
+  // No SDE configured: an explicitly empty provider, so every lookup reports "not found".
+  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
+    MemorySdeProvider: new () => IStaticDataProvider;
+  };
   return new memoryModule.MemorySdeProvider();
 }
 
@@ -97,8 +117,12 @@ export class GatewayRuntime {
     this.cache = new MemoryCache();
     this.tokenProvider = config?.tokenProvider ?? new EnvTokenProvider();
 
-    const esiClient = config?.esiClient ?? new EsiClient();
-    this.esiAdapter = new EsiAdapter({ client: esiClient });
+    // Without a client, the adapter builds one with the fabric's user agent,
+    // the same one generated pipelines get; ESI_USER_AGENT overrides it here.
+    this.esiAdapter =
+      config?.esiClient === undefined
+        ? new EsiAdapter({ userAgent: process.env['ESI_USER_AGENT'] })
+        : new EsiAdapter({ client: config.esiClient });
     this.derivedAdapter = new DerivedAdapter();
 
     const sdeDataPath = config?.sdeDataPath ?? process.env['SDE_DATA_PATH'];

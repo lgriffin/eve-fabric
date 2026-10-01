@@ -1,36 +1,27 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: N/A (initial) -> 1.0.0
-  Modified principles: N/A (initial population from template)
+  Version change: 1.0.0 -> 2.0.0 (MAJOR)
+  Modified principles:
+    - V. Capability-First Design: a capability is one module holding its
+      contract and its `run`; its source is inferred from what it declares
+      it `uses`, no longer hand-labelled.
+    - VII. Pipeline Composition: the "explicit iteration construct" is named:
+      a per-item map with a stated cap, never a loop.
+    - IX. Custom Schema Principle: package format v2 (the weave), data only,
+      with a digest; code travels as packs.
+    - XIV. Caching: the fabric defers to ESI.ts's ETag cache for ESI steps.
+    - XVIII. Testing / XIX. Specification Style: the question bank and EARS
+      rules become gates.
   Added sections:
-    - Core Principles (I-VII): Purpose, Core Architecture,
-      TypeScript-First, Clean Architecture, Capability-First,
-      Semantic Type System, Pipeline Composition
-    - Schema and Execution (VIII-XI): GraphQL Contract, Custom Schema,
-      Schema Compiler, Execution Planner
-    - Data Integrity (XII-XV): Source Authority, Provenance, Caching,
-      Authentication and Authorization
-    - Interfaces and AI (XVI-XVII): Designer Independence,
-      AI Assistance
-    - Quality Standards (XVIII-XXI): Testing, Specification Style,
-      Documentation, Backward Compatibility
-    - Operational Excellence (XXII-XXIV): Observability, Error Model,
-      Performance Principle
-    - Boundaries and Compliance (XXV-XXVI): Repository Boundary,
-      Definition of Done
-    - Governance (XXVII): Governing Rule, Amendment Procedure,
-      Compliance Review
+    - XXVII. Runtime Baseline (Node.js 22.12 or later)
+    - XXVIII. Valid by Construction
+    - Requirements Register (FAB-* ids, each with its enforcing mechanism
+      and status)
   Removed sections: None
-  Templates requiring updates:
-    - .specify/templates/plan-template.md         aligned
-      (Constitution Check is dynamically populated at plan time)
-    - .specify/templates/spec-template.md          aligned
-      (BDD/EARS style aligns with principles XVIII-XIX)
-    - .specify/templates/tasks-template.md         aligned
-      (Phase structure compatible with all principles)
-    - .specify/templates/checklist-template.md     aligned
-  Follow-up TODOs: None
+  Source: the EVE Fabric Overhaul architecture review (1 Oct 2026).
+  Templates requiring updates: none (plan, spec and tasks templates read
+  principles by number; numbers I to XXVI are unchanged).
 -->
 
 # EVE Schema Gateway Constitution
@@ -168,6 +159,16 @@ Infrastructure contains adapters for:
 
 Every executable building block MUST be represented as a capability.
 
+A capability MUST be one module that holds both its contract and the
+`run` function that implements it. A contract without a `run` MUST NOT
+register (FAB-VAL-01). No capability is implemented by looking up its id
+in a table held somewhere else.
+
+A capability's source (ESI, SDE or DERIVED) MUST be inferred from what
+it declares it `uses` (`esi.public`, `esi:<scope>`, `sde`, or nothing),
+not declared by hand. The same declaration types the context its `run`
+receives, so a capability that did not declare `sde` cannot reach it.
+
 A capability MUST declare:
 
 - Stable identifier
@@ -175,7 +176,7 @@ A capability MUST declare:
 - Semantic description
 - Inputs and outputs
 - Semantic input and output types
-- Source classification
+- What it uses (from which its source classification is derived)
 - Dependencies
 - Authentication requirements
 - Cache policy
@@ -197,7 +198,7 @@ inputs:
 outputs:
   orders:
     type: MarketOrderCollection
-source: ESI
+uses: [esi.public] # source ESI, no scope, inferred
 requires:
   - universe.resolveRegion
   - universe.resolveType
@@ -251,8 +252,10 @@ Higher-Level Capability
 Published GraphQL Schema
 ```
 
-The runtime MUST prevent cyclic dependency graphs unless a future
-explicit iteration construct is introduced.
+The runtime MUST prevent cyclic dependency graphs. The one iteration
+construct is a per-item map: a step that runs once per item of a list,
+with ids deduplicated, a stated cap, and the call count reported by the
+plan before anything runs. It is a map, never a loop.
 
 Pipeline composition MUST be deterministic.
 
@@ -319,6 +322,15 @@ schema-package/
 
 The exact serialization format MAY evolve, but the logical
 separation MUST remain.
+
+Package format v2 is the **weave**: a pipeline, the contract it
+provides, the capability version ranges it requires, the scopes the
+compiler computed for it, the ESI compatibility date and SDE build it
+was verified against, and a digest over its canonical form. A weave is
+data and MUST NOT carry code. Code is shared as a **pack**, an npm
+package of capabilities installed by whoever operates the fabric. A
+weave that does not compile against the local catalog MUST be refused
+whole (FAB-VAL-08).
 
 ### X. Schema Compiler
 
@@ -424,6 +436,10 @@ SDE-derived immutable or release-bound data SHOULD be aggressively
 cacheable.
 
 ESI cache headers SHOULD be respected.
+
+For ESI steps the fabric MUST defer to ESI.ts's own cache, rate
+limiter, retry and circuit breaker, and MUST NOT add a second TTL cache
+of its own over them. Fabric caching applies to SDE and DERIVED steps.
 
 ### XV. Authentication and Authorization
 
@@ -626,6 +642,60 @@ A feature is complete only when:
 - TypeScript strict compilation passes
 - Linting passes
 
+## Runtime and Construction
+
+### XXVII. Runtime Baseline
+
+The fabric MUST run on Node.js 22.12 or later, the baseline of
+`@lgriffin/esi.ts` 11. CI MUST test the baseline and the current LTS.
+Node 18 and 20 are end of life and are not supported.
+
+### XXVIII. Valid by Construction
+
+Nothing that fails to compile may be built, registered or imported, and
+anything that compiles MUST have code behind every step. Three gates hold
+this:
+
+- **Catalog gate**: a capability registers only with a `run`, with every
+  port type known, and with a resolver for every reference type it emits.
+- **Construction gate**: a draft changes only through moves the engine
+  offered. A draft is complete or has typed holes; there is no third
+  state.
+- **Publish and import gate**: only a complete draft becomes a field, a
+  weave or a saved query.
+
+The compiler is the oracle: a move is offered when applying it yields a
+pipeline that compiles, or fails only with `MISSING_INPUT` diagnostics,
+which are the draft's holes. There is one rule set.
+
+This cannot promise that execution succeeds. ESI can be down and an
+order can vanish between calls; those arrive as typed errors on the node
+that failed, with the rest of the result intact.
+
+## Requirements Register
+
+Each requirement has an id, the mechanism that enforces it, and a
+status. A requirement is **Enforced** only when its mechanism runs in
+CI. Statuses move forward as the overhaul phases land.
+
+| Id          | Requirement                                                                                                                           | Enforced by                                        | Status            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------- |
+| FAB-ARCH-01 | The core (`packages/domain`) imports `zod` and nothing else.                                                                          | `pnpm run lint:layers`                             | Enforced          |
+| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package, capability-sdk) never imports a source adapter. | `pnpm run lint:layers`                             | Enforced          |
+| FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts`.                                                                 | `pnpm run lint:layers`                             | Enforced          |
+| FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                             | `pnpm run lint:determinism` (shrink-only baseline) | Enforced          |
+| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                            | `engines`, CI matrix 22 and 24                     | Enforced          |
+| FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                        | gateway runtime tests                              | Enforced          |
+| FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                 | `pnpm run test:bank`                               | Enforced          |
+| FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                        | catalog tests                                      | Planned (phase 2) |
+| FAB-VAL-02  | The engine shall offer a move only if applying it yields a draft that compiles once its holes are filled.                             | property test over random walks                    | Planned (phase 4) |
+| FAB-VAL-03  | If a move is applied that the engine did not offer for that draft, then the draft shall reject it and remain unchanged.               | draft tests                                        | Planned (phase 4) |
+| FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                  | draft tests                                        | Planned (phase 4) |
+| FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.             | schema derivation tests                            | Planned (phase 7) |
+| FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                        | GraphQL round-trip tests                           | Planned (phase 7) |
+| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.             | bank Q6                                            | Planned (phase 6) |
+| FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                     | bank Q8                                            | Planned (phase 8) |
+
 ## Governance
 
 When a design choice conflicts with this constitution, the
@@ -659,4 +729,4 @@ All pull requests and code reviews MUST verify compliance with
 this constitution. Complexity MUST be justified against these
 principles.
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-08-19
+**Version**: 2.0.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-01

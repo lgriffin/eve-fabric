@@ -16,7 +16,7 @@ Auto-generated from all feature plans. Last updated: 2026-08-20
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand (state management), Fastify (gateway), Zod (validation) (002-visual-pipeline-designer)
 - Gateway API persistence (YAML pipeline definitions via POST/GET endpoints) (002-visual-pipeline-designer)
 
-- TypeScript 5.x (strict mode), Node.js 20 LTS + ESI.ts (@lgriffin/esi.ts@9.6.0), Fastify, (001-schema-gateway-mvp)
+- TypeScript 5.x (strict mode), Node.js 22.12+ + ESI.ts (@lgriffin/esi.ts@11.1.1), Fastify, (001-schema-gateway-mvp)
 
 ## Project Structure
 
@@ -47,6 +47,9 @@ packages/
 - `pnpm run coverage` — run tests with coverage thresholds (branches 80%, functions 75%, lines 90%, statements 90%)
 - `pnpm run lint` — ESLint 9 flat config with typescript-eslint type-checked rules, eslint-plugin-security, eslint-plugin-sonarjs
 - `pnpm run lint:fix` — auto-fix lint issues
+- `pnpm run lint:layers` — package layering (core imports only zod; the engine never imports a source); shrink-only baseline in `scripts/baselines/layers.json`
+- `pnpm run lint:determinism` — time is read only through the `Clock` port; shrink-only baseline in `scripts/baselines/determinism.json`
+- `pnpm run test:bank` — the question bank (`bank/features`): prints "bank: N of 8"; `--update` records newly passing questions
 - `pnpm run format` / `pnpm run format:check` — Prettier
 - `pnpm run typecheck` — TypeScript type checking across all packages
 - `pnpm run knip` — dead code detection

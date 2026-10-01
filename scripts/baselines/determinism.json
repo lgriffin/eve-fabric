@@ -1,0 +1,10 @@
+{
+  "apps/designer/src/components/palette/CapabilityPalette.tsx": [
+    "const id = `${capability.id}-${Date.now()}`;",
+    "position: { x: 250 + Math.random() * 200, y: 100 + Math.random() * 200 },",
+    "position: { x: 250 + Math.random() * 200, y: 100 + Math.random() * 200 },"
+  ],
+  "apps/designer/src/hooks/useExecutor.ts": ["const sessionId = `exec-${Date.now()}`;"],
+  "apps/designer/src/stores/toast-store.ts": ["createdAt: Date.now(),"],
+  "apps/gateway/src/routes/pipeline-routes.ts": ["const savedAt = new Date().toISOString();"]
+}
