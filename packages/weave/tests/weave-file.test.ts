@@ -44,6 +44,17 @@ describe('a weave file', () => {
     expect(() => readWeave({ ...leaky, digest })).toThrow(WeaveSecretError);
   });
 
+  it('refuses a field the format does not have, even one its digest would not cover', () => {
+    const data = parse(weaveToYaml(sealWeave(body))) as Record<string, unknown>;
+    const appended = { ...data, notes: 'token: abcdefghijklmnopqrstuvwxyz012345' };
+    expect(() => readWeave(appended)).toThrow(/notes: not a field of a weave/);
+    const pipelineExtra = {
+      ...data,
+      pipeline: { ...(data['pipeline'] as object), secret: 'x' },
+    };
+    expect(() => readWeave(pipelineExtra)).toThrow(/pipeline\.secret/);
+  });
+
   it.each([
     ['another format', { format: 1 }],
     ['an id that is not dot-notation', { id: 'Spread' }],

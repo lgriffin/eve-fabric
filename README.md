@@ -331,9 +331,12 @@ other.draft({ type: 'Pyerite' }).apply('trade opportunity');
 `pnpm run weaves:check` fails when a fresh export differs by a byte. A fabric
 given an index adds a weave by name, `await fabric.add('lgriffin.trade.opportunity@^1')`,
 and `gitIndex(url)` reads a remote repository the same way. Given a `store`,
-a fabric keeps what it adds and `restore()` brings it back after a restart;
-the gateway uses SQLite at `FABRIC_DB` and an index at `FABRIC_WEAVE_INDEX`,
-and serves `/api/weaves` to add, list and export them.
+a fabric keeps what it adds and `restore()` brings it back after a restart,
+skipping (and naming) any that no longer add; `remove(id, version)` takes one
+back unless another is built on it. A changed weave needs a new version. The
+gateway uses SQLite at `FABRIC_DB` and an index at `FABRIC_WEAVE_INDEX`, logs
+the weaves a restart skipped, and serves `/api/weaves` to add, list, export
+and remove them (`DELETE /api/weaves/:id?version=x.y.z`).
 
 ### Provenance Tracking
 

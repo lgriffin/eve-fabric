@@ -123,10 +123,34 @@ export function sealWeave(body: WeaveBody): WeaveFile {
   return { ...normal, digest: digestOf(normal) };
 }
 
-/** Reads a weave from parsed data, and checks its shape, its digest and that it holds no secret. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/** Paths in `given` that reading it dropped: fields the format does not have. */
+function extraFields(given: unknown, read: unknown, path = ''): string[] {
+  const at = (key: string | number) => (path === '' ? String(key) : `${path}.${key}`);
+  if (Array.isArray(given) && Array.isArray(read)) {
+    return given.flatMap((item, i) => extraFields(item, read[i], at(i)));
+  }
+  if (!isRecord(given) || !isRecord(read)) return [];
+  return Object.keys(given).flatMap((key) =>
+    key in read ? extraFields(given[key], read[key], at(key)) : [at(key)],
+  );
+}
+
+/**
+ * Reads a weave from parsed data, and checks its shape, its digest and that
+ * it holds no secret. A field the format does not have is refused rather
+ * than dropped, so nothing in the file escapes the digest or the scan.
+ */
 export function readWeave(data: unknown): WeaveFile {
   const parsed = weaveFileSchema.safeParse(data);
   if (!parsed.success) throw new WeaveFormatError(describeIssues(parsed.error));
+  const extra = extraFields(data, parsed.data);
+  if (extra.length > 0) {
+    throw new WeaveFormatError(`${extra.join(', ')}: not a field of a weave`);
+  }
   const file = parsed.data as unknown as WeaveFile;
   const actual = digestOf(file);
   if (actual !== file.digest) throw new WeaveDigestError(file.digest, actual);

@@ -6,6 +6,7 @@ export {
   TypeConflictError,
   type FabricOptions,
   type PublishCompositeOptions,
+  type RestoreResult,
 } from './fabric.js';
 export { ResolverMissingError } from '@eve-fabric/core';
 export { ScopeMissingError } from '@eve-fabric/executor';

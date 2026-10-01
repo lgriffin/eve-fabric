@@ -1,26 +1,26 @@
-import type { SQLInputValue } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
+import type { DatabaseSync, SQLInputValue } from 'node:sqlite';
 import { and, eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/sqlite-proxy';
+import { migrate } from 'drizzle-orm/sqlite-proxy/migrator';
 import type { Store } from '@eve-fabric/core';
-import { weaves } from './schema.js';
+import { weaves } from './store-schema.js';
 
-const CREATE = `CREATE TABLE IF NOT EXISTS weaves (
-  id TEXT NOT NULL,
-  version TEXT NOT NULL,
-  digest TEXT NOT NULL,
-  document TEXT NOT NULL,
-  PRIMARY KEY (id, version)
-)`;
+/** The Store's Drizzle migrations, generated from store-schema.ts by drizzle-kit. */
+const MIGRATIONS = fileURLToPath(new URL('../drizzle', import.meta.url));
 
 /**
- * The Store port over SQLite, through Drizzle. Uses Node's own `node:sqlite`,
- * so there is no native module to build. `path` is a file, or `:memory:`.
+ * The Store port over SQLite, through Drizzle; its tables come from Drizzle
+ * migrations. Uses Node's own `node:sqlite`, so there is no native module to
+ * build. `source` is a file, `:memory:`, or a database already open, which
+ * is left open on close.
  */
-export function sqliteStore(path: string): Store & { close(): void } {
+export function sqliteStore(source: string | DatabaseSync): Store & { close(): void } {
   // Loaded at run time: bundlers and test runners do not all know node:sqlite yet.
-  const { DatabaseSync } = process.getBuiltinModule('node:sqlite');
-  const database = new DatabaseSync(path);
-  database.exec(CREATE);
+  const database =
+    typeof source === 'string'
+      ? new (process.getBuiltinModule('node:sqlite').DatabaseSync)(source)
+      : source;
   const db = drizzle((sql, params, method) => {
     const statement = database.prepare(sql);
     const args = params as SQLInputValue[];
@@ -32,9 +32,20 @@ export function sqliteStore(path: string): Store & { close(): void } {
     const rows = statement.all(...args).map((row) => Object.values(row));
     return Promise.resolve({ rows: method === 'get' ? (rows[0] ?? []) : rows });
   });
+  const ready = migrate(
+    db,
+    (queries) => {
+      for (const query of queries) database.exec(query);
+      return Promise.resolve();
+    },
+    { migrationsFolder: MIGRATIONS },
+  );
+  // A failed migration is reported by the first call that waits on it.
+  ready.catch(() => undefined);
 
   return {
     async putWeave(weave) {
+      await ready;
       await db
         .insert(weaves)
         .values(weave)
@@ -44,13 +55,15 @@ export function sqliteStore(path: string): Store & { close(): void } {
         });
     },
     async listWeaves() {
+      await ready;
       return db.select().from(weaves).orderBy(weaves.id, weaves.version);
     },
     async removeWeave(id, version) {
+      await ready;
       await db.delete(weaves).where(and(eq(weaves.id, id), eq(weaves.version, version)));
     },
     close() {
-      database.close();
+      if (typeof source === 'string') database.close();
     },
   };
 }

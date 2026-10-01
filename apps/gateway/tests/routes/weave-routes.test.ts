@@ -92,6 +92,67 @@ describe('Weave routes', () => {
     expect(empty.statusCode).toBe(400);
   });
 
+  it.each([
+    ['a null body', 'POST', '/api/weaves', null],
+    ['a document that is not text', 'POST', '/api/weaves', { document: 7 }],
+    ['a null draft body', 'POST', '/api/drafts/weave', null],
+    ['a draft with no weave', 'POST', '/api/drafts/weave', Q3],
+    [
+      'a weave id that is not one',
+      'POST',
+      '/api/drafts/weave',
+      { ...Q3, weave: { ...WEAVE, id: 'X' } },
+    ],
+    ['a malformed id', 'GET', '/api/weaves/NOT%20AN%20ID', undefined],
+    ['a malformed version', 'GET', `/api/weaves/${WEAVE.id}?version=latest`, undefined],
+    ['a removal with no version', 'DELETE', `/api/weaves/${WEAVE.id}`, undefined],
+  ] as const)('answers 400 to %s', async (_case, method, url, payload) => {
+    const response = await importer.inject({
+      method,
+      url,
+      ...(payload === undefined
+        ? {}
+        : { payload: JSON.stringify(payload), headers: { 'content-type': 'application/json' } }),
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('BAD_REQUEST');
+  });
+
+  it('refuses a changed weave under a version already added, and removes one', async () => {
+    const fabric = tranquilityFabric();
+    const app = await serve(fabric);
+    const exported = await exporter.inject({
+      method: 'POST',
+      url: '/api/drafts/weave',
+      payload: { ...Q3, weave: { ...WEAVE, id: 'someone.removable' } },
+    });
+    const added = await app.inject({
+      method: 'POST',
+      url: '/api/weaves',
+      payload: { document: exported.body },
+    });
+    expect(added.statusCode).toBe(201);
+    const changed = await exporter.inject({
+      method: 'POST',
+      url: '/api/drafts/weave',
+      payload: { ...Q3, weave: { ...WEAVE, id: 'someone.removable', name: 'Changed' } },
+    });
+    const again = await app.inject({
+      method: 'POST',
+      url: '/api/weaves',
+      payload: { document: changed.body },
+    });
+    expect(again.statusCode).toBe(422);
+    expect(again.json().error.code).toBe('WeaveRefusedError');
+    const url = '/api/weaves/someone.removable?version=1.0.0';
+    expect((await app.inject({ method: 'DELETE', url })).statusCode).toBe(204);
+    expect((await app.inject({ method: 'DELETE', url })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'GET', url: '/api/weaves' })).json()).toEqual({
+      weaves: [],
+    });
+    await app.close();
+  });
+
   it('names what it cannot export', async () => {
     const missing = await exporter.inject({ method: 'GET', url: '/api/weaves/no.such.weave' });
     expect(missing.statusCode).toBe(404);

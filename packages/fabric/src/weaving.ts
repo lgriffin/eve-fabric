@@ -129,8 +129,16 @@ export function weaveFromDraft(
     ...pipeline.inputs.filter((i) => !typed.has(i.name)),
     ...[...lookups].map(([node, l]) => ({ name: node, semanticType: l.type, required: true })),
   ];
-  const subject = draft.origin.split('.')[0]!;
-  const reference = types.get(lookups.get(subject)?.type ?? '');
+  // The subject is a typed name the draft looked up, or the input it was started at.
+  const [originNode, originPort] = draft.origin.split('.');
+  const started =
+    originNode === 'input' ? pipeline.inputs.find((i) => i.name === originPort) : undefined;
+  const subject = started?.name ?? originNode!;
+  const subjectType = lookups.get(subject)?.type ?? started?.semanticType;
+  if (subjectType === undefined) {
+    throw new WeaveRefusedError(`A weave cannot start from ${draft.origin}`);
+  }
+  const reference = types.get(subjectType);
   const attach =
     options.as === undefined || reference.kind !== 'reference'
       ? undefined

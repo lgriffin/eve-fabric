@@ -1,27 +1,45 @@
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, sep } from 'node:path';
 import { promisify } from 'node:util';
+import { z } from 'zod';
 import { highestSatisfying } from './range.js';
-import { WEAVE_FORMAT, weaveFromYaml, weaveToYaml, type WeaveFile } from './weave-file.js';
+import {
+  WEAVE_FORMAT,
+  WeaveFormatError,
+  weaveFromYaml,
+  weaveToYaml,
+  type WeaveFile,
+} from './weave-file.js';
 
 const INDEX_FILE = 'index.json';
 const WEAVE_FILE = 'weave.yaml';
 
+const indexEntrySchema = z.object({
+  /** Relative to the index, and inside it. */
+  path: z
+    .string()
+    .min(1)
+    .refine(
+      (p) => !isAbsolute(p) && !p.split(/[\\/]/).includes('..'),
+      'Must stay inside the index',
+    ),
+  digest: z.string(),
+  name: z.string(),
+  description: z.string(),
+});
+
+const indexDocumentSchema = z.object({
+  format: z.literal(WEAVE_FORMAT),
+  weaves: z.record(z.string(), z.record(z.string(), indexEntrySchema)),
+});
+
 /** One weave version, as the index lists it. */
-export interface IndexEntry {
-  readonly path: string;
-  readonly digest: string;
-  readonly name: string;
-  readonly description: string;
-}
+export type IndexEntry = z.infer<typeof indexEntrySchema>;
 
 /** The generated index.json: every weave id, every version of it. */
-export interface IndexDocument {
-  readonly format: typeof WEAVE_FORMAT;
-  readonly weaves: Readonly<Record<string, Readonly<Record<string, IndexEntry>>>>;
-}
+export type IndexDocument = z.infer<typeof indexDocumentSchema>;
 
 /** Where weaves are found by id and version range. */
 export interface WeaveIndex {
@@ -43,7 +61,29 @@ function splitRef(ref: string): { readonly id: string; readonly range: string } 
 }
 
 async function readIndex(root: string): Promise<IndexDocument> {
-  return JSON.parse(await readFile(join(root, INDEX_FILE), 'utf8')) as IndexDocument;
+  let data: unknown;
+  try {
+    data = JSON.parse(await readFile(join(root, INDEX_FILE), 'utf8'));
+  } catch (error) {
+    throw new WeaveFormatError(`${INDEX_FILE} is not JSON: ${(error as Error).message}`);
+  }
+  const parsed = indexDocumentSchema.safeParse(data);
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`);
+    throw new WeaveFormatError(`${INDEX_FILE} is not a weave index: ${issues.join('; ')}`);
+  }
+  return parsed.data;
+}
+
+/** The entry's file, refused if it (or a link on the way) leads out of the index. */
+async function inside(root: string, path: string): Promise<string> {
+  const base = await realpath(root);
+  const file = await realpath(join(base, path));
+  const rel = relative(base, file);
+  if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    throw new WeaveFormatError(`${path} leads outside the index`);
+  }
+  return file;
 }
 
 /** A directory of weaves, such as a git checkout: one directory per weave, one index.json. */
@@ -55,7 +95,7 @@ export function directoryIndex(root: string): WeaveIndex {
       const version = highestSatisfying(Object.keys(versions), range);
       if (version === undefined) throw new WeaveNotFoundError(ref);
       const entry = versions[version]!;
-      const file = weaveFromYaml(await readFile(join(root, entry.path), 'utf8'));
+      const file = weaveFromYaml(await readFile(await inside(root, entry.path), 'utf8'));
       // The index and the file must agree on what was published.
       if (file.digest !== entry.digest || file.id !== id || file.version !== version) {
         throw new WeaveNotFoundError(`${ref} (the index and ${entry.path} disagree)`);

@@ -35,6 +35,7 @@ import {
   weaveFromYaml,
   weaveToYaml,
   type WeaveFile,
+  WeaveNotFoundError,
   type WeaveIndex,
 } from '@eve-fabric/weave';
 import { createEsiSource } from '@eve-fabric/source-esi';
@@ -138,6 +139,19 @@ function asStaticSource(value: IStaticDataProvider | StaticSource): StaticSource
   return isStaticSource(value) ? value : createStaticSource(value);
 }
 
+/** What {@link Fabric.restore} brought back, and what it could not, with why. */
+export interface RestoreResult {
+  readonly restored: number;
+  readonly skipped: readonly {
+    readonly id: string;
+    readonly version: string;
+    readonly error: Error;
+  }[];
+}
+
+const keyOf = (weave: { readonly id: string; readonly version: string }): string =>
+  `${weave.id}@${weave.version}`;
+
 /**
  * The composition root as a library: sources and packs in, a fabric out.
  * The gateway, the designer's back end and any CLI are transports over this.
@@ -220,6 +234,7 @@ export class Fabric implements DraftHost {
 
   /** Takes back a capability an install added: its entry, its edges, and a weave's pipeline. */
   private withdraw(capability: CapabilityDefinition): void {
+    this.derived = undefined;
     this.catalog.unregister(capability.id, capability.version);
     const graph = this.registry.getGraph();
     const ref = { id: capability.id, version: capability.version };
@@ -474,16 +489,49 @@ export class Fabric implements DraftHost {
     });
   }
 
-  /** Adds back every weave the store kept. Returns how many came back. */
-  async restore(): Promise<number> {
-    let pending = (await this.store?.listWeaves()) ?? [];
+  /**
+   * Takes back a weave added here, and forgets it in the store. Refused while
+   * another capability is built on it.
+   */
+  async remove(id: string, version: string): Promise<void> {
+    const key = `${id}@${version}`;
+    if (!this.added.has(key)) throw new WeaveNotFoundError(key);
+    const capability = this.catalog.get(capabilityId(id), capabilityVersion(version));
+    const dependents = this.registry.getDependents({
+      id: capability.id,
+      version: capability.version,
+    });
+    if (dependents.length > 0) {
+      const names = dependents.map((d) => `${d.id}@${String(d.version)}`).join(', ');
+      throw new WeaveRefusedError(`"${key}" cannot be removed: ${names} is built on it`);
+    }
+    await this.store?.removeWeave(id, version);
+    this.withdraw(capability);
+    this.added.delete(key);
+  }
+
+  /**
+   * Adds back every weave the store kept, as many as can be added here. One
+   * that cannot (a capability it requires is gone, or it no longer compiles
+   * to what it declares) is skipped, with why, rather than stopping the rest.
+   */
+  async restore(): Promise<RestoreResult> {
+    const kept = (await this.store?.listWeaves()) ?? [];
+    const failed = new Map<string, Error>();
+    let pending = kept.filter((stored) => this.added.get(keyOf(stored)) !== stored.digest);
     // A weave may require another; add what can be added until nothing changes.
     for (;;) {
       const left = pending.filter((stored) => {
         try {
+          const key = keyOf(stored);
+          if (this.added.has(key)) {
+            throw new WeaveRefusedError(`"${key}" is already here with another digest`);
+          }
           this.take(weaveFromYaml(stored.document));
+          failed.delete(key);
           return false;
-        } catch {
+        } catch (error) {
+          failed.set(keyOf(stored), error instanceof Error ? error : new Error(String(error)));
           return true;
         }
       });
@@ -491,9 +539,14 @@ export class Fabric implements DraftHost {
       pending = left;
       if (pending.length === 0 || stuck) break;
     }
-    // What is left cannot be added here; say why for the first of it.
-    if (pending.length > 0) this.take(weaveFromYaml(pending[0]!.document));
-    return this.added.size;
+    return {
+      restored: kept.length - pending.length,
+      skipped: pending.map((stored) => ({
+        id: stored.id,
+        version: stored.version,
+        error: failed.get(keyOf(stored))!,
+      })),
+    };
   }
 
   private async weaveFile(
@@ -512,6 +565,13 @@ export class Fabric implements DraftHost {
   private take(file: WeaveFile): CapabilityDefinition {
     if (file.id.startsWith('eve.')) {
       throw new WeaveRefusedError(`"${file.id}": eve.* is reserved for ${CORE_PACK_ID}`);
+    }
+    const key = `${file.id}@${file.version}`;
+    if (
+      this.added.has(key) ||
+      this.catalog.has(capabilityId(file.id), capabilityVersion(file.version))
+    ) {
+      throw new WeaveRefusedError(`"${key}" is already here; a changed weave needs a new version`);
     }
     const weave = localWeave(file, this.catalog);
     const compiled = this.compile(weave.pipeline);

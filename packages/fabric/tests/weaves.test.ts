@@ -12,10 +12,12 @@ import {
   weaveToYaml,
   WeaveDigestError,
   type WeaveBody,
+  WeaveNotFoundError,
   type WeaveFile,
 } from '@eve-fabric/weave';
 import {
   createFabric,
+  Draft,
   DraftIncompleteError,
   PublishRefusedError,
   WeaveMismatchError,
@@ -204,6 +206,29 @@ describe('making a weave', () => {
     );
   });
 
+  it('weaves a draft started at a type rather than a name', async () => {
+    const fabric = tranquilityFabric();
+    const item = fabric.draft({ type: 'Tritanium' }).cursor.type;
+    const typed = Draft.at(fabric, item)
+      .apply('trade profit after tax')
+      .fill('from', 'The Forge')
+      .fill('to', 'Domain');
+    const file = fabric.export(fabric.weave(typed, OPPORTUNITY));
+    expect(file.provides.attach).toEqual({
+      on: expect.any(String),
+      as: 'trade opportunity',
+      subject: 'value',
+    });
+    const other = tranquilityFabric();
+    await other.add(file);
+    expect(
+      other
+        .draft({ type: 'Pyerite' })
+        .moves()
+        .map((m) => m.name),
+    ).toContain('trade opportunity');
+  });
+
   it('hangs nowhere without a move name', () => {
     const fabric = tranquilityFabric();
     const q3 = fabric
@@ -239,7 +264,7 @@ describe('weaves kept in a store', () => {
       listWeaves: async () => [...(await store.listWeaves())].reverse(),
     };
     const restarted = tranquilityFabric(reversed);
-    expect(await restarted.restore()).toBe(2);
+    expect(await restarted.restore()).toEqual({ restored: 2, skipped: [] });
     expect(
       restarted
         .draft({ type: 'Pyerite' })
@@ -248,12 +273,60 @@ describe('weaves kept in a store', () => {
     ).toEqual(expect.arrayContaining(['trade opportunity', 'resale']));
   });
 
-  it('says why when a kept weave can no longer be added', async () => {
+  it('skips, with why, a kept weave that can no longer be added, and adds the rest', async () => {
     const store = memoryStore();
     await tranquilityFabric(store).add(exportedQ3());
     const bare = createFabric({ store });
-    await expect(bare.restore()).rejects.toThrow(WeaveRequirementError);
-    expect(await createFabric().restore()).toBe(0);
+    const { restored, skipped } = await bare.restore();
+    expect(restored).toBe(0);
+    expect(skipped).toEqual([
+      { id: OPPORTUNITY.id, version: '1.0.0', error: expect.any(WeaveRequirementError) },
+    ]);
+    expect(await createFabric().restore()).toEqual({ restored: 0, skipped: [] });
+  });
+
+  it('restores twice without adding anything twice', async () => {
+    const store = memoryStore();
+    await tranquilityFabric(store).add(exportedQ3());
+    const restarted = tranquilityFabric(store);
+    expect(await restarted.restore()).toEqual({ restored: 1, skipped: [] });
+    expect(await restarted.restore()).toEqual({ restored: 1, skipped: [] });
+    expect(restarted.weaves()).toHaveLength(1);
+  });
+
+  it('refuses a changed weave under a version already here', async () => {
+    const fabric = tranquilityFabric();
+    const file = exportedQ3();
+    await fabric.add(file);
+    await expect(fabric.add(resealed(file, { name: 'Changed' }))).rejects.toThrow(
+      /already here; a changed weave needs a new version/,
+    );
+  });
+
+  it('removes a weave, from the fabric and the store, unless one is built on it', async () => {
+    const store = memoryStore();
+    const fabric = tranquilityFabric(store);
+    await fabric.add(exportedQ3());
+    const q8 = fabric
+      .draft({ type: 'Pyerite' })
+      .apply('trade opportunity')
+      .fill('from', 'The Forge')
+      .fill('to', 'Domain');
+    await fabric.add(
+      fabric.export(fabric.weave(q8, { id: 'someone.resale', version: '1.0.0', as: 'resale' })),
+    );
+    await expect(fabric.remove(OPPORTUNITY.id, '1.0.0')).rejects.toThrow(/someone\.resale/);
+    await fabric.remove('someone.resale', '1.0.0');
+    await fabric.remove(OPPORTUNITY.id, '1.0.0');
+    expect(fabric.weaves()).toEqual([]);
+    expect(await store.listWeaves()).toEqual([]);
+    expect(
+      fabric
+        .draft({ type: 'Pyerite' })
+        .moves()
+        .map((m) => m.name),
+    ).not.toContain('trade opportunity');
+    await expect(fabric.remove(OPPORTUNITY.id, '1.0.0')).rejects.toThrow(WeaveNotFoundError);
   });
 
   it('adds nothing when the store cannot keep it', async () => {

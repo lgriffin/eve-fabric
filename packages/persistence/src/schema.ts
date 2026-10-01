@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
 /**
  * Drizzle ORM schema definitions for eve-fabric persistence.
@@ -69,14 +69,4 @@ export const versions = sqliteTable('versions', {
   createdAt: text('created_at').notNull(),
 });
 
-/** Weaves a fabric was given, kept as the document that was added. */
-export const weaves = sqliteTable(
-  'weaves',
-  {
-    id: text('id').notNull(),
-    version: text('version').notNull(),
-    digest: text('digest').notNull(),
-    document: text('document').notNull(),
-  },
-  (table) => ({ pk: primaryKey({ columns: [table.id, table.version] }) }),
-);
+export { weaves } from './store-schema.js';

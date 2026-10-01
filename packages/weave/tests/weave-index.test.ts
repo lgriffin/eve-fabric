@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -9,6 +9,7 @@ import {
   gitIndex,
   publishWeave,
   sealWeave,
+  WeaveFormatError,
   WeaveNotFoundError,
 } from '../src/index.js';
 import { body } from './fixtures.js';
@@ -47,6 +48,40 @@ describe('a directory of weaves as the index', () => {
     await buildIndex(root);
     expect((await directoryIndex(root).resolve('someone.spread')).description).toBe(
       'Something else',
+    );
+  });
+
+  it('refuses an index.json that is not an index', async () => {
+    const root = scratch();
+    for (const text of ['not json', '{"format":2}', '{"format":2,"weaves":{"a.b":{"1.0.0":{}}}}']) {
+      writeFileSync(join(root, 'index.json'), text);
+      await expect(directoryIndex(root).resolve('a.b')).rejects.toThrow(WeaveFormatError);
+    }
+  });
+
+  it('refuses an entry that leads outside the index, by path or by link', async () => {
+    const outside = scratch();
+    const elsewhere = await publishWeave(outside, sealWeave(body));
+    const entry = (path: string) => ({
+      format: 2,
+      weaves: {
+        'someone.spread': {
+          '1.0.0': { path, digest: sealWeave(body).digest, name: 'n', description: 'd' },
+        },
+      },
+    });
+    const root = scratch();
+    for (const path of ['../x/weave.yaml', elsewhere]) {
+      writeFileSync(join(root, 'index.json'), JSON.stringify(entry(path)));
+      await expect(directoryIndex(root).resolve('someone.spread')).rejects.toThrow(
+        /inside the index/,
+      );
+    }
+    mkdirSync(join(root, 'linked'));
+    symlinkSync(elsewhere, join(root, 'linked', 'weave.yaml'));
+    writeFileSync(join(root, 'index.json'), JSON.stringify(entry('linked/weave.yaml')));
+    await expect(directoryIndex(root).resolve('someone.spread')).rejects.toThrow(
+      /outside the index/,
     );
   });
 

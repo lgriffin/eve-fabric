@@ -2,7 +2,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
-import type { StaticSource } from '@eve-fabric/core';
+import type { StaticSource, Store } from '@eve-fabric/core';
 import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
@@ -26,6 +26,8 @@ export interface ServerOptions {
   /** ESI.ts's runtime; tests pass one over a mock transport. */
   readonly esi?: Esi | undefined;
   readonly sde?: StaticSource | undefined;
+  /** Where added weaves are kept; by default the SQLite file FABRIC_DB names, or none. */
+  readonly store?: Store | undefined;
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
@@ -38,6 +40,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     esi: options?.esi,
     sde: options?.sde,
     sdeDataPath: options?.sdeDataPath,
+    store: options?.store,
   });
 
   const useCustomSchema = options?.schema !== undefined || options?.typeDefs !== undefined;
@@ -102,9 +105,13 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(createPipelineRoutes(runtime));
   void app.register(createDraftRoutes(runtime.fabric));
   void app.register(createWeaveRoutes(runtime.fabric));
-  // Weaves added before a restart come back before the first request.
+  // Weaves added before a restart come back before the first request. One
+  // that no longer adds here is skipped and logged, not a reason to stay down.
   app.addHook('onReady', async () => {
-    await runtime.fabric.restore();
+    const { skipped } = await runtime.fabric.restore();
+    for (const { id, version, error } of skipped) {
+      app.log.warn({ weave: `${id}@${version}`, err: error }, 'kept weave not restored');
+    }
   });
   void app.register(
     createPublishRoutes(
