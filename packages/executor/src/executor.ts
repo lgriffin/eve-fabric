@@ -6,8 +6,9 @@ import type {
   CachePort,
   ProvenanceRecord,
   CapabilityDefinition,
+  Clock,
 } from '@eve-fabric/domain';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import { CapabilityCatalog, systemClock } from '@eve-fabric/domain';
 import { planExecution } from '@eve-fabric/planner';
 import { aggregateProvenance } from './aggregate-provenance.js';
 
@@ -29,6 +30,7 @@ export interface ExecutorConfig {
   readonly catalog: CapabilityCatalog;
   readonly cache?: CachePort | undefined;
   readonly maxConcurrency?: number | undefined;
+  readonly clock?: Clock | undefined;
 }
 
 const DEFAULT_MAX_CONCURRENCY = 5;
@@ -66,19 +68,21 @@ export class Executor {
   private readonly catalog: CapabilityCatalog;
   private readonly cache: CachePort | undefined;
   private readonly maxConcurrency: number;
+  private readonly clock: Clock;
 
   constructor(config: ExecutorConfig) {
     this.adapters = config.adapters;
     this.catalog = config.catalog;
     this.cache = config.cache;
     this.maxConcurrency = config.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+    this.clock = config.clock ?? systemClock;
   }
 
   async execute(
     plan: ExecutionPlan,
     inputs: ReadonlyMap<string, unknown>,
   ): Promise<ExecutionResult> {
-    const startTime = Date.now();
+    const startTime = this.clock.now();
 
     const planned = planExecution(plan);
 
@@ -179,7 +183,7 @@ export class Executor {
       }
     }
 
-    const totalDurationMs = Date.now() - startTime;
+    const totalDurationMs = this.clock.now() - startTime;
 
     return {
       outputs: stepOutputs,
@@ -205,13 +209,13 @@ export class Executor {
     durationMs: number;
     cacheHit: boolean;
   }> {
-    const stepStart = Date.now();
+    const stepStart = this.clock.now();
 
     // Check cache first
     if (this.cache !== undefined && step.cacheKey !== undefined) {
       const cached = await this.cache.get(step.cacheKey);
       if (cached !== undefined) {
-        const durationMs = Date.now() - stepStart;
+        const durationMs = this.clock.now() - stepStart;
         return {
           data: cached.data,
           provenance: {
@@ -257,7 +261,7 @@ export class Executor {
       await this.cache.set(step.cacheKey, result.data, ttl);
     }
 
-    const durationMs = Date.now() - stepStart;
+    const durationMs = this.clock.now() - stepStart;
 
     let provenance = result.provenance;
     if (source === 'COMPOSITE' || provenance.upstream.length > 0) {

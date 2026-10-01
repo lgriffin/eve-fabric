@@ -1,0 +1,6 @@
+{
+  "apps/designer/src/components/palette/CapabilityPalette.tsx": 3,
+  "apps/designer/src/hooks/useExecutor.ts": 1,
+  "apps/designer/src/stores/toast-store.ts": 1,
+  "apps/gateway/src/routes/pipeline-routes.ts": 1
+}

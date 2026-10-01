@@ -1,4 +1,10 @@
-import type { CapabilityDefinition, SourceAdapter, SourceAdapterResult } from '@eve-fabric/domain';
+import type {
+  CapabilityDefinition,
+  Clock,
+  SourceAdapter,
+  SourceAdapterResult,
+} from '@eve-fabric/domain';
+import { systemClock } from '@eve-fabric/domain';
 
 type DerivedHandler = (inputs: ReadonlyMap<string, unknown>) => unknown;
 
@@ -239,6 +245,11 @@ const handlers: ReadonlyMap<string, DerivedHandler> = new Map<string, DerivedHan
 
 export class DerivedAdapter implements SourceAdapter {
   readonly name = 'DERIVED';
+  private readonly clock: Clock;
+
+  constructor(options?: { readonly clock?: Clock | undefined }) {
+    this.clock = options?.clock ?? systemClock;
+  }
 
   supports(capability: CapabilityDefinition): boolean {
     return capability.source === 'DERIVED' || capability.source === 'COMPOSITE';
@@ -261,7 +272,7 @@ export class DerivedAdapter implements SourceAdapter {
         source: 'DERIVED',
         capability: { id: capability.id, version: capability.version },
         capabilityVersion: capability.version,
-        calculatedAt: new Date(),
+        calculatedAt: new Date(this.clock.now()),
         cached: false,
         upstream: [],
       },

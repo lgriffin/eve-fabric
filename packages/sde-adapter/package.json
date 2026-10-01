@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@eve-fabric/domain": "workspace:*",
-    "@lgriffin/esi.ts": "9.6.0"
+    "@lgriffin/esi.ts": "11.1.1"
   },
   "devDependencies": {
     "typescript": "^5.5.0",

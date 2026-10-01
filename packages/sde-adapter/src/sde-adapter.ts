@@ -1,8 +1,15 @@
-import type { CapabilityDefinition, SourceAdapter, SourceAdapterResult } from '@eve-fabric/domain';
+import type {
+  CapabilityDefinition,
+  Clock,
+  SourceAdapter,
+  SourceAdapterResult,
+} from '@eve-fabric/domain';
+import { systemClock } from '@eve-fabric/domain';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
 export interface SdeAdapterConfig {
   readonly provider: IStaticDataProvider;
+  readonly clock?: Clock;
 }
 
 type SdeHandler = (
@@ -40,10 +47,8 @@ const handlers: ReadonlyMap<string, SdeHandler> = new Map<string, SdeHandler>([
         return { data: result };
       }
       if (typeof query === 'string') {
-        const all = sde.getAllRegions();
-        const match = all.find(
-          (r) => 'regionName' in r && (r as Record<string, unknown>)['regionName'] === query,
-        );
+        const wanted = query.toLowerCase();
+        const match = sde.getAllRegions().find((r) => r.name.toLowerCase() === wanted);
         if (match === undefined) throw new Error(`No region matching "${query}" found in SDE`);
         return { data: match };
       }
@@ -77,9 +82,11 @@ const handlers: ReadonlyMap<string, SdeHandler> = new Map<string, SdeHandler>([
 export class SdeAdapter implements SourceAdapter {
   readonly name = 'SDE';
   private readonly provider: IStaticDataProvider;
+  private readonly clock: Clock;
 
   constructor(config: SdeAdapterConfig) {
     this.provider = config.provider;
+    this.clock = config.clock ?? systemClock;
   }
 
   supports(capability: CapabilityDefinition): boolean {
@@ -103,7 +110,7 @@ export class SdeAdapter implements SourceAdapter {
         source: 'SDE',
         capability: { id: capability.id, version: capability.version },
         capabilityVersion: capability.version,
-        calculatedAt: new Date(),
+        calculatedAt: new Date(this.clock.now()),
         cached: false,
         upstream: [],
       },

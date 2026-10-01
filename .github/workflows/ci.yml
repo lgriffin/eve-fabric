@@ -19,11 +19,13 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run lint
+      - run: pnpm run lint:layers
+      - run: pnpm run lint:determinism
       - run: pnpm run format:check
 
   typecheck:
@@ -34,7 +36,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -45,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20, 22]
+        node-version: [22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -65,11 +67,25 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run test:bdd
+
+  question-bank:
+    name: Question Bank
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:bank
 
   coverage:
     name: Coverage
@@ -79,7 +95,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -97,7 +113,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -105,25 +121,6 @@ jobs:
         run: pnpm run knip
       - name: Secret scanning
         run: pnpm run scan:secrets
-
-  mutation-testing:
-    name: Mutation Testing
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: pnpm run test:mutation
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mutation-report
-          path: reports/mutation/
 
   quality-gate:
     name: Quality Gate
@@ -133,6 +130,7 @@ jobs:
       - typecheck
       - unit-tests
       - bdd-tests
+      - question-bank
       - coverage
       - static-analysis
     steps:

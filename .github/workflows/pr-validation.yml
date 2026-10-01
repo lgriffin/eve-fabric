@@ -21,7 +21,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -29,6 +29,8 @@ jobs:
       - name: Lint & Format
         run: |
           pnpm run lint
+          pnpm run lint:layers
+          pnpm run lint:determinism
           pnpm run format:check
 
       - name: Type Check
@@ -45,7 +47,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
@@ -55,6 +57,9 @@ jobs:
 
       - name: BDD Tests
         run: pnpm run test:bdd
+
+      - name: Question Bank
+        run: pnpm run test:bank
 
       - name: Property Tests
         run: pnpm run test:property
@@ -67,7 +72,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build

@@ -7,6 +7,7 @@
  */
 
 import type { CapabilityCatalog } from '@eve-fabric/domain';
+import { systemClock } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionPlan } from './execution-types.js';
 import type { CompilerDiagnostic } from './diagnostics.js';
@@ -120,7 +121,7 @@ export function compile(
     authRequirements,
     cacheStrategy,
     costEstimate,
-    createdAt: new Date(),
+    createdAt: new Date((options?.clock ?? systemClock).now()),
   };
 
   // Step 10: Suggest intermediates for any semantic mismatches

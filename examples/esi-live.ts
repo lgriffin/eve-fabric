@@ -276,7 +276,11 @@ async function main(): Promise<void> {
   console.log('EVE Fabric — Live ESI + SDE Demo');
   console.log('Combining static game data (SDE) with live market data (ESI)\n');
 
-  const client = new EsiClient();
+  const client = new EsiClient({
+    userAgent:
+      process.env['ESI_USER_AGENT'] ??
+      'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)',
+  });
   const esiAdapter = new EsiAdapter({ client });
   const sdeProvider = await createMemorySdeProvider({
     types: TYPES,

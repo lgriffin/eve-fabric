@@ -57,22 +57,38 @@ class LazySdeAdapter implements SourceAdapter {
   }
 }
 
+/** Thrown when a configured SDE export cannot be loaded. Never replaced by an empty provider. */
+export class SdeLoadError extends Error {
+  constructor(path: string, cause: unknown) {
+    super(
+      `SDE export at "${path}" could not be loaded: ${cause instanceof Error ? cause.message : String(cause)}`,
+      { cause },
+    );
+    this.name = 'SdeLoadError';
+  }
+}
+
 async function createSdeProvider(sdeDataPath?: string): Promise<IStaticDataProvider> {
-  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
-    MemorySdeProvider: new () => IStaticDataProvider;
-  };
   if (sdeDataPath) {
     try {
       const sdeModule = (await import('@lgriffin/esi.ts/sde')) as {
         SdeDataProvider: { fromDirectory: (path: string) => IStaticDataProvider };
       };
       return sdeModule.SdeDataProvider.fromDirectory(sdeDataPath);
-    } catch {
-      return new memoryModule.MemorySdeProvider();
+    } catch (err) {
+      // Constitution XII: a configured source that fails is an error, not an empty source.
+      throw new SdeLoadError(sdeDataPath, err);
     }
   }
+  // No SDE configured: an explicitly empty provider, so every lookup reports "not found".
+  const memoryModule = (await import('@lgriffin/esi.ts/sde/memory')) as {
+    MemorySdeProvider: new () => IStaticDataProvider;
+  };
   return new memoryModule.MemorySdeProvider();
 }
+
+/** Who is calling ESI, as CCP asks every application to say. */
+const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)';
 
 export class GatewayRuntime {
   readonly registry: InMemoryFabricRegistry;
@@ -97,7 +113,9 @@ export class GatewayRuntime {
     this.cache = new MemoryCache();
     this.tokenProvider = config?.tokenProvider ?? new EnvTokenProvider();
 
-    const esiClient = config?.esiClient ?? new EsiClient();
+    const esiClient =
+      config?.esiClient ??
+      new EsiClient({ userAgent: process.env['ESI_USER_AGENT'] ?? DEFAULT_ESI_USER_AGENT });
     this.esiAdapter = new EsiAdapter({ client: esiClient });
     this.derivedAdapter = new DerivedAdapter();
 

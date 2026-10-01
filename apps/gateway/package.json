@@ -22,7 +22,7 @@
     "@eve-fabric/persistence": "workspace:*",
     "@eve-fabric/schema-package": "workspace:*",
     "@eve-fabric/sde-adapter": "workspace:*",
-    "@lgriffin/esi.ts": "9.6.0",
+    "@lgriffin/esi.ts": "11.1.1",
     "fastify": "^5.0.0",
     "fastify-plugin": "^6.0.0",
     "graphql": "^16.9.0",

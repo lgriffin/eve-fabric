@@ -1,9 +1,16 @@
-import type { CapabilityDefinition, SourceAdapter, SourceAdapterResult } from '@eve-fabric/domain';
+import type {
+  CapabilityDefinition,
+  Clock,
+  SourceAdapter,
+  SourceAdapterResult,
+} from '@eve-fabric/domain';
+import { systemClock } from '@eve-fabric/domain';
 import { EsiClient } from '@lgriffin/esi.ts';
 import type { MarketOrder } from '@lgriffin/esi.ts';
 
 export interface EsiAdapterConfig {
   readonly client?: EsiClient;
+  readonly clock?: Clock;
 }
 
 type CapabilityHandler = (
@@ -61,9 +68,11 @@ function resolveNumericInput(inputs: ReadonlyMap<string, unknown>, ...keys: stri
 export class EsiAdapter implements SourceAdapter {
   readonly name = 'ESI';
   private readonly client: EsiClient;
+  private readonly clock: Clock;
 
   constructor(config?: EsiAdapterConfig) {
     this.client = config?.client ?? new EsiClient();
+    this.clock = config?.clock ?? systemClock;
   }
 
   supports(capability: CapabilityDefinition): boolean {
@@ -88,7 +97,7 @@ export class EsiAdapter implements SourceAdapter {
         sourceVersion: result.sourceVersion,
         capability: { id: capability.id, version: capability.version },
         capabilityVersion: capability.version,
-        retrievedAt: new Date(),
+        retrievedAt: new Date(this.clock.now()),
         cached: false,
         upstream: [],
       },

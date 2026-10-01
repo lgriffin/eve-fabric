@@ -4,7 +4,7 @@
   "scripts": {
     "build": "pnpm --filter @eve-fabric/domain run build && pnpm -r run build",
     "test": "vitest run",
-    "test:bdd": "node node_modules/.pnpm/@cucumber+cucumber@11.3.0/node_modules/@cucumber/cucumber/bin/cucumber.js -c cucumber.cjs",
+    "test:bdd": "cucumber-js -c cucumber.cjs",
     "test:watch": "vitest",
     "test:property": "vitest run --reporter=verbose property",
     "coverage": "vitest run --coverage",
@@ -21,13 +21,17 @@
     "benchmark": "tsx scripts/benchmark.ts",
     "demo": "tsx examples/e2e-demo/demo.ts",
     "demo:esi": "tsx examples/esi-live.ts",
-    "validate": "pnpm run lint && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
-    "prepare": "husky"
+    "validate": "pnpm run lint && pnpm run lint:layers && pnpm run lint:determinism && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
+    "prepare": "husky",
+    "lint:layers": "tsx scripts/lint-layers.ts",
+    "lint:determinism": "tsx scripts/lint-determinism.ts",
+    "test:bank": "tsx scripts/question-bank.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.27.0",
     "@commitlint/cli": "^19.0.0",
     "@commitlint/config-conventional": "^19.0.0",
+    "@cucumber/cucumber": "11.3.0",
     "@eslint/js": "^9.0.0",
     "@stryker-mutator/core": "^10.0.0",
     "@stryker-mutator/vitest-runner": "^10.0.0",
@@ -65,6 +69,6 @@
   },
   "packageManager": "pnpm@9.0.0",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.12.0"
   }
 }

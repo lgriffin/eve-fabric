@@ -2,8 +2,8 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.ts"],
-      "project": ["scripts/**/*.ts"],
+      "entry": ["scripts/*.ts", "bank/steps/**/*.ts"],
+      "project": ["scripts/**/*.ts", "bank/**/*.ts"],
       "ignoreDependencies": [
         "@stryker-mutator/api",
         "@eve-fabric/domain",

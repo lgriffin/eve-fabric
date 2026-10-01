@@ -6,7 +6,7 @@
  * inputs have incoming edges wired to them.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
+import type { CapabilityCatalog, Clock } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import { type CompilerDiagnostic, capabilityNotFound, missingInput } from './diagnostics.js';
@@ -22,6 +22,8 @@ import { type CompilerDiagnostic, capabilityNotFound, missingInput } from './dia
  */
 export interface ResolveOptions {
   readonly configuredInputs?: Record<string, Record<string, unknown>>;
+  /** Stamps the plan's createdAt. Defaults to the system clock. */
+  readonly clock?: Clock | undefined;
 }
 
 export function resolveCapabilities(

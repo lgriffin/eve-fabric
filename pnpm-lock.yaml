@@ -20,6 +20,9 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19.0.0
         version: 19.8.1
+      '@cucumber/cucumber':
+        specifier: 11.3.0
+        version: 11.3.0
       '@eslint/js':
         specifier: ^9.0.0
         version: 9.39.5
@@ -160,8 +163,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sde-adapter
       '@lgriffin/esi.ts':
-        specifier: 9.6.0
-        version: 9.6.0
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
       fastify:
         specifier: ^5.0.0
         version: 5.12.1
@@ -277,8 +280,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.6.0
-        version: 9.6.0
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -376,8 +379,8 @@ importers:
         specifier: workspace:*
         version: link:../domain
       '@lgriffin/esi.ts':
-        specifier: 9.6.0
-        version: 9.6.0
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
     devDependencies:
       typescript:
         specifier: ^5.5.0
@@ -1765,13 +1768,19 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
-  '@lgriffin/esi.ts@9.6.0':
-    resolution: {integrity: sha512-AveYYhto2NsbANerRbQSq073/H29B1RRWAa3yiYSogsbWPgn7r9WTY6UaLspIgP9bqJp54ChmWjS/4BStqOTHw==}
-    engines: {node: '>=18.0.0'}
+  '@lgriffin/esi.ts@11.1.1':
+    resolution: {integrity: sha512-djj2MFEcEQARa6XZmq90SzLKyveWIHgGUV16BEIQEqGB40hwO1fi/DCZQP8MY3VlsUcvHf1xsRBJ9rjzhhqBFw==}
+    engines: {node: '>=22.12.0'}
     peerDependencies:
+      adm-zip: '>=0.4.11'
       better-sqlite3: '>=9.0.0'
+      js-yaml: '>=3.13.1'
     peerDependenciesMeta:
+      adm-zip:
+        optional: true
       better-sqlite3:
+        optional: true
+      js-yaml:
         optional: true
 
   '@manypkg/find-root@1.1.0':
@@ -5913,10 +5922,12 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@lgriffin/esi.ts@9.6.0':
+  '@lgriffin/esi.ts@11.1.1(js-yaml@4.3.1)':
     dependencies:
       pino: 9.14.0
       zod: 4.4.3
+    optionalDependencies:
+      js-yaml: 4.3.1
 
   '@manypkg/find-root@1.1.0':
     dependencies:
@@ -7820,7 +7831,7 @@ snapshots:
   normalize-package-data@6.0.2:
     dependencies:
       hosted-git-info: 7.0.2
-      semver: 7.7.1
+      semver: 7.8.5
       validate-npm-package-license: 3.0.4
 
   npm-run-path@5.3.0:

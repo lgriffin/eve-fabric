@@ -29,10 +29,10 @@ function makeMockSdeProvider() {
     searchTypesByName: vi
       .fn()
       .mockReturnValue([{ typeID: 34, typeName: 'Tritanium', groupID: 18 }]),
-    getRegion: vi.fn().mockReturnValue({ regionID: 10000002, regionName: 'The Forge' }),
+    getRegion: vi.fn().mockReturnValue({ regionId: 10000002, name: 'The Forge' }),
     getAllRegions: vi.fn().mockReturnValue([
-      { regionID: 10000002, regionName: 'The Forge' },
-      { regionID: 10000043, regionName: 'Domain' },
+      { regionId: 10000002, name: 'The Forge' },
+      { regionId: 10000043, name: 'Domain' },
     ]),
     getSolarSystem: vi.fn().mockReturnValue({ solarSystemID: 30000142, solarSystemName: 'Jita' }),
     searchSolarSystemsByName: vi
@@ -91,7 +91,7 @@ describe('SdeAdapter', () => {
       const result = await adapter.execute(cap, inputs);
 
       expect(mockProvider.getRegion).toHaveBeenCalledWith(10000002);
-      expect((result.data as Record<string, unknown>).regionName).toBe('The Forge');
+      expect((result.data as Record<string, unknown>).name).toBe('The Forge');
     });
 
     it('resolves solar system by numeric ID', async () => {
@@ -117,7 +117,7 @@ describe('SdeAdapter', () => {
       const result = await adapter.execute(cap, inputs);
 
       expect(mockProvider.getAllRegions).toHaveBeenCalled();
-      expect((result.data as Record<string, unknown>).regionName).toBe('The Forge');
+      expect((result.data as Record<string, unknown>).name).toBe('The Forge');
     });
 
     it('throws when type query is neither number nor string', async () => {
