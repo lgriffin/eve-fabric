@@ -32,6 +32,7 @@ describe('defineCapability', () => {
     expect(pure.uses).toEqual([]);
     expect(pure.auth).toEqual({ required: false, scopes: [] });
     expect(pure.cache.cacheable).toBe(false);
+    expect(pure.cache.defaultTtlSeconds).toBe(0);
     expect(pure.cost.esiCallCount).toBe(0);
   });
 
@@ -50,6 +51,8 @@ describe('defineCapability', () => {
     expect(cap.auth.required).toBe(false);
     expect(cap.cost.esiCallCount).toBe(1);
     expect(cap.cache.cacheable).toBe(true);
+    // Cacheable with no TTL named keeps results five minutes, not zero seconds.
+    expect(cap.cache.defaultTtlSeconds).toBe(300);
   });
 
   it('derives scopes from esi:<scope> uses and keys the cache by identity', () => {
@@ -221,7 +224,30 @@ outputs:
   result:
     type: eve.market.order
 `;
-    expect(() => parseCapabilityManifest(yaml)).toThrow('missing required field');
+    expect(() => parseCapabilityManifest(yaml)).toThrow('missing required field: id');
+  });
+
+  it('refuses a field of the wrong shape rather than copying it into the contract', () => {
+    const manifest = (source: string) => `
+id: test.bad
+version: 1
+source: ${source}
+outputs:
+  result:
+    type: eve.market.order
+`;
+    expect(() => parseCapabilityManifest(manifest('{}'))).toThrow(
+      /^Capability manifest is invalid: source: /,
+    );
+    expect(() => parseCapabilityManifest(manifest('MAGIC'))).toThrow('source:');
+    expect(() =>
+      parseCapabilityManifest('id: test.bad\nversion: 1\nsource: ESI\noutputs: {}\n'),
+    ).toThrow('outputs: must have at least one output');
+    expect(() =>
+      parseCapabilityManifest(
+        'id: test.bad\nversion: 1\nsource: ESI\noutputs:\n  r:\n    type: 7\n',
+      ),
+    ).toThrow('outputs.r.type');
   });
 });
 

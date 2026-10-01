@@ -37,8 +37,8 @@ export function num(value: unknown, fallback = 0): number {
 
 /** A numeric id, accepting its decimal string form. Throws naming the port. */
 export function requireId(value: unknown, port: string): number {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
-  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  const id = typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value;
+  if (typeof id === 'number' && Number.isSafeInteger(id) && id > 0) return id;
   throw new Error(`Input "${port}" must be a positive integer id, got ${JSON.stringify(value)}`);
 }
 

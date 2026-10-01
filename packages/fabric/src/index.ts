@@ -1,6 +1,7 @@
 export {
   Fabric,
   createFabric,
+  PipelineCompileError,
   PublishRefusedError,
   type FabricOptions,
   type PublishCompositeOptions,

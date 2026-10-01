@@ -27,6 +27,9 @@ export interface PortConfig {
 
 export type PortsConfig = Readonly<Record<string, PortConfig>>;
 
+/** How long a cacheable capability's results keep when it names no TTL. */
+const DEFAULT_TTL_SECONDS = 300;
+
 type HasUse<U, M> = [Extract<U, M>] extends [never] ? false : true;
 
 /**
@@ -123,6 +126,7 @@ export function defineCapability<
   }
   const scopes = scopesFromUses(uses);
   const source = sourceFromUses(uses);
+  const cacheable = config.cache?.cacheable ?? source !== 'DERIVED';
   const dependencies: readonly CapabilityRef[] = (config.dependencies ?? []).map((id) => ({
     id: capabilityId(id),
   }));
@@ -138,8 +142,9 @@ export function defineCapability<
     dependencies,
     auth: { required: scopes.length > 0, scopes },
     cache: {
-      cacheable: config.cache?.cacheable ?? source !== 'DERIVED',
-      defaultTtlSeconds: config.cache?.defaultTtlSeconds ?? 0,
+      cacheable,
+      // A cacheable capability that names no TTL keeps results five minutes.
+      defaultTtlSeconds: config.cache?.defaultTtlSeconds ?? (cacheable ? DEFAULT_TTL_SECONDS : 0),
       stalePermitted: config.cache?.stalePermitted ?? false,
       identityInKey: scopes.length > 0,
     },

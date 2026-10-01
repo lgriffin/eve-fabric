@@ -112,6 +112,13 @@ describe('market', () => {
     await expect(run(core.orders, { region: 'The Forge', item: 34 })).rejects.toThrow(
       'Input "region" must be a positive integer id',
     );
+    // A decimal string is held to the same rule as a number.
+    await expect(run(core.orders, { region: '0', item: 34 })).rejects.toThrow(
+      'Input "region" must be a positive integer id, got "0"',
+    );
+    await expect(run(core.orders, { region: '9007199254740993', item: 34 })).rejects.toThrow(
+      'must be a positive integer id',
+    );
   });
 
   it('aggregates the lowest sell and highest buy', async () => {

@@ -51,19 +51,35 @@ export interface PublishCompositeOptions {
   readonly description: string;
 }
 
-/** Thrown when a pipeline is offered for publishing and does not compile (the publish gate). */
-export class PublishRefusedError extends Error {
+function errorMessages(diagnostics: readonly CompilerDiagnostic[]): string {
+  return diagnostics
+    .filter((d) => d.severity === 'error')
+    .map((d) => d.message)
+    .join('; ');
+}
+
+/** Thrown when a pipeline is run and does not compile. Carries the compiler's diagnostics. */
+export class PipelineCompileError extends Error {
+  readonly pipelineId: string;
   readonly diagnostics: readonly CompilerDiagnostic[];
 
+  constructor(pipelineId: string, diagnostics: readonly CompilerDiagnostic[], message?: string) {
+    super(message ?? `Pipeline "${pipelineId}" does not compile: ${errorMessages(diagnostics)}`);
+    this.name = 'PipelineCompileError';
+    this.pipelineId = pipelineId;
+    this.diagnostics = diagnostics;
+  }
+}
+
+/** Thrown when a pipeline is offered for publishing and does not compile (the publish gate). */
+export class PublishRefusedError extends PipelineCompileError {
   constructor(pipelineId: string, diagnostics: readonly CompilerDiagnostic[]) {
     super(
-      `Pipeline "${pipelineId}" does not compile and cannot be published: ${diagnostics
-        .filter((d) => d.severity === 'error')
-        .map((d) => d.message)
-        .join('; ')}`,
+      pipelineId,
+      diagnostics,
+      `Pipeline "${pipelineId}" does not compile and cannot be published: ${errorMessages(diagnostics)}`,
     );
     this.name = 'PublishRefusedError';
-    this.diagnostics = diagnostics;
   }
 }
 
@@ -125,6 +141,7 @@ export class Fabric {
     return { capabilities: this.catalog.list() };
   }
 
+  /** A composite's pipeline, by its `pipelineRef`. */
   getPipeline(id: string, version: number | string): PipelineDefinition | undefined {
     return this.pipelines.get(`${id}@${String(version)}`);
   }
@@ -140,14 +157,16 @@ export class Fabric {
   ): CapabilityDefinition {
     const compiled = this.compile(pipeline);
     if (!compiled.success) throw new PublishRefusedError(pipeline.id, compiled.diagnostics);
+    // Each composite keeps its own copy of the pipeline it was published
+    // from, so publishing another view of the same pipeline (other inputs or
+    // outputs selected) never changes how an earlier composite expands.
+    const own: PipelineDefinition = {
+      ...pipeline,
+      id: `${pipeline.id}@${options.id}@${String(options.version)}`,
+    };
     // Registers the composite in the catalog and its edges in the dependency graph.
-    const { capability } = publishAsComposite(
-      pipeline,
-      this.catalog,
-      options,
-      this.registry.getGraph(),
-    );
-    this.pipelines.set(`${pipeline.id}@${pipeline.version}`, pipeline);
+    const { capability } = publishAsComposite(own, this.catalog, options, this.registry.getGraph());
+    this.pipelines.set(`${own.id}@${own.version}`, own);
     return capability;
   }
 
@@ -176,14 +195,14 @@ export class Fabric {
     return this.executor.execute(plan, inputs);
   }
 
-  /** Compiles and executes in one call. Throws with the diagnostics when it does not compile. */
+  /** Compiles and executes in one call. Throws {@link PipelineCompileError} when it does not compile. */
   async run(
     pipeline: PipelineDefinition,
     inputs: Readonly<Record<string, unknown>>,
   ): Promise<ExecutionResult> {
     const compiled = this.compile(pipeline);
     if (!compiled.success || compiled.plan === undefined) {
-      throw new PublishRefusedError(pipeline.id, compiled.diagnostics);
+      throw new PipelineCompileError(pipeline.id, compiled.diagnostics);
     }
     return this.execute(compiled.plan as unknown as ExecutionPlan, new Map(Object.entries(inputs)));
   }
@@ -203,6 +222,10 @@ export class Fabric {
       });
       diagnostics.push(...resolved.diagnostics);
       current = resolved.expandedPipeline;
+    }
+    // The last pass may have expanded the last composite.
+    if (!current.nodes.some((node) => this.isComposite(node.capability))) {
+      return { pipeline: current, diagnostics };
     }
     diagnostics.push({
       code: 'COMPOSITE_DEPTH_EXCEEDED',

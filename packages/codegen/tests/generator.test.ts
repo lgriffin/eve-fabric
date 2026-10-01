@@ -201,7 +201,7 @@ describe('emitIndexTs', () => {
 
   it('runs on a fabric with the core pack and carries no capability code', () => {
     expect(output).toContain(
-      "import { createFabric, type FabricOptions } from '@eve-fabric/fabric';",
+      "import { createFabric, type Fabric, type FabricOptions } from '@eve-fabric/fabric';",
     );
     expect(output).toContain("import { corePack } from '@eve-fabric/pack-core';");
     expect(output).toContain('packs: [corePack, ...(options.packs ?? [])]');
@@ -216,7 +216,19 @@ describe('emitIndexTs', () => {
   it('gives ESI a user agent and loads the SDE only when the plan needs them', () => {
     expect(output).toContain('createEsi({');
     expect(output).toContain("process.env['ESI_USER_AGENT']");
-    expect(output).toContain('loadSdeDirectory');
+    expect(output).toContain('lazySdeDirectory');
+  });
+
+  it('builds its fabric once per options object and reuses it', () => {
+    expect(output).toContain('const fabrics = new WeakMap<FabricOptions, Fabric>();');
+    expect(output).toContain('options: FabricOptions = DEFAULT_OPTIONS,');
+    expect(output).toContain('return fabricFor(options).execute(plan,');
+    expect(output).not.toMatch(/export async function[^]*createFabric\(/);
+  });
+
+  it('refuses a fabric missing a pinned capability when it is built', () => {
+    expect(output).toMatch(/const PINNED: .* = \[\["universe\.resolve","/);
+    expect(output).toContain('which no installed pack provides; pass the packs');
   });
 
   it('inlines the execution plan', () => {

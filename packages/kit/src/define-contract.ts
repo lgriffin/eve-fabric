@@ -20,22 +20,28 @@ export interface DefineContractConfig {
   version: string | number;
   name: string;
   description: string;
-  inputs: Record<string, { type: string; description?: string; required?: boolean }>;
-  outputs: Record<string, { type: string; description?: string }>;
+  inputs: Record<
+    string,
+    { type: string; description?: string | undefined; required?: boolean | undefined }
+  >;
+  outputs: Record<string, { type: string; description?: string | undefined }>;
   source: CapabilitySource;
-  dependencies?: string[];
-  auth?: { required?: boolean; scopes?: string[] };
+  dependencies?: string[] | undefined;
+  auth?: { required?: boolean | undefined; scopes?: string[] | undefined } | undefined;
   cache?: {
-    cacheable?: boolean;
-    defaultTtlSeconds?: number;
-    stalePermitted?: boolean;
-    identityInKey?: boolean;
+    cacheable?: boolean | undefined;
+    defaultTtlSeconds?: number | undefined;
+    stalePermitted?: boolean | undefined;
+    identityInKey?: boolean | undefined;
   };
-  cost?: { estimatedLatencyMs?: number; esiCallCount?: number };
+  cost?: { estimatedLatencyMs?: number | undefined; esiCallCount?: number | undefined };
 }
 
 function toSemanticPorts(
-  record: Record<string, { type: string; description?: string; required?: boolean }>,
+  record: Record<
+    string,
+    { type: string; description?: string | undefined; required?: boolean | undefined }
+  >,
   defaultRequired: boolean,
 ): ReadonlyMap<string, SemanticPort> {
   const map = new Map<string, SemanticPort>();

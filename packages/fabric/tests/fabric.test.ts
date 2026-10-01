@@ -19,7 +19,7 @@ import {
   tranquilitySde,
   tranquilitySdeData,
 } from '@eve-fabric/test-support';
-import { createFabric, PublishRefusedError } from '../src/index.js';
+import { createFabric, PipelineCompileError, PublishRefusedError } from '../src/index.js';
 
 function node(id: string, capability: string, version: string): PipelineNode {
   return { id, capability: { id: capabilityId(capability), version: capabilityVersion(version) } };
@@ -115,9 +115,15 @@ describe('createFabric', () => {
 
   it('refuses to run a pipeline that does not compile', async () => {
     const { fabric } = tranquilityFabric();
-    await expect(
-      fabric.run({ ...cheapestInRegion, edges: cheapestInRegion.edges.slice(1) }, {}),
-    ).rejects.toBeInstanceOf(PublishRefusedError);
+    const failure = await fabric
+      .run({ ...cheapestInRegion, edges: cheapestInRegion.edges.slice(1) }, {})
+      .catch((err: unknown) => err);
+    expect(failure).toBeInstanceOf(PipelineCompileError);
+    expect(failure).not.toBeInstanceOf(PublishRefusedError);
+    expect((failure as Error).message).toMatch(/^Pipeline "cheapest-in-region" does not compile: /);
+    expect((failure as PipelineCompileError).diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'MISSING_INPUT' }),
+    );
   });
 });
 
@@ -248,7 +254,11 @@ describe('composites', () => {
     // Two levels of composite expand to the steps that run.
     expect(result.outputs.get('f/quote')).toEqual({ cost: 3_000_000 });
     expect(result.outputs.get('f/trip/route')).toEqual({ distance: 4 });
-    expect(fabric.getPipeline('freight', 1)).toBe(freight);
+    const quote = fabric.catalog.get(capabilityId('test.freight'));
+    expect(fabric.getPipeline(quote.pipelineRef!.id, quote.pipelineRef!.version)).toMatchObject({
+      nodes: freight.nodes,
+      edges: freight.edges,
+    });
   });
 
   it('refuses to publish a pipeline that does not compile (the publish gate)', () => {
@@ -263,6 +273,71 @@ describe('composites', () => {
       }),
     ).toThrow(PublishRefusedError);
     expect(fabric.catalog.has(capabilityId('test.broken'))).toBe(false);
+  });
+
+  it('keeps each composite to the view it was published from', async () => {
+    const { fabric } = tranquilityFabric();
+    const both: PipelineDefinition = {
+      ...routeOnly,
+      id: 'both',
+      nodes: [...routeOnly.nodes, node('back', 'route.distance', '2.0.0')],
+      edges: [
+        ...routeOnly.edges,
+        { from: 'input.destination', to: 'back.origin' },
+        { from: 'input.origin', to: 'back.destination' },
+      ],
+      outputs: [...routeOnly.outputs, { name: 'back', source: 'back.distance' }],
+    };
+    const meta = { version: '1.0.0', name: 'View', description: 'One view' };
+    fabric.publishComposite(
+      { ...both, outputs: [both.outputs[0]!] },
+      { ...meta, id: 'test.there' },
+    );
+    fabric.publishComposite({ ...both, outputs: [both.outputs[1]!] }, { ...meta, id: 'test.back' });
+    // The second publish of the same pipeline leaves the first composite alone.
+    const result = await fabric.run(
+      {
+        id: 'uses-there',
+        version: 1,
+        name: 'Uses there',
+        inputs: routeOnly.inputs,
+        nodes: [node('t', 'test.there', '1.0.0')],
+        edges: [
+          { from: 'input.origin', to: 't.origin' },
+          { from: 'input.destination', to: 't.destination' },
+        ],
+        outputs: [{ name: 'jumps', source: 't.jumps' }],
+      },
+      { origin: SYSTEM.jita, destination: SYSTEM.amarr },
+    );
+    expect(result.outputs.get('t/route')).toEqual({ distance: 4 });
+  });
+
+  it('expands composites nested ten deep, and refuses eleven', () => {
+    const { fabric } = tranquilityFabric();
+    const wrap = (inner: string, version: string): PipelineDefinition => ({
+      ...routeOnly,
+      nodes: [node('route', inner, version)],
+      outputs: [{ name: 'jumps', source: `route.${version === '2.0.0' ? 'distance' : 'jumps'}` }],
+    });
+    let inner = 'route.distance';
+    let version = '2.0.0';
+    for (let level = 1; level <= 11; level++) {
+      const id = `test.level${level}`;
+      fabric.publishComposite(wrap(inner, version), {
+        id,
+        version: '1.0.0',
+        name: id,
+        description: `Nested ${level} deep`,
+      });
+      inner = id;
+      version = '1.0.0';
+    }
+    const uses = (level: number) => fabric.compile(wrap(`test.level${level}`, '1.0.0'));
+    expect(uses(10).success).toBe(true);
+    expect(uses(11).diagnostics).toContainEqual(
+      expect.objectContaining({ code: 'COMPOSITE_DEPTH_EXCEEDED' }),
+    );
   });
 
   it('reports a composite whose pipeline it does not hold', () => {

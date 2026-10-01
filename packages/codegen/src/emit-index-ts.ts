@@ -69,8 +69,10 @@ function emitInputInterface(name: string, pipeline: PipelineDefinition): string 
 }
 
 /**
- * The generated module runs its compiled plan on a fabric with the core pack.
- * It carries no capability code: the pack supplies each pinned capability.
+ * The generated module runs its compiled plan on a fabric with the core pack
+ * and any packs the caller passes. It carries no capability code: a pack
+ * supplies each pinned capability, and a fabric missing one is refused when
+ * it is built.
  */
 export function emitIndexTs(
   pipeline: PipelineDefinition,
@@ -95,7 +97,7 @@ export function emitIndexTs(
     lines.push(` * ${pipeline.description}`);
   }
   lines.push(` *`);
-  lines.push(` * Capabilities (from @eve-fabric/pack-core):`);
+  lines.push(` * Capabilities (from @eve-fabric/pack-core, or a pack passed in options.packs):`);
   for (const cap of capabilities) {
     lines.push(` *   ${cap.id as string}@${cap.version as string}`);
   }
@@ -106,12 +108,14 @@ export function emitIndexTs(
   lines.push('');
 
   // Imports
-  lines.push(`import { createFabric, type FabricOptions } from '@eve-fabric/fabric';`);
+  lines.push(`import { createFabric, type Fabric, type FabricOptions } from '@eve-fabric/fabric';`);
   lines.push(`import { corePack } from '@eve-fabric/pack-core';`);
   lines.push(`import type { ExecutionResult } from '@eve-fabric/executor';`);
-  lines.push(`import type { ExecutionPlan } from '@eve-fabric/domain';`);
+  lines.push(
+    `import { capabilityId, capabilityVersion, type ExecutionPlan } from '@eve-fabric/domain';`,
+  );
   if (usesEsi) lines.push(`import { createEsi } from '@lgriffin/esi.ts/client';`);
-  if (usesSde) lines.push(`import { loadSdeDirectory } from '@eve-fabric/source-sde';`);
+  if (usesSde) lines.push(`import { lazySdeDirectory } from '@eve-fabric/source-sde';`);
   lines.push('');
 
   // Plan
@@ -123,12 +127,15 @@ export function emitIndexTs(
   lines.push(emitInputInterface(inputTypeName, pipeline));
   lines.push('');
 
-  // Main function
+  // The fabric, built once per options object and reused, so the SDE loads
+  // once and the caches last across calls.
+  const pinned = capabilities.map((cap) => [cap.id as string, cap.version as string]);
   lines.push(
-    `export async function ${funcName}(`,
-    `  input: ${inputTypeName},`,
-    `  options: FabricOptions = {},`,
-    `): Promise<ExecutionResult> {`,
+    '// Every capability the plan runs. A fabric without one of them is refused',
+    '// when it is built, not halfway through a run.',
+    `const PINNED: readonly (readonly [string, string])[] = ${JSON.stringify(pinned)};`,
+    '',
+    'function buildFabric(options: FabricOptions): Fabric {',
     '  const fabric = createFabric({',
   );
   if (usesEsi) {
@@ -141,14 +148,42 @@ export function emitIndexTs(
   }
   if (usesSde) {
     lines.push(
-      "    ...(process.env['SDE_DATA_PATH'] ? { sde: loadSdeDirectory(process.env['SDE_DATA_PATH']) } : {}),",
+      "    ...(process.env['SDE_DATA_PATH'] ? { sde: lazySdeDirectory(process.env['SDE_DATA_PATH']) } : {}),",
     );
   }
   lines.push(
     '    ...options,',
     '    packs: [corePack, ...(options.packs ?? [])],',
     '  });',
-    '  return fabric.execute(plan, new Map<string, unknown>(Object.entries(input)));',
+    '  const missing = PINNED.filter(',
+    '    ([id, version]) => !fabric.catalog.has(capabilityId(id), capabilityVersion(version)),',
+    '  );',
+    '  if (missing.length > 0) {',
+    "    const names = missing.map(([id, version]) => id + '@' + version).join(', ');",
+    '    throw new Error(',
+    '      `This pipeline runs ${names}, which no installed pack provides; pass the packs that define them in options.packs`,',
+    '    );',
+    '  }',
+    '  return fabric;',
+    '}',
+    '',
+    'const DEFAULT_OPTIONS: FabricOptions = {};',
+    'const fabrics = new WeakMap<FabricOptions, Fabric>();',
+    '',
+    'function fabricFor(options: FabricOptions): Fabric {',
+    '  let fabric = fabrics.get(options);',
+    '  if (fabric === undefined) {',
+    '    fabric = buildFabric(options);',
+    '    fabrics.set(options, fabric);',
+    '  }',
+    '  return fabric;',
+    '}',
+    '',
+    `export async function ${funcName}(`,
+    `  input: ${inputTypeName},`,
+    `  options: FabricOptions = DEFAULT_OPTIONS,`,
+    `): Promise<ExecutionResult> {`,
+    '  return fabricFor(options).execute(plan, new Map<string, unknown>(Object.entries(input)));',
     '}',
     '',
     `export default ${funcName};`,

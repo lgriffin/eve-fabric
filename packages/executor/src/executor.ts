@@ -140,7 +140,8 @@ export class Executor {
 
     const ttlByStep = new Map<string, number>();
     for (const cs of plan.cacheStrategy) {
-      if (cs.cacheable) ttlByStep.set(cs.stepId, cs.ttlSeconds);
+      // A TTL of zero would store entries that are already stale.
+      if (cs.cacheable && cs.ttlSeconds !== 0) ttlByStep.set(cs.stepId, cs.ttlSeconds);
     }
 
     const stepOutputs = new Map<string, Readonly<Record<string, unknown>>>();
@@ -238,10 +239,14 @@ export class Executor {
       }
     }
 
-    // ESI steps defer to ESI.ts's ETag cache; the fabric caches the rest.
+    // ESI steps defer to ESI.ts's ETag cache; the fabric caches the rest. An
+    // SDE result is keyed by the build it came from, so a new export never
+    // serves an old answer and a hit still names its build.
+    const sourceVersion = this.sourceVersionOf(definition);
+    const build = sourceVersion === undefined ? '' : '[' + sourceVersion + ']';
     const cacheKey =
       this.cache !== undefined && ttlSeconds !== undefined && definition.source !== 'ESI'
-        ? `${definition.id as string}@${definition.version as string}:${stableJson(inputs)}`
+        ? `${definition.id as string}@${definition.version as string}${build}:${stableJson(inputs)}`
         : undefined;
 
     if (cacheKey !== undefined) {
@@ -251,6 +256,7 @@ export class Executor {
           data: cached.data as Readonly<Record<string, unknown>>,
           provenance: {
             source: 'CACHE',
+            sourceVersion,
             capability: step.capability,
             capabilityVersion: definition.version,
             retrievedAt: cached.storedAt,
@@ -327,19 +333,24 @@ export class Executor {
     return { clock: this.clock, esi, sde };
   }
 
+  /** The ESI compatibility date or SDE build a capability's result depends on. */
+  private sourceVersionOf(definition: CapabilityDefinition): string | undefined {
+    if (definition.source === 'ESI' && this.sources.esi !== undefined) {
+      return `esi-compat:${this.sources.esi.compatibilityDate}`;
+    }
+    if (definition.source === 'SDE' && this.sources.sde !== undefined) {
+      return `sde:${this.sources.sde.buildVersion()}`;
+    }
+    return undefined;
+  }
+
   private provenanceFor(definition: CapabilityDefinition): ProvenanceRecord {
     const at = new Date(this.clock.now());
     const source: DataSource =
       definition.source === 'ESI' || definition.source === 'SDE' ? definition.source : 'DERIVED';
-    let sourceVersion: string | undefined;
-    if (source === 'ESI' && this.sources.esi !== undefined) {
-      sourceVersion = `esi-compat:${this.sources.esi.compatibilityDate}`;
-    } else if (source === 'SDE' && this.sources.sde !== undefined) {
-      sourceVersion = `sde:${this.sources.sde.buildVersion()}`;
-    }
     return {
       source,
-      sourceVersion,
+      sourceVersion: this.sourceVersionOf(definition),
       capability: { id: definition.id, version: definition.version },
       capabilityVersion: definition.version,
       ...(source === 'DERIVED' ? { calculatedAt: at } : { retrievedAt: at }),

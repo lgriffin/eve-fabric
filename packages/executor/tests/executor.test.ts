@@ -424,6 +424,61 @@ describe('Executor', () => {
       expect(second.provenance.get('step')!.cached).toBe(true);
     });
 
+    it('does not store a result whose TTL is zero', async () => {
+      const noTtl = defineCapability({
+        id: 'test.no.ttl',
+        version: '1.0.0',
+        name: 'No TTL',
+        description: 'Cacheable, but for no time at all',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { result: { type: 'eve.quantity' } },
+        cache: { cacheable: true, defaultTtlSeconds: 0 },
+        run: ({ value }) => ({ result: value }),
+      });
+      const catalog = catalogWith(noTtl);
+      const cache = memoryCache();
+      await new Executor({ catalog, cache }).execute(
+        planFor(single(noTtl, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
+      expect(cache.store.size).toBe(0);
+    });
+
+    it('keys an SDE step by its build, and a hit still names that build', async () => {
+      const cachedName = defineCapability({
+        id: 'test.type.name.cached',
+        version: '1.0.0',
+        name: 'Type Name',
+        description: 'Looks a type up in the SDE, cached',
+        inputs: { typeId: { type: 'eve.type.reference' } },
+        outputs: { name: { type: 'eve.quantity' } },
+        uses: ['sde'],
+        cache: { defaultTtlSeconds: 60 },
+        run: ({ typeId }, { sde }) => ({ name: sde.getType(Number(typeId))?.name ?? null }),
+      });
+      let build = 'one';
+      const sources: SourcePorts = {
+        sde: { provider: { getType: () => ({ name: 'Tritanium' }) }, buildVersion: () => build },
+      };
+      const catalog = catalogWith(cachedName);
+      const cache = memoryCache();
+      const executor = new Executor({ catalog, cache, sources });
+      const plan = planFor(single(cachedName, 't', 'eve.type.reference'), catalog);
+
+      await executor.execute(plan, new Map([['t', 34]]));
+      const hit = await executor.execute(plan, new Map([['t', 34]]));
+      expect(hit.metrics.cacheHits).toBe(1);
+      expect(hit.provenance.get('step')).toMatchObject({ cached: true, sourceVersion: 'sde:one' });
+
+      build = 'two';
+      const afterNewExport = await executor.execute(plan, new Map([['t', 34]]));
+      expect(afterNewExport.metrics.cacheHits).toBe(0);
+      expect([...cache.store.keys()]).toEqual([
+        'test.type.name.cached@1.0.0[sde:one]:{"typeId":34}',
+        'test.type.name.cached@1.0.0[sde:two]:{"typeId":34}',
+      ]);
+    });
+
     it('never caches an ESI step; ESI.ts caches those itself', async () => {
       const cachedEsi = defineCapability({
         id: 'test.esi.cached',
