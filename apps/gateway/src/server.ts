@@ -9,6 +9,7 @@ import { createPublishRoutes } from './routes/publish-routes.js';
 import { createDiscoveryRoutes } from './routes/discovery-routes.js';
 import { createReferenceDataRoutes } from './routes/reference-data-routes.js';
 import { createExecutionRoutes } from './routes/execution-routes.js';
+import { createDraftRoutes } from './routes/draft-routes.js';
 import { createPipelineRoutes } from './routes/pipeline-routes.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { gatewayErrorHandler } from './middleware/error-handler.js';
@@ -98,6 +99,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(createReferenceDataRoutes());
   void app.register(createExecutionRoutes(runtime));
   void app.register(createPipelineRoutes(runtime));
+  void app.register(createDraftRoutes(runtime.fabric));
   void app.register(
     createPublishRoutes(
       runtime.registry,

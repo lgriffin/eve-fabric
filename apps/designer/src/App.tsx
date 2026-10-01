@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay.js';
 import { ReactFlowProvider } from '@xyflow/react';
-import { CapabilityPalette } from './components/palette/CapabilityPalette.js';
+import { DraftPanel } from './components/draft/DraftPanel.js';
 import { PipelineCanvas } from './components/canvas/PipelineCanvas.js';
 import { DiagnosticsPanel } from './components/preview/DiagnosticsPanel.js';
 import { GraphQLPreview } from './components/preview/GraphQLPreview.js';
@@ -127,7 +127,7 @@ export function App() {
         )}
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <CapabilityPalette />
+          <DraftPanel />
 
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ flex: 1, minHeight: 0 }}>

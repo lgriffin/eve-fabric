@@ -21,9 +21,20 @@ export {
   type Cursor,
   type DraftHost,
   type DraftPlan,
+  type DraftStep,
+  type DraftSubject,
   type FabricIdentity,
   type Hole,
   type Move,
   type PerItemPlan,
   type PlannedStep,
 } from './draft.js';
+export { GraphQLDraftError, fieldName } from './graphql.js';
+export {
+  draftFrom,
+  viewOf,
+  type DraftChange,
+  type DraftRequest,
+  type DraftView,
+  type HoleView,
+} from './draft-view.js';

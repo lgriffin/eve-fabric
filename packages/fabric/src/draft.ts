@@ -27,6 +27,7 @@ import { capabilityId, semanticTypeId } from '@eve-fabric/domain';
 import type { CompileResult, CompilerDiagnostic } from '@eve-fabric/compiler';
 import { z } from 'zod';
 import type { Identity } from '@lgriffin/esi.ts/client';
+import { printDraft } from './graphql.js';
 
 /**
  * Who a draft is asked as: a character, the ESI scopes its token holds, and
@@ -226,7 +227,32 @@ export class UnknownSubjectError extends Error {
   }
 }
 
+/** What a draft started from: a subject named by kind, or a capability that needs no input. */
+export type DraftSubject =
+  { readonly kind: string; readonly value: string | number } | { readonly start: string };
+
+/** One change made to a draft, in order: a move applied or a hole filled. */
+export type DraftStep =
+  | {
+      readonly kind: 'move';
+      readonly move: string;
+      /** The steps the move added, by node id. */
+      readonly added: readonly string[];
+      /** Where the cursor stood after the move. */
+      readonly cursor: string;
+    }
+  | {
+      readonly kind: 'fill';
+      /** The hole as `node.port`. */
+      readonly hole: string;
+      readonly value: unknown;
+    };
+
 interface DraftState {
+  readonly subject: DraftSubject;
+  /** Where the cursor stood at the start. */
+  readonly origin: string;
+  readonly steps: readonly DraftStep[];
   readonly nodes: readonly PipelineNode[];
   readonly edges: readonly PipelineEdge[];
   readonly inputs: readonly PipelineInput[];
@@ -353,6 +379,9 @@ export class Draft {
     }
     const reference = references[0]!;
     const empty: DraftState = {
+      subject: { kind, value },
+      origin: '',
+      steps: [],
       nodes: [],
       edges: [],
       inputs: [],
@@ -366,6 +395,8 @@ export class Draft {
     const node = freshNodeId(empty, kind);
     const input = inputName(empty, node, lookup.input);
     const state: DraftState = {
+      ...empty,
+      origin: `${node}.${lookup.output}`,
       nodes: [nodeFor(lookup.capability, node)],
       edges: [{ from: `input.${input}`, to: `${node}.${lookup.input}` }],
       inputs: [{ name: input, semanticType: reference.id, required: true }],
@@ -401,6 +432,9 @@ export class Draft {
     }
     const root = roots[0]!;
     const empty: DraftState = {
+      subject: { start: name },
+      origin: '',
+      steps: [],
       nodes: [],
       edges: [],
       inputs: [],
@@ -411,6 +445,7 @@ export class Draft {
     const [output, type] = firstOutput(root);
     return new Draft(host, {
       ...empty,
+      origin: `${node}.${output}`,
       nodes: [nodeFor(root, node)],
       cursor: { ref: `${node}.${output}`, type },
     });
@@ -431,6 +466,98 @@ export class Draft {
       }
     }
     return undefined;
+  }
+
+  /**
+   * A draft rebuilt from what it started from and the changes made to it, in
+   * order. Each change goes through `apply` or `fill`, so a replay is held to
+   * the same rules as the draft it records.
+   */
+  static replay(
+    host: DraftHost,
+    subject: DraftSubject,
+    steps: readonly (
+      | { readonly kind: 'move'; readonly move: string }
+      | { readonly kind: 'fill'; readonly hole: string; readonly value: unknown }
+    )[],
+    identity?: FabricIdentity,
+  ): Draft {
+    let draft = Draft.start(
+      host,
+      'start' in subject ? subject.start : { [subject.kind]: subject.value },
+      identity,
+    );
+    for (const step of steps) {
+      draft = step.kind === 'move' ? draft.apply(step.move) : draft.fill(step.hole, step.value);
+    }
+    return draft;
+  }
+
+  /**
+   * A draft whose cursor is any value of `type`, given as an input: what the
+   * moves from a type are, wherever it was reached. The derived schema is
+   * read from these, so the schema and the draft offer the same moves.
+   */
+  static at(host: DraftHost, type: SemanticTypeId): Draft {
+    return new Draft(host, {
+      subject: { start: '' },
+      origin: 'input.value',
+      steps: [],
+      nodes: [],
+      edges: [],
+      inputs: [{ name: 'value', semanticType: type, required: true }],
+      values: {},
+      cursor: { ref: 'input.value', type },
+    });
+  }
+
+  /** The kinds a draft can start from by name or id, and the reference type each starts at. */
+  static subjects(host: DraftHost): { readonly kind: string; readonly type: SemanticTypeId }[] {
+    const references = host.types
+      .list()
+      .filter((t): t is ReferenceTypeDefinition => t.kind === 'reference');
+    const counts = new Map<string, number>();
+    for (const r of references) {
+      const kind = lastSegment(r.entity);
+      counts.set(kind, (counts.get(kind) ?? 0) + 1);
+    }
+    return references
+      .filter((r) => counts.get(lastSegment(r.entity)) === 1)
+      .filter((r) => Draft.lookupFor(host, r.id) !== undefined)
+      .map((r) => ({ kind: lastSegment(r.entity), type: r.id }));
+  }
+
+  /** Where the cursor stood at the start, as `node.port`. */
+  get origin(): string {
+    return this.state.origin;
+  }
+
+  /** What the draft started from. */
+  get subject(): DraftSubject {
+    return copyOf(this.state.subject);
+  }
+
+  /** The draft as a GraphQL document: its saved, shareable form. */
+  toGraphQL(): string {
+    return printDraft(this, this.host);
+  }
+
+  /** The moves applied and holes filled, in order. */
+  get steps(): readonly DraftStep[] {
+    return copyOf(this.state.steps);
+  }
+
+  /** The capability behind a step of this draft. */
+  capabilityAt(node: string): CapabilityDefinition | undefined {
+    const found = this.state.nodes.find((n) => n.id === node);
+    return found === undefined
+      ? undefined
+      : this.host.catalog.get(capabilityId(found.capability.id), found.capability.version);
+  }
+
+  /** Whether a step of this draft runs once per item. */
+  isPerItem(node: string): boolean {
+    return this.state.nodes.find((n) => n.id === node)?.each !== undefined;
   }
 
   /** Where the question points now. */
@@ -486,7 +613,37 @@ export class Draft {
       const { scopes, character } = chosen.move.unavailable;
       throw new MoveUnavailableError(name, scopes, character);
     }
-    return new Draft(this.host, chosen.state, this.identity);
+    return this.applied(chosen);
+  }
+
+  /**
+   * The draft with a move applied even when the identity lacks its scope:
+   * for reading what a move would add (the derived schema). Such a draft
+   * still cannot run without the scope.
+   */
+  explore(name: string): Draft {
+    const chosen = this.candidates().find((c) => c.move.name === name);
+    if (chosen === undefined)
+      throw new MoveNotOfferedError(
+        name,
+        this.moves().map((m) => m.name),
+      );
+    return this.applied(chosen);
+  }
+
+  private applied(chosen: Candidate): Draft {
+    const added = chosen.state.nodes.slice(this.state.nodes.length).map((n) => n.id);
+    const step: DraftStep = {
+      kind: 'move',
+      move: chosen.move.name,
+      added,
+      cursor: chosen.state.cursor.ref,
+    };
+    return new Draft(
+      this.host,
+      { ...chosen.state, steps: [...this.state.steps, step] },
+      this.identity,
+    );
   }
 
   /**
@@ -532,7 +689,11 @@ export class Draft {
         values: { ...this.state.values, [input]: check.value },
       };
     }
-    const filled = new Draft(this.host, next, this.identity);
+    const filled = new Draft(
+      this.host,
+      { ...next, steps: [...this.state.steps, { kind: 'fill', hole: target, value }] },
+      this.identity,
+    );
     const compiled = this.host.compile(filled.pipeline());
     if (!holesOnly(compiled.diagnostics)) {
       throw new FillRejectedError(

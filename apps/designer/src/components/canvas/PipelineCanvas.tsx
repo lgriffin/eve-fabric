@@ -1,47 +1,23 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from 'react';
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  type ReactFlowInstance,
-  type Edge,
-  type Connection,
-} from '@xyflow/react';
+import { useMemo } from 'react';
+import { ReactFlow, Background, Controls, MiniMap } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline-store.js';
-import { useCatalogStore } from '../../stores/catalog-store.js';
-import { useConnectionValidator } from '../../hooks/useConnectionValidator.js';
+import { usePipelineStore } from '../../stores/pipeline-store.js';
 import { CapabilityNode } from './CapabilityNode.js';
-import { ContextualPalette } from './ContextualPalette.js';
 import { colors } from '../../tokens.js';
 
 const nodeTypes = { capability: CapabilityNode };
 
-let nodeCounter = 0;
-
-interface ContextPaletteState {
-  semanticType: string;
-  screenPosition: { x: number; y: number };
-  flowPosition: { x: number; y: number };
-  sourceNodeId: string;
-  sourcePort: string;
-}
-
+/**
+ * The canvas is a view of the question's scaffold: the steps the fabric
+ * built and how they connect. Nothing is wired by hand here; the question
+ * changes only through the moves and holes the draft panel offers.
+ */
 export function PipelineCanvas() {
   const nodes = usePipelineStore((s) => s.nodes);
   const edges = usePipelineStore((s) => s.edges);
   const onNodesChange = usePipelineStore((s) => s.onNodesChange);
-  const onEdgesChange = usePipelineStore((s) => s.onEdgesChange);
-  const onConnect = usePipelineStore((s) => s.onConnect);
-  const addNode = usePipelineStore((s) => s.addNode);
   const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
-  const setBridgingSuggestions = usePipelineStore((s) => s.setBridgingSuggestions);
   const executionSession = usePipelineStore((s) => s.executionSession);
-  const capabilities = useCatalogStore((s) => s.capabilities);
-
-  const [contextPalette, setContextPalette] = useState<ContextPaletteState | null>(null);
-  const connectingFromRef = useRef<{ nodeId: string; handleId: string } | null>(null);
 
   const nodeExecutionStates = usePipelineStore((s) => s.nodeExecutionStates);
 
@@ -101,222 +77,17 @@ export function PipelineCanvas() {
     });
   }, [edges, executionSession, nodeExecutionStates]);
 
-  const { validate, getBridgingSuggestions } = useConnectionValidator();
-
-  const reactFlowRef = useRef<ReactFlowInstance<CapabilityFlowNode, Edge> | null>(null);
-
-  const isValidConnection = useCallback(
-    (connection: Edge | Connection): boolean => {
-      const conn: Connection = {
-        source: connection.source,
-        target: connection.target,
-        sourceHandle: connection.sourceHandle ?? null,
-        targetHandle: connection.targetHandle ?? null,
-      };
-      return validate(conn);
-    },
-    [validate],
-  );
-
-  const handleConnect = useCallback(
-    (connection: Connection) => {
-      // Self-loop rejection (T009)
-      if (connection.source === connection.target) return;
-
-      if (validate(connection)) {
-        onConnect(connection);
-        setBridgingSuggestions([]);
-      } else {
-        const suggestions = getBridgingSuggestions(connection);
-        setBridgingSuggestions(suggestions);
-      }
-    },
-    [validate, getBridgingSuggestions, onConnect, setBridgingSuggestions],
-  );
-
-  const onDrop = useCallback(
-    (event: DragEvent) => {
-      event.preventDefault();
-      const capabilityId = event.dataTransfer.getData('application/capability-id');
-      if (!capabilityId || !reactFlowRef.current) return;
-
-      const cap = capabilities.find((c) => c.id === capabilityId);
-      if (!cap) return;
-
-      const position = reactFlowRef.current.screenToFlowPosition({
-        x: event.clientX,
-        y: event.clientY,
-      });
-
-      const newNode: CapabilityFlowNode = {
-        id: `${capabilityId.replace(/\./g, '-')}-${++nodeCounter}`,
-        type: 'capability',
-        position,
-        data: {
-          capabilityId: cap.id,
-          capabilityVersion: cap.version,
-          label: cap.name,
-          source: cap.source,
-          inputs: cap.inputs,
-          outputs: cap.outputs,
-        },
-      };
-
-      addNode(newNode);
-    },
-    [addNode, capabilities],
-  );
-
-  const onDragOver = useCallback((event: DragEvent) => {
-    event.preventDefault();
-    event.dataTransfer.dropEffect = 'move';
-  }, []);
-
-  const handleConnectStart = useCallback(
-    (
-      _event: MouseEvent | TouchEvent,
-      params: { nodeId: string | null; handleId: string | null },
-    ) => {
-      if (params.nodeId && params.handleId) {
-        connectingFromRef.current = { nodeId: params.nodeId, handleId: params.handleId };
-      }
-    },
-    [],
-  );
-
-  const handleConnectEnd = useCallback(
-    (event: MouseEvent | TouchEvent) => {
-      const from = connectingFromRef.current;
-      connectingFromRef.current = null;
-      if (!from || !reactFlowRef.current) return;
-
-      const target =
-        event instanceof MouseEvent ? event.target : (event as TouchEvent).touches[0]?.target;
-      if (!target || !(target instanceof HTMLElement)) return;
-
-      const isPane = target.classList.contains('react-flow__pane');
-      if (!isPane) return;
-
-      const sourceNode = nodes.find((n) => n.id === from.nodeId);
-      if (!sourceNode) return;
-
-      const sourceOutput = sourceNode.data.outputs.find((o) => o.name === from.handleId);
-      if (!sourceOutput) return;
-
-      const clientX =
-        event instanceof MouseEvent
-          ? event.clientX
-          : ((event as TouchEvent).changedTouches[0]?.clientX ?? 0);
-      const clientY =
-        event instanceof MouseEvent
-          ? event.clientY
-          : ((event as TouchEvent).changedTouches[0]?.clientY ?? 0);
-
-      const containerEl = document.querySelector('.react-flow');
-      const containerRect = containerEl?.getBoundingClientRect();
-      const screenX = clientX - (containerRect?.left ?? 0);
-      const screenY = clientY - (containerRect?.top ?? 0);
-      const flowPosition = reactFlowRef.current.screenToFlowPosition({ x: clientX, y: clientY });
-
-      setContextPalette({
-        semanticType: sourceOutput.semanticType,
-        screenPosition: { x: screenX, y: screenY },
-        flowPosition,
-        sourceNodeId: from.nodeId,
-        sourcePort: from.handleId,
-      });
-    },
-    [nodes],
-  );
-
-  const handleContextPaletteSelect = useCallback(
-    (capabilityId: string, _capabilityName: string) => {
-      if (!contextPalette) return;
-      const cap = useCatalogStore.getState().capabilities.find((c) => c.id === capabilityId);
-      if (!cap) {
-        setContextPalette(null);
-        return;
-      }
-
-      const nodeId = `${capabilityId.replace(/\./g, '-')}-${++nodeCounter}`;
-      const newNode: CapabilityFlowNode = {
-        id: nodeId,
-        type: 'capability',
-        position: contextPalette.flowPosition,
-        data: {
-          capabilityId: cap.id,
-          capabilityVersion: cap.version,
-          label: cap.name,
-          source: cap.source,
-          inputs: cap.inputs,
-          outputs: cap.outputs,
-        },
-      };
-      addNode(newNode);
-
-      const matchingInput = cap.inputs.find((i) => i.semanticType === contextPalette.semanticType);
-      if (matchingInput) {
-        onConnect({
-          source: contextPalette.sourceNodeId,
-          sourceHandle: contextPalette.sourcePort,
-          target: nodeId,
-          targetHandle: matchingInput.name,
-        });
-      }
-
-      setContextPalette(null);
-    },
-    [contextPalette, addNode, onConnect],
-  );
-
-  useEffect(() => {
-    function handleShowPalette(e: Event) {
-      const detail = (e as CustomEvent).detail as {
-        semanticType: string;
-        sourceNodeId: string;
-        sourcePort: string;
-        position: { x: number; y: number };
-      };
-      if (reactFlowRef.current) {
-        const containerEl = document.querySelector('.react-flow');
-        const containerRect = containerEl?.getBoundingClientRect();
-        const screenX = detail.position.x - (containerRect?.left ?? 0);
-        const screenY = detail.position.y - (containerRect?.top ?? 0);
-        const flowPos = reactFlowRef.current.screenToFlowPosition(detail.position);
-        setContextPalette({
-          semanticType: detail.semanticType,
-          sourceNodeId: detail.sourceNodeId,
-          sourcePort: detail.sourcePort,
-          screenPosition: { x: screenX, y: screenY },
-          flowPosition: flowPos,
-        });
-      }
-    }
-    window.addEventListener('fabric:show-contextual-palette', handleShowPalette);
-    return () => window.removeEventListener('fabric:show-contextual-palette', handleShowPalette);
-  }, []);
-
   return (
     <div style={{ flex: 1, height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={styledEdges}
         onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={handleConnect}
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onInit={(instance) => {
-          reactFlowRef.current = instance;
-        }}
-        onConnectStart={handleConnectStart}
-        onConnectEnd={handleConnectEnd}
         onNodeClick={(_event, node) => setSelectedNode(node.id)}
-        onPaneClick={() => {
-          setSelectedNode(null);
-          setContextPalette(null);
-        }}
-        isValidConnection={isValidConnection}
+        onPaneClick={() => setSelectedNode(null)}
+        nodesConnectable={false}
+        edgesFocusable={false}
+        deleteKeyCode={null}
         nodeTypes={nodeTypes}
         fitView
         proOptions={{ hideAttribution: true }}
@@ -330,14 +101,6 @@ export function PipelineCanvas() {
           style={{ background: colors.surface.raised }}
         />
       </ReactFlow>
-      {contextPalette && (
-        <ContextualPalette
-          semanticType={contextPalette.semanticType}
-          position={contextPalette.screenPosition}
-          onSelect={handleContextPaletteSelect}
-          onClose={() => setContextPalette(null)}
-        />
-      )}
     </div>
   );
 }

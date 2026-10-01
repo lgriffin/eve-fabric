@@ -30,6 +30,8 @@ import { publishAsComposite, type Pack } from '@eve-fabric/kit';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
 import { CharacterMismatchError, Draft, type DraftHost, type FabricIdentity } from './draft.js';
+import { deriveSchema, parseDraft } from './graphql.js';
+import type { GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
@@ -127,6 +129,7 @@ export class Fabric implements DraftHost {
   readonly sources: SourcePorts;
   readonly clock: Clock;
   private readonly pipelines = new Map<string, PipelineDefinition>();
+  private derived: GraphQLSchema | undefined;
 
   constructor(options: FabricOptions = {}) {
     this.clock = options.clock ?? systemClock;
@@ -166,6 +169,7 @@ export class Fabric implements DraftHost {
    * on the first capability the catalog refuses.
    */
   install(pack: Pack): void {
+    this.derived = undefined;
     const fresh = (pack.types ?? []).filter((type) => this.checkType(pack, type));
     for (const type of fresh) this.types.register(type);
     const added: CapabilityDefinition[] = [];
@@ -236,6 +240,7 @@ export class Fabric implements DraftHost {
   ): CapabilityDefinition {
     const compiled = this.compile(pipeline);
     if (!compiled.success) throw new PublishRefusedError(pipeline.id, compiled.diagnostics);
+    this.derived = undefined;
     // Each composite keeps its own copy of the pipeline it was published
     // from, so publishing another view of the same pipeline (other inputs or
     // outputs selected) never changes how an earlier composite expands.
@@ -308,6 +313,25 @@ export class Fabric implements DraftHost {
     options: { readonly as?: FabricIdentity | undefined } = {},
   ): Draft {
     return Draft.start(this, subject, options.as);
+  }
+
+  /**
+   * The draft a GraphQL document describes. Each field is a move and its
+   * arguments fill the holes the move opens, so a document that parses is a
+   * draft the fabric offered, and one that is complete plans (FAB-VAL-06).
+   */
+  fromGraphQL(document: string, options: { readonly as?: FabricIdentity | undefined } = {}): Draft {
+    return parseDraft(this, document, options.as);
+  }
+
+  /**
+   * The GraphQL schema derived from what is installed: each type's fields are
+   * the moves a draft offers on it, their arguments the holes those moves
+   * open (FAB-VAL-05). For introspection and tooling.
+   */
+  schema(): GraphQLSchema {
+    this.derived ??= deriveSchema(this);
+    return this.derived;
   }
 
   /**

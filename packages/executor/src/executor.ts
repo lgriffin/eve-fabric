@@ -309,7 +309,8 @@ export class Executor {
     const inputs: Record<string, unknown> = {};
     for (const binding of step.inputs) {
       if (binding.source === 'pipeline-input' && binding.pipelineInputName !== undefined) {
-        inputs[binding.portName] = pipelineInputs.get(binding.pipelineInputName);
+        const value = pipelineInputs.get(binding.pipelineInputName);
+        inputs[binding.portName] = readField(value, binding.fieldPath ?? []);
       } else if (binding.source === 'step-output' && binding.stepId !== undefined) {
         // A step merged into an identical one reads the kept step's result.
         const upstream = stepOutputs.get(aliases.get(binding.stepId) ?? binding.stepId);

@@ -86,10 +86,10 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 
 ### Apps
 
-| App             | Purpose                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| `apps/gateway`  | Fastify server with GraphQL Yoga, serves compiled pipeline schemas         |
-| `apps/designer` | React + React Flow visual pipeline designer with drag-and-drop composition |
+| App             | Purpose                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------- |
+| `apps/gateway`  | Fastify server with GraphQL Yoga, serves compiled pipeline schemas                                 |
+| `apps/designer` | React + React Flow question builder: offered moves and named holes, the scaffold drawn on a canvas |
 
 ## Key Concepts
 
@@ -175,6 +175,20 @@ await fabric.query(draft, { perItemCap: 250 }); // raise the cap for this query 
 A capability that takes a list of records is offered on a list of their references, and each reference is resolved first. That is how `route` and then `lowest security` work.
 
 A join is a weave: a pipeline that a pack publishes as a capability. The core pack's `trade profit after tax` looks up orders in two regions side by side and joins them.
+
+#### Saved as GraphQL
+
+A draft's saved, shareable form is a GraphQL document. Each field is a move, and its arguments fill the holes that move opened. A move onto a step with several outputs selects one of them:
+
+```ts
+draft.toGraphQL();
+// { type(name: "Tritanium") { orders(region: "The Forge") { prices { highestBuy } } } }
+
+const same = fabric.fromGraphQL(document); // replays the moves and fills it names
+fabric.schema(); // the derived schema, for introspection and tooling
+```
+
+`fromGraphQL` rebuilds a document through `apply` and `fill`, so a document either becomes a draft the fabric offered or is refused with the reason. The derived schema is read from the moves the draft engine offers on each type, so a document valid against it always plans. The designer builds questions the same way: its panel shows the moves and holes the fabric offers, and its canvas shows the steps that result.
 
 #### Asking as a character
 
@@ -344,7 +358,7 @@ The gateway serves GraphQL at `http://localhost:3000/graphql` with a health chec
 pnpm --filter @eve-fabric/designer run dev
 ```
 
-The visual designer runs at `http://localhost:5173` with drag-and-drop pipeline composition.
+The designer runs at `http://localhost:5173`. Start from a subject, apply the moves it offers and fill the holes it names; paste an EVE SSO token to ask about your own character.
 
 ## Examples
 
