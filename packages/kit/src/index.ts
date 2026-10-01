@@ -7,7 +7,7 @@ export {
   type PortConfig,
   type PortsConfig,
 } from './define-capability.js';
-export { definePack, type Pack } from './pack.js';
+export { definePack, type Pack, type Weave } from './pack.js';
 export {
   defineType,
   listOf,

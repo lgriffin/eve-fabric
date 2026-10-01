@@ -19,6 +19,7 @@ import type {
   PipelineInput,
   PipelineNode,
   ReferenceTypeDefinition,
+  SemanticPort,
   SemanticTypeId,
   SemanticTypeRegistry,
 } from '@eve-fabric/domain';
@@ -55,10 +56,12 @@ export interface Cursor {
 export interface Move {
   readonly name: string;
   /**
-   * `attach`: a capability hung on the cursor's type. `follow`: a reference field, resolved.
-   * `output`: another output of the step the cursor is on; nothing is added.
+   * `attach`: a capability hung on the cursor's type. `follow`: a reference
+   * field, resolved. `details`: a reference, resolved. `each`: a capability
+   * run once per item of a list. `output`: another output of the step the
+   * cursor is on; nothing is added.
    */
-  readonly kind: 'attach' | 'follow' | 'details' | 'output';
+  readonly kind: 'attach' | 'follow' | 'details' | 'each' | 'output';
   /** The capability the move adds, as `id@version`. */
   readonly capability: string;
   readonly description: string;
@@ -90,13 +93,29 @@ export interface PlannedStep {
   readonly capability: string;
   readonly source: string;
   readonly waitsFor: readonly string[];
+  /** Set when the step runs once per item of a list. */
+  readonly each?: PerItemPlan | undefined;
+}
+
+/** What a per-item step may cost, known before it runs. */
+export interface PerItemPlan {
+  /** The input port the list arrives on. */
+  readonly over: string;
+  /** Distinct items it will run for at most; more fail the step unsent. */
+  readonly cap: number;
+  /** Calls to its source per item. */
+  readonly callsPerItem: number;
+  /** ESI calls per item. */
+  readonly esiCallsPerItem: number;
 }
 
 /** What a complete draft would do, before anything is sent. */
 export interface DraftPlan {
   readonly steps: readonly PlannedStep[];
-  /** ESI calls the plan makes. */
+  /** ESI calls the plan makes outside per-item steps. */
   readonly esiCalls: number;
+  /** ESI calls at most, with every per-item step at its cap. */
+  readonly maxEsiCalls: number;
   /** ESI scopes the caller needs. */
   readonly scopes: readonly string[];
   readonly plan: ExecutionPlan;
@@ -227,8 +246,15 @@ export class Draft {
     private readonly state: DraftState,
   ) {}
 
-  /** A draft from a subject picked by name or id: `{ type: 'Tritanium' }`. */
-  static start(host: DraftHost, subject: Readonly<Record<string, string | number>>): Draft {
+  /**
+   * A draft from a subject picked by name or id, `{ type: 'Tritanium' }`, or
+   * from a capability that needs nothing, by its name: `'incursions'`.
+   */
+  static start(
+    host: DraftHost,
+    subject: string | Readonly<Record<string, string | number>>,
+  ): Draft {
+    if (typeof subject === 'string') return Draft.startFrom(host, subject);
     const parsed = subjectSchema.safeParse(subject);
     if (!parsed.success) {
       throw new UnknownSubjectError(
@@ -278,6 +304,38 @@ export class Draft {
       );
     }
     return draft;
+  }
+
+  /** A draft whose first step is a capability that takes no input, named by its name or id. */
+  private static startFrom(host: DraftHost, name: string): Draft {
+    const wanted = name.trim().toLowerCase();
+    const roots = latest(host.catalog).filter(
+      (c) =>
+        [...c.inputs.values()].every((port) => !port.required) &&
+        (c.name.toLowerCase() === wanted || (c.id as string) === wanted),
+    );
+    if (roots.length !== 1) {
+      throw new UnknownSubjectError(
+        roots.length === 0
+          ? `Nothing in this fabric starts from "${name}"`
+          : `"${name}" names more than one capability: ${roots.map((r) => r.id).join(', ')}`,
+      );
+    }
+    const root = roots[0]!;
+    const empty: DraftState = {
+      nodes: [],
+      edges: [],
+      inputs: [],
+      values: {},
+      cursor: { ref: '', type: firstOutput(root)[1] },
+    };
+    const node = freshNodeId(empty, root.name);
+    const [output, type] = firstOutput(root);
+    return new Draft(host, {
+      ...empty,
+      nodes: [nodeFor(root, node)],
+      cursor: { ref: `${node}.${output}`, type },
+    });
   }
 
   /** The capability that turns a name into a reference of this type, if any. */
@@ -418,17 +476,33 @@ export class Draft {
     }
     const plan = compiled.plan as unknown as ExecutionPlan;
     let esiCalls = 0;
+    let maxEsiCalls = 0;
     const steps = plan.steps.map((step): PlannedStep => {
       const capability = this.host.catalog.get(step.capability.id, step.capability.version);
-      if (capability.source === 'ESI') esiCalls += capability.cost.esiCallCount;
-      return {
+      const calls = capability.source === 'ESI' ? capability.cost.esiCallCount : 0;
+      const planned = {
         id: step.id,
         capability: keyOf(capability),
         source: capability.source,
         waitsFor: [...step.dependsOn],
       };
+      if (step.each === undefined) {
+        esiCalls += calls;
+        maxEsiCalls += calls;
+        return planned;
+      }
+      maxEsiCalls += calls * step.each.cap;
+      return {
+        ...planned,
+        each: {
+          over: step.each.port,
+          cap: step.each.cap,
+          callsPerItem: capability.source === 'DERIVED' ? 0 : Math.max(calls, 1),
+          esiCallsPerItem: calls,
+        },
+      };
     });
-    return { steps, esiCalls, scopes: [...plan.authRequirements.scopes], plan };
+    return { steps, esiCalls, maxEsiCalls, scopes: [...plan.authRequirements.scopes], plan };
   }
 
   /** The complete draft as a pipeline and the values that go with it, for publishing or export. */
@@ -457,6 +531,7 @@ export class Draft {
     for (const candidate of [
       ...this.attachCandidates(),
       ...this.followCandidates(),
+      ...this.eachCandidates(),
       ...this.outputCandidates(),
     ]) {
       if (found.has(candidate.move.name)) continue;
@@ -558,15 +633,20 @@ export class Draft {
     const candidates: Candidate[] = [];
     for (const [name, spec] of capability.outputs) {
       if (name === port) continue;
+      // A step run per item gives a list of each output.
+      const yields =
+        node.each === undefined
+          ? spec.semanticType
+          : semanticTypeId(`${spec.semanticType as string}.collection`);
       candidates.push({
         move: {
           name,
           kind: 'output',
           capability: keyOf(capability),
           description: spec.description ?? `The ${name} output of ${capability.name}`,
-          yields: spec.semanticType,
+          yields,
         },
-        state: { ...this.state, cursor: { ref: `${nodeId}.${name}`, type: spec.semanticType } },
+        state: { ...this.state, cursor: { ref: `${nodeId}.${name}`, type: yields } },
       });
     }
     return candidates;
@@ -601,34 +681,124 @@ export class Draft {
     };
   }
 
+  /**
+   * Moves on a list. A capability that takes one item runs once per item
+   * (`cheapest price each`); a capability that takes a list of records is
+   * offered on a list of their references, each resolved first.
+   */
+  private eachCandidates(): Candidate[] {
+    const { cursor } = this.state;
+    const types = this.host.types;
+    const list = types.get(cursor.type);
+    if (list.kind !== 'list') return [];
+    const item = types.get(list.item);
+    const candidates: Candidate[] = [];
+    const entity = types.entityOf(item.id);
+    const perItem = [
+      ...this.host.catalog.attachedTo(entity),
+      ...(entity === item.id ? [] : this.host.catalog.attachedTo(item.id)),
+    ];
+    for (const capability of perItem) {
+      if (this.host.catalog.get(capability.id) !== capability) continue; // latest only
+      if (capability.source === 'COMPOSITE') continue; // runs as several steps, not per item
+      const { as, subject } = capability.attach!;
+      if (capability.inputs.get(subject)!.semanticType !== item.id) continue;
+      const node = freshNodeId(this.state, `${as} each`);
+      const [output, yields] = firstOutput(capability);
+      const listed = semanticTypeId(`${yields as string}.collection`);
+      candidates.push({
+        move: {
+          name: `${as} each`,
+          kind: 'each',
+          capability: keyOf(capability),
+          description: `For each item: ${capability.description}`,
+          yields: listed,
+        },
+        state: {
+          ...this.state,
+          nodes: [...this.state.nodes, { ...nodeFor(capability, node), each: { port: subject } }],
+          edges: [...this.state.edges, { from: cursor.ref, to: `${node}.${subject}` }],
+          cursor: { ref: `${node}.${output}`, type: listed },
+        },
+      });
+    }
+    if (item.kind === 'reference') {
+      candidates.push(...this.resolveEach(item, cursor.ref));
+    }
+    return candidates;
+  }
+
+  /** Capabilities on a list of records, reached from a list of their references by resolving each. */
+  private resolveEach(reference: ReferenceTypeDefinition, from: string): Candidate[] {
+    const resolver = reference.resolver;
+    if (resolver === undefined || !this.host.catalog.has(capabilityId(resolver.capability))) {
+      return [];
+    }
+    const records = `${reference.entity as string}.collection`;
+    const resolverCapability = this.host.catalog.get(capabilityId(resolver.capability));
+    const candidates: Candidate[] = [];
+    for (const capability of this.host.catalog.attachedTo(records)) {
+      if (this.host.catalog.get(capability.id) !== capability) continue;
+      const { as, subject } = capability.attach!;
+      if (capability.inputs.get(subject)!.semanticType !== records) continue;
+      const each = freshNodeId(this.state, lastSegment(reference.entity));
+      const withResolver: DraftState = {
+        ...this.state,
+        nodes: [
+          ...this.state.nodes,
+          { ...nodeFor(resolverCapability, each), each: { port: resolver.input } },
+        ],
+      };
+      const node = freshNodeId(withResolver, as);
+      const [output, yields] = firstOutput(capability);
+      candidates.push({
+        move: {
+          name: as,
+          kind: 'attach',
+          capability: keyOf(capability),
+          description: capability.description,
+          yields,
+        },
+        state: {
+          ...withResolver,
+          nodes: [...withResolver.nodes, nodeFor(capability, node)],
+          edges: [
+            ...this.state.edges,
+            { from, to: `${each}.${resolver.input}` },
+            { from: `${each}.${resolver.output}`, to: `${node}.${subject}` },
+          ],
+          cursor: { ref: `${node}.${output}`, type: yields },
+        },
+      });
+    }
+    return candidates;
+  }
+
   // ── Holes ───────────────────────────────────────────────────────────────
 
+  /** Required inputs of the draft's own steps that nothing feeds. */
   private findHoles(): readonly Hole[] {
-    const compiled = this.host.compile(this.pipeline());
-    const missing = compiled.diagnostics.filter(
-      (d) => d.code === 'MISSING_INPUT' && d.location?.nodeId !== undefined,
-    );
-    const nodes = new Map(this.state.nodes.map((n) => [n.id, n]));
-    const portCounts = new Map<string, number>();
-    for (const d of missing) {
-      const port = d.location!.field!;
-      portCounts.set(port, (portCounts.get(port) ?? 0) + 1);
-    }
-    return missing.map((d): Hole => {
-      const node = d.location!.nodeId!;
-      const port = d.location!.field!;
-      const ref = nodes.get(node)!.capability;
+    const wired = new Set(this.state.edges.map((e) => e.to));
+    const missing: { node: string; port: string; spec: SemanticPort }[] = [];
+    for (const node of this.state.nodes) {
+      const ref = node.capability;
       const definition = this.host.catalog.get(capabilityId(ref.id), ref.version);
-      const spec = definition.inputs.get(port)!;
-      return {
-        name: portCounts.get(port) === 1 ? port : `${node}.${port}`,
-        node,
-        port,
-        type: spec.semanticType,
-        description: spec.description,
-        choices: (text?: string) => this.choicesFor(spec.semanticType, text),
-      };
-    });
+      for (const [port, spec] of definition.inputs) {
+        if (spec.required && !wired.has(`${node.id}.${port}`)) {
+          missing.push({ node: node.id, port, spec });
+        }
+      }
+    }
+    const portCounts = new Map<string, number>();
+    for (const { port } of missing) portCounts.set(port, (portCounts.get(port) ?? 0) + 1);
+    return missing.map(({ node, port, spec }): Hole => ({
+      name: portCounts.get(port) === 1 ? port : `${node}.${port}`,
+      node,
+      port,
+      type: spec.semanticType,
+      description: spec.description,
+      choices: (text?: string) => this.choicesFor(spec.semanticType, text),
+    }));
   }
 
   private async choicesFor(type: SemanticTypeId, text?: string): Promise<readonly Choice[]> {

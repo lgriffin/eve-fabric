@@ -9,6 +9,8 @@ export {
   UNKNOWN_FIELD,
   FIELD_ON_INPUT,
   fieldOnInput,
+  INVALID_PER_ITEM,
+  invalidPerItem,
   SEMANTIC_SUGGESTION,
   semanticTypeMismatch,
   cycleDetected,

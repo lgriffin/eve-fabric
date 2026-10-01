@@ -32,6 +32,9 @@ importers:
       '@eve-fabric/fabric':
         specifier: workspace:*
         version: link:packages/fabric
+      '@eve-fabric/kit':
+        specifier: workspace:*
+        version: link:packages/kit
       '@eve-fabric/pack-core':
         specifier: workspace:*
         version: link:packages/pack-core

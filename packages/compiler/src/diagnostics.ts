@@ -118,6 +118,23 @@ export function cycleDetected(cyclePath: string[]): CompilerDiagnostic {
   };
 }
 
+export const INVALID_PER_ITEM = 'INVALID_PER_ITEM';
+
+/** A per-item node names a port its capability does not take. */
+export function invalidPerItem(
+  nodeId: string,
+  port: string,
+  capability: string,
+): CompilerDiagnostic {
+  return {
+    code: INVALID_PER_ITEM,
+    severity: 'error',
+    message: `Node "${nodeId}" runs per item of "${port}", which is not an input of "${capability}"`,
+    location: { nodeId, field: port },
+    context: { capability },
+  };
+}
+
 /**
  * Creates a diagnostic for a capability referenced in a node but not found in the catalog.
  */

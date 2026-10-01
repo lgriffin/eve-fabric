@@ -337,3 +337,25 @@ export const searchSystems = defineCapability({
     };
   },
 });
+
+/** Security at or above which a system is high-sec, as the game rounds it. */
+const HIGH_SEC = 0.45;
+
+export const highSecOnly = defineCapability({
+  id: 'universe.systems.highsec',
+  version: '2.0.0',
+  name: 'High-sec Only',
+  description: 'Keep only the high-security systems (0.5 and above, as the game rounds)',
+  inputs: {
+    systems: { type: 'eve.system.collection', description: 'Systems to filter' },
+  },
+  outputs: {
+    systems: { type: 'eve.system.collection', description: 'The high-sec systems' },
+  },
+  attach: { on: 'eve.system.collection', as: 'high-sec only', subject: 'systems' },
+  cost: { estimatedLatencyMs: 1 },
+  run({ systems }) {
+    const list = systems as { security_status: number }[];
+    return { systems: list.filter((s) => s.security_status >= HIGH_SEC) };
+  },
+});

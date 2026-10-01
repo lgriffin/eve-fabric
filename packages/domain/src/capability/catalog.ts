@@ -351,6 +351,25 @@ export class CapabilityCatalog {
     };
   }
 
+  /** Removes one version; used to undo a pack install that was refused part way. */
+  unregister(id: CapabilityId, version: CapabilityVersion): void {
+    const key = catalogKey(id, version);
+    const def = this.definitions.get(key);
+    if (def === undefined) return;
+    this.definitions.delete(key);
+    if (def.attach !== undefined) {
+      this.attachments.delete(`${def.attach.on as string}.${def.attach.as}`);
+    }
+    this.latestVersions.delete(id);
+    for (const other of this.definitions.values()) {
+      if (other.id !== id) continue;
+      const latest = this.latestVersions.get(id);
+      if (latest === undefined || compareVersions(other.version, latest) > 0) {
+        this.latestVersions.set(id, other.version);
+      }
+    }
+  }
+
   get(id: CapabilityId, version?: CapabilityVersion): CapabilityDefinition {
     if (version !== undefined) {
       const key = catalogKey(id, version);

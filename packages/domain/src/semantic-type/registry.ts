@@ -1,9 +1,12 @@
 import { z } from 'zod';
 import type {
+  ListTypeDefinition,
   ReferenceTypeDefinition,
   SemanticTypeDefinition,
   SemanticTypeId,
 } from './semantic-type.js';
+
+const LIST_SUFFIX = '.collection';
 
 /** A port or field names a semantic type the registry does not hold. */
 export class UnknownSemanticTypeError extends Error {
@@ -54,13 +57,30 @@ export class SemanticTypeRegistry {
   }
 
   get(id: SemanticTypeId | string): SemanticTypeDefinition {
-    const type = this.types.get(id);
+    const type = this.types.get(id) ?? this.implicitList(id);
     if (!type) throw new UnknownSemanticTypeError(id);
     return type;
   }
 
   has(id: SemanticTypeId | string): boolean {
-    return this.types.has(id);
+    return this.types.has(id) || this.implicitList(id) !== undefined;
+  }
+
+  /**
+   * `x.collection` is a list of `x` for every registered `x`, registered or
+   * not: a per-item step's outputs are lists of whatever it gives.
+   */
+  private implicitList(id: string): ListTypeDefinition | undefined {
+    if (!id.endsWith(LIST_SUFFIX)) return undefined;
+    const item = id.slice(0, -LIST_SUFFIX.length);
+    if (!this.has(item)) return undefined;
+    return {
+      kind: 'list',
+      id: id as SemanticTypeId,
+      description: `A list of ${item}`,
+      category: item.split('.')[1] ?? 'general',
+      item: item as SemanticTypeId,
+    };
   }
 
   listByCategory(category: string): ReadonlyArray<SemanticTypeDefinition> {
@@ -152,7 +172,7 @@ export class SemanticTypeRegistry {
     const visit = (typeId: string, path: string): void => {
       if (seen.has(typeId)) return;
       seen.add(typeId);
-      const type = this.types.get(typeId);
+      const type = this.types.get(typeId) ?? this.implicitList(typeId);
       if (type === undefined) {
         throw new UnknownSemanticTypeError(typeId, path === '' ? where : `${where}, at ${path}`);
       }

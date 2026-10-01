@@ -11,9 +11,10 @@ import {
   searchTypes,
   searchRegions,
   searchSystems,
+  highSecOnly,
 } from './universe.js';
 import { orders, aggregate } from './market.js';
-import { distance } from './routing.js';
+import { distance, routePlan, routeSafety } from './routing.js';
 import { filter, sort, limit } from './collection.js';
 import {
   marketSpread,
@@ -22,8 +23,15 @@ import {
   marketHighestBuyer,
   marketOrderCount,
 } from './market-analysis.js';
-import { blueprintLookup } from './industry.js';
-import { tradeProfit, returnOnInvestment, marketTax, iskPerUnit } from './analysis.js';
+import { blueprintLookup, blueprintMaterials, materialCost } from './industry.js';
+import {
+  tradeProfit,
+  returnOnInvestment,
+  marketTax,
+  iskPerUnit,
+  iskTotal,
+  unitProfit,
+} from './analysis.js';
 import { freightEstimate, haulingProfit, cargoValue } from './logistics.js';
 
 export * from './universe.js';
@@ -47,9 +55,12 @@ export const allCapabilities: readonly CapabilityDefinition[] = [
   searchTypes,
   searchRegions,
   searchSystems,
+  highSecOnly,
   orders,
   aggregate,
   distance,
+  routePlan,
+  routeSafety,
   filter,
   sort,
   limit,
@@ -59,10 +70,14 @@ export const allCapabilities: readonly CapabilityDefinition[] = [
   marketHighestBuyer,
   marketOrderCount,
   blueprintLookup,
+  blueprintMaterials,
+  materialCost,
   tradeProfit,
   returnOnInvestment,
   marketTax,
   iskPerUnit,
+  iskTotal,
+  unitProfit,
   freightEstimate,
   haulingProfit,
   cargoValue,

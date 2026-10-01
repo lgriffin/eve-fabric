@@ -99,3 +99,41 @@ export const iskPerUnit = defineCapability({
     return { quantity, totalCost: quantity * price };
   },
 });
+
+export const iskTotal = defineCapability({
+  id: 'analysis.total',
+  version: '2.0.0',
+  name: 'Total',
+  description: 'Add up a list of ISK amounts',
+  inputs: {
+    amounts: { type: 'eve.currency.isk.collection', description: 'Amounts to add' },
+  },
+  outputs: {
+    total: { type: 'eve.currency.isk', description: 'Their sum' },
+  },
+  attach: { on: 'eve.currency.isk.collection', as: 'total cost', subject: 'amounts' },
+  cost: { estimatedLatencyMs: 1 },
+  run({ amounts }) {
+    const list = (amounts as (number | null)[]).filter((a): a is number => a !== null);
+    return { total: Math.round(list.reduce((sum, a) => sum + a, 0) * 100) / 100 };
+  },
+});
+
+export const unitProfit = defineCapability({
+  id: 'analysis.unit.profit',
+  version: '2.0.0',
+  name: 'Unit Profit',
+  description: 'Profit per unit: what it sells for less what it costs',
+  inputs: {
+    cost: { type: 'eve.currency.isk', description: 'What one unit costs' },
+    revenue: { type: 'eve.currency.isk', description: 'What one unit sells for' },
+  },
+  outputs: {
+    profit: { type: 'eve.currency.isk', description: 'Revenue less cost' },
+  },
+  cost: { estimatedLatencyMs: 1 },
+  run({ cost, revenue }) {
+    if (typeof cost !== 'number' || typeof revenue !== 'number') return { profit: null };
+    return { profit: Math.round((revenue - cost) * 100) / 100 };
+  },
+});

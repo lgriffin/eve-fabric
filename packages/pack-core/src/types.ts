@@ -217,6 +217,37 @@ export const EveChoice = defineType({
 
 export const EveChoices = listOf(EveChoice);
 
+export const EveMaterial = defineType({
+  kind: 'record',
+  id: 'eve.material',
+  description: 'A material a blueprint consumes: a type and how many of it',
+  category: 'industry',
+  fields: {
+    type_id: EveTypeRef,
+    quantity: EveQuantity,
+  },
+});
+
+export const EveMaterials = listOf(EveMaterial);
+
+export const EveSystems = listOf(EveSystem);
+
+export const EveSystemRefs = listOf(EveSystemRef);
+
+export const EveIskAmounts = listOf(EveCurrencyIsk);
+
+export const EveRouteSafety = defineType({
+  kind: 'record',
+  id: 'eve.route.safety',
+  description: 'How long a route is and the least secure system on it',
+  category: 'routing',
+  fields: {
+    jumps: EveRouteDistance,
+    security_status: { type: EveSecurityStatus, description: 'The lowest security on the route' },
+    system_id: { type: EveSystemRef, description: 'The system with that security' },
+  },
+});
+
 export const coreTypes = [
   EveCurrencyIsk,
   EveQuantity,
@@ -240,4 +271,10 @@ export const coreTypes = [
   EveMarketOrders,
   EveChoice,
   EveChoices,
+  EveMaterial,
+  EveMaterials,
+  EveSystems,
+  EveSystemRefs,
+  EveIskAmounts,
+  EveRouteSafety,
 ] as const;

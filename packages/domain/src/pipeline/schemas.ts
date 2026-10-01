@@ -34,6 +34,9 @@ export const pipelineNodeSchema = z.object({
   id: z.string().min(1),
   capability: pipelineCapabilityRefSchema,
   config: z.record(z.string(), z.unknown()).optional(),
+  each: z
+    .object({ port: z.string().min(1), cap: z.number().int().positive().optional() })
+    .optional(),
 });
 
 export const pipelineEdgeSchema = z.object({

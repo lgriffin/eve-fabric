@@ -2,6 +2,7 @@ export {
   Executor,
   StepExecutionError,
   PortValueError,
+  PerItemCapError,
   SourceUnavailableError,
   type ExecutorConfig,
   type ExecutionResult,

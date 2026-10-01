@@ -37,6 +37,23 @@ export interface ExecutorConfig {
   readonly clock?: Clock | undefined;
 }
 
+/** A per-item step was given more distinct items than its cap allows. */
+export class PerItemCapError extends Error {
+  readonly port: string;
+  readonly items: number;
+  readonly cap: number;
+
+  constructor(port: string, items: number, cap: number) {
+    super(
+      `"${port}" has ${items} distinct items, over the per-item cap of ${cap}; raise the cap for this query to run it`,
+    );
+    this.name = 'PerItemCapError';
+    this.port = port;
+    this.items = items;
+    this.cap = cap;
+  }
+}
+
 /** A step failed. Names the step and capability; the cause is the run's error. */
 export class StepExecutionError extends Error {
   readonly stepId: string;
@@ -298,7 +315,10 @@ export class Executor {
       }
     }
 
-    const data = await this.run(step, definition, inputs);
+    const data =
+      step.each === undefined
+        ? await this.run(step, definition, inputs)
+        : await this.runEach(step, step.each, definition, inputs);
 
     if (cacheKey !== undefined) {
       await this.cache!.set(cacheKey, data, ttlSeconds ?? DEFAULT_CACHE_TTL_SECONDS);
@@ -310,6 +330,55 @@ export class Executor {
     }
 
     return { data, provenance, durationMs: this.clock.now() - stepStart, cacheHit: false };
+  }
+
+  /**
+   * Runs the step once per distinct item of the list on the per-item port,
+   * and gives each output as a list in the input's order. Fails before any
+   * call when there are more distinct items than the cap.
+   */
+  private async runEach(
+    step: ExecutionStep,
+    each: { readonly port: string; readonly cap: number },
+    definition: CapabilityDefinition,
+    inputs: Readonly<Record<string, unknown>>,
+  ): Promise<Readonly<Record<string, unknown>>> {
+    const list = inputs[each.port];
+    if (list !== undefined && list !== null && !Array.isArray(list)) {
+      throw new StepExecutionError(
+        step.id,
+        definition.id,
+        new Error(`"${each.port}" runs per item, so it takes a list`),
+      );
+    }
+    const items: readonly unknown[] = Array.isArray(list) ? list : [];
+    const keys = items.map((item) => stableJson(item));
+    const distinct = new Map<string, unknown>();
+    items.forEach((item, i) => {
+      if (!distinct.has(keys[i]!)) distinct.set(keys[i]!, item);
+    });
+    if (distinct.size > each.cap) {
+      throw new StepExecutionError(
+        step.id,
+        definition.id,
+        new PerItemCapError(each.port, distinct.size, each.cap),
+      );
+    }
+    const entries = [...distinct.entries()];
+    const results = await runWithConcurrency(
+      entries.map(
+        ([, item]) =>
+          () =>
+            this.run(step, definition, { ...inputs, [each.port]: item }),
+      ),
+      this.maxConcurrency,
+    );
+    const byKey = new Map(entries.map(([key], i) => [key, results[i]!]));
+    const outputs: Record<string, unknown[]> = {};
+    for (const name of definition.outputs.keys()) {
+      outputs[name] = keys.map((key) => byKey.get(key)![name]);
+    }
+    return outputs;
   }
 
   private async run(

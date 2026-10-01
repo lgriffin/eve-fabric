@@ -293,4 +293,18 @@ describe('a catalog with types', () => {
     expect(registered.run).toBe(run);
     expect(catalog.attachedTo('test.place').map((c) => c.id)).toEqual(['test.lookup']);
   });
+
+  it('forgets a version it unregisters, its attach and its place as latest', () => {
+    const catalog = new CapabilityCatalog({ types: types() });
+    const att = { on: 'test.place', as: 'label', subject: 'p' };
+    const one = capability('test.one', { p: 'test.place.reference' }, { n: 'test.text' }, att);
+    const two = { ...one, version: capabilityVersion('2.0.0') };
+    catalog.registerAll([one, two]);
+    catalog.unregister(capabilityId('test.one'), capabilityVersion('2.0.0'));
+    expect(catalog.get(capabilityId('test.one')).version).toBe('1.0.0');
+    catalog.unregister(capabilityId('test.one'), capabilityVersion('1.0.0'));
+    expect(catalog.has(capabilityId('test.one'))).toBe(false);
+    expect(catalog.attachedTo('test.place')).toEqual([]);
+    catalog.register(one);
+  });
 });

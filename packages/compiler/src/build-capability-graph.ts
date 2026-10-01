@@ -6,7 +6,7 @@
  * into parallel groups.
  */
 
-import type { CapabilityCatalog } from '@eve-fabric/domain';
+import { DEFAULT_PER_ITEM_CAP, type CapabilityCatalog } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
 import { outputBinding } from './port-path.js';
@@ -153,6 +153,9 @@ export function buildCapabilityGraph(
       inputs: bindings.get(nodeId) ?? [],
       dependsOn: [...deps],
       canParallelize: parallelNodeIds.has(nodeId),
+      ...(node.each === undefined
+        ? {}
+        : { each: { port: node.each.port, cap: node.each.cap ?? DEFAULT_PER_ITEM_CAP } }),
     };
   });
 

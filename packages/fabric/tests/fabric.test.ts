@@ -76,7 +76,9 @@ const cheapestInRegion: PipelineDefinition = {
 describe('createFabric', () => {
   it('describes the capabilities its packs installed', () => {
     const { fabric } = tranquilityFabric();
-    expect(fabric.describe().capabilities).toHaveLength(corePack.capabilities.length);
+    expect(fabric.describe().capabilities).toHaveLength(
+      corePack.capabilities.length + (corePack.weaves?.length ?? 0),
+    );
   });
 
   it('runs a pipeline over ESI and the SDE, from names to a price', async () => {

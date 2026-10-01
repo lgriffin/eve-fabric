@@ -230,6 +230,15 @@ export function resolveComposites(
     }
 
     if (def.source === 'COMPOSITE' && def.pipelineRef) {
+      if (node.each !== undefined) {
+        // A composite expands into several steps; per-item runs one.
+        diagnostics.push({
+          code: 'INVALID_PER_ITEM',
+          severity: 'error',
+          message: `Node "${node.id}" cannot run the composite "${capIdStr}" per item`,
+          location: { nodeId: node.id, field: node.each.port },
+        });
+      }
       compositeNodeIds.add(node.id);
 
       const inputBindings: InputBinding[] = [];
@@ -277,6 +286,7 @@ export function resolveComposites(
             id: prefixed,
             capability: subNode.capability,
             config: subNode.config,
+            ...(subNode.each === undefined ? {} : { each: subNode.each }),
           });
         }
 

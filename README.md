@@ -155,6 +155,27 @@ const { answer } = await fabric.query(draft); // Perimeter, security 0.9549
 
 `draft.moves()` lists what can come next and `draft.holes` what is still needed. A reference hole lists its choices from the SDE through `hole.choices(text)`. Every draft is immutable, so undo means keeping the previous one.
 
+#### Lists and joins
+
+A move on a list runs a step once per item. The fabric runs equal items once and refuses more distinct items than the step's cap (100 by default). The plan reports the cap and the calls per item before anything is sent:
+
+```ts
+const draft = fabric
+  .draft({ type: 'Rifter' })
+  .apply('blueprint')
+  .apply('materials') // eve.material.collection
+  .apply('cheapest price each') // one market lookup per material
+  .fill('region', 'The Forge')
+  .apply('total cost');
+
+draft.plan().steps.find((s) => s.each); // { over: 'material', cap: 100, esiCallsPerItem: 1, … }
+await fabric.query(draft, { perItemCap: 250 }); // raise the cap for this query only
+```
+
+A capability that takes a list of records is offered on a list of their references, and each reference is resolved first. That is how `route` and then `lowest security` work.
+
+A join is a weave: a pipeline that a pack publishes as a capability. The core pack's `trade profit after tax` looks up orders in two regions side by side and joins them.
+
 ### Capabilities
 
 A capability is a versioned, typed data operation. Its contract and the code

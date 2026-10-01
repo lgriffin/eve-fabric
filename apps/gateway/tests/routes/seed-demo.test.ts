@@ -20,7 +20,10 @@ const ref = (id: string) => [capabilityId(id), capabilityVersion('1.0.0')] as co
 describe('seedDemoComposites', () => {
   it('publishes four composites, each over a pipeline the fabric holds', () => {
     const fabric = seededFabric();
-    const composites = fabric.registry.list({ source: 'COMPOSITE' });
+    // The core pack's own weaves are composites too; these are the demo's.
+    const composites = fabric.registry
+      .list({ source: 'COMPOSITE' })
+      .filter((c) => (c.id as string).startsWith('composite.'));
     expect(composites.map((c) => c.id as string).sort()).toEqual([
       'composite.hauling.cost',
       'composite.market.snapshot',
