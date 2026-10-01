@@ -1,12 +1,25 @@
 import { defineCapability } from '@eve-fabric/kit';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 import { requireId } from '../support.js';
+import {
+  EveLocation,
+  EveLocationRef,
+  EveRegion,
+  EveRegionRef,
+  EveSystem,
+  EveSystemRef,
+  EveType,
+  EveTypeRef,
+} from '../types.js';
 
 const SDE_CACHE = { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true } as const;
 const SDE_COST = { estimatedLatencyMs: 10 } as const;
 
-// Each resolver emits the id its semantic type names; the SDE record behind
-// it is one hop away once reference types carry their resolvers (phase 3).
+// Two kinds of capability live here. The lookups (universe.resolve.*) turn
+// a name a person typed into a reference. The resolvers (universe.type,
+// universe.region, universe.system, universe.location) turn a reference into
+// its record; each reference type names its resolver, so any id a capability
+// emits can be followed.
 
 export const resolveType = defineCapability({
   id: 'universe.resolve.type',
@@ -15,7 +28,11 @@ export const resolveType = defineCapability({
   description:
     'Find and resolve an EVE item type by name or ID — look up ships, modules, minerals like Tritanium, and other items',
   inputs: {
-    query: { type: 'eve.type.reference', description: 'Type ID or name to resolve' },
+    query: {
+      type: 'eve.type.reference',
+      acceptsName: true,
+      description: 'Type ID or name to resolve',
+    },
   },
   outputs: {
     type: { type: 'eve.type.reference', description: 'Resolved type' },
@@ -45,7 +62,7 @@ export const resolveRegion = defineCapability({
   description:
     'Find and resolve an EVE region by name or ID — look up trade hub regions like The Forge (Jita) or Domain (Amarr)',
   inputs: {
-    query: { type: 'eve.region.reference', description: 'Region ID or name' },
+    query: { type: 'eve.region.reference', acceptsName: true, description: 'Region ID or name' },
   },
   outputs: {
     region: { type: 'eve.region.reference', description: 'Resolved region' },
@@ -76,7 +93,7 @@ export const resolveSolarSystem = defineCapability({
   description:
     'Find and resolve an EVE solar system by name or ID — look up systems like Jita, Amarr, Dodixie, or Rens',
   inputs: {
-    query: { type: 'eve.system.reference', description: 'System ID or name' },
+    query: { type: 'eve.system.reference', acceptsName: true, description: 'System ID or name' },
   },
   outputs: {
     system: { type: 'eve.system.reference', description: 'Resolved solar system' },
@@ -135,5 +152,109 @@ export const resolveLocation = defineCapability({
       );
     }
     return { system: system.systemId };
+  },
+});
+
+function locationOf(sde: IStaticDataProvider, locationId: number) {
+  if (locationId >= SOLAR_SYSTEM_IDS.min && locationId < SOLAR_SYSTEM_IDS.max) {
+    return sde.getSolarSystem(locationId) === null
+      ? undefined
+      : { location_id: locationId, kind: 'system', system_id: locationId };
+  }
+  const station = sde.getNpcStation(locationId);
+  if (station !== null) {
+    return { location_id: locationId, kind: 'station', system_id: station.solarSystemId };
+  }
+  return undefined;
+}
+
+export const typeRecord = defineCapability({
+  id: 'universe.type',
+  version: '2.0.0',
+  name: 'Item Type',
+  description: 'The SDE record behind an item type: its name, group and volume',
+  inputs: { id: { type: EveTypeRef, description: 'The type' } },
+  outputs: { type: { type: EveType, description: 'The type record' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ id }, { sde }) {
+    const typeId = requireId(id, 'id');
+    const found = sde.getType(typeId);
+    if (found === null) throw new Error(`Type ID ${typeId} not found in SDE`);
+    return {
+      type: {
+        type_id: found.typeId,
+        name: found.name,
+        group_id: found.groupId,
+        volume: found.volume,
+        market_group_id: found.marketGroupId,
+      },
+    };
+  },
+});
+
+export const regionRecord = defineCapability({
+  id: 'universe.region',
+  version: '2.0.0',
+  name: 'Region',
+  description: 'The SDE record behind a region: its name',
+  inputs: { id: { type: EveRegionRef, description: 'The region' } },
+  outputs: { region: { type: EveRegion, description: 'The region record' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ id }, { sde }) {
+    const regionId = requireId(id, 'id');
+    const found = sde.getRegion(regionId);
+    if (found === null) throw new Error(`Region ID ${regionId} not found in SDE`);
+    return { region: { region_id: found.regionId, name: found.name } };
+  },
+});
+
+export const systemRecord = defineCapability({
+  id: 'universe.system',
+  version: '2.0.0',
+  name: 'Solar System',
+  description: 'The SDE record behind a solar system: its name, security status and region',
+  inputs: { id: { type: EveSystemRef, description: 'The solar system' } },
+  outputs: { system: { type: EveSystem, description: 'The solar system record' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ id }, { sde }) {
+    const systemId = requireId(id, 'id');
+    const found = sde.getSolarSystem(systemId);
+    if (found === null) throw new Error(`Solar system ID ${systemId} not found in SDE`);
+    return {
+      system: {
+        system_id: found.systemId,
+        name: found.name,
+        security_status: found.securityStatus,
+        region_id: found.regionId,
+      },
+    };
+  },
+});
+
+export const locationRecord = defineCapability({
+  id: 'universe.location',
+  version: '2.0.0',
+  name: 'Location',
+  description:
+    'What a location id names: an NPC station or a solar system from the SDE, or a player structure, which needs an identity to see into',
+  inputs: { id: { type: EveLocationRef, description: 'The location' } },
+  outputs: { location: { type: EveLocation, description: 'The location record' } },
+  uses: ['sde'],
+  cache: SDE_CACHE,
+  cost: SDE_COST,
+  run({ id }, { sde }) {
+    const locationId = requireId(id, 'id');
+    // Structures are in ESI behind a scope. Until identities reach
+    // capabilities (overhaul phase 6) a structure resolves as one, typed,
+    // with no system rather than as an error.
+    return {
+      location: locationOf(sde, locationId) ?? { location_id: locationId, kind: 'structure' },
+    };
   },
 });

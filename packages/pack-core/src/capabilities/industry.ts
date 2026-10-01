@@ -32,6 +32,7 @@ export const blueprintLookup = defineCapability({
   outputs: {
     blueprint: { type: 'eve.type.reference', description: 'Blueprint type ID' },
   },
+  attach: { on: 'eve.type', as: 'blueprint', subject: 'item' },
   uses: ['sde'],
   cache: { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true },
   cost: { estimatedLatencyMs: 10 },

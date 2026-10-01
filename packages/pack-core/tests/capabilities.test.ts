@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { CapabilityCatalog, fixedClock, type CapabilityDefinition } from '@eve-fabric/domain';
+import {
+  CapabilityCatalog,
+  SemanticTypeRegistry,
+  fixedClock,
+  type CapabilityDefinition,
+} from '@eve-fabric/domain';
 import {
   ORDERS,
   REGION,
@@ -26,7 +31,9 @@ const forgeTritanium = ORDERS[REGION.theForge]![TYPE.tritanium]!;
 
 describe('the core pack', () => {
   it('lists every capability with a run, and registers in an executable catalog', () => {
-    const catalog = new CapabilityCatalog({ executable: true });
+    const types = new SemanticTypeRegistry();
+    for (const type of core.corePack.types ?? []) types.register(type);
+    const catalog = new CapabilityCatalog({ executable: true, types });
     for (const capability of core.corePack.capabilities) catalog.register(capability);
     expect(catalog.list()).toHaveLength(core.allCapabilities.length);
     for (const capability of core.allCapabilities) {
@@ -279,5 +286,89 @@ describe('logistics', () => {
         ],
       }),
     ).toEqual({ totalValue: 24.5 });
+  });
+});
+
+describe('resolvers: each reference type to its record', () => {
+  it('follows a type, region and system to their SDE records', async () => {
+    expect(await run(core.typeRecord, { id: TYPE.tritanium })).toEqual({
+      type: {
+        type_id: TYPE.tritanium,
+        name: 'Tritanium',
+        group_id: 18,
+        volume: 0.01,
+        market_group_id: 1857,
+      },
+    });
+    expect(await run(core.regionRecord, { id: REGION.theForge })).toEqual({
+      region: { region_id: REGION.theForge, name: 'The Forge' },
+    });
+    expect(await run(core.systemRecord, { id: SYSTEM.jita })).toEqual({
+      system: {
+        system_id: SYSTEM.jita,
+        name: 'Jita',
+        security_status: 0.9459,
+        region_id: REGION.theForge,
+      },
+    });
+    await expect(run(core.typeRecord, { id: 1 })).rejects.toThrow('not found');
+    await expect(run(core.regionRecord, { id: 1 })).rejects.toThrow('not found');
+    await expect(run(core.systemRecord, { id: 1 })).rejects.toThrow('not found');
+  });
+
+  it('follows a location to a station or system, and a structure to a typed unknown', async () => {
+    expect(await run(core.locationRecord, { id: STATION.amarrEmperor })).toEqual({
+      location: { location_id: STATION.amarrEmperor, kind: 'station', system_id: SYSTEM.amarr },
+    });
+    expect(await run(core.locationRecord, { id: SYSTEM.urlen })).toEqual({
+      location: { location_id: SYSTEM.urlen, kind: 'system', system_id: SYSTEM.urlen },
+    });
+    expect(await run(core.locationRecord, { id: 1_035_466_617_946 })).toEqual({
+      location: { location_id: 1_035_466_617_946, kind: 'structure' },
+    });
+    // An id in system range the SDE does not know is not a system.
+    expect(await run(core.locationRecord, { id: 30_999_999 })).toEqual({
+      location: { location_id: 30_999_999, kind: 'structure' },
+    });
+  });
+});
+
+describe('the eve.* types', () => {
+  const types = new SemanticTypeRegistry();
+  for (const type of core.coreTypes) types.register(type);
+
+  it('reads ESI market orders as eve.market.order values, unchanged', async () => {
+    const { orders } = await run(core.orders, { region: REGION.theForge, item: TYPE.tritanium });
+    expect(types.check('eve.market.order.collection', orders)).toEqual({ ok: true });
+    expect(types.check('eve.market.order', { ...(orders as object[])[0], price: '4.12' }).ok).toBe(
+      false,
+    );
+  });
+
+  it('types every resolver output as the record its reference names', async () => {
+    for (const reference of core.coreTypes.filter((t) => t.kind === 'reference')) {
+      const resolver = core.allCapabilities.find((c) => c.id === reference.resolver?.capability);
+      expect(resolver?.inputs.get(reference.resolver!.input)?.semanticType).toBe(reference.id);
+      expect(resolver?.outputs.get(reference.resolver!.output)?.semanticType).toBe(
+        reference.entity,
+      );
+    }
+    const { system } = await run(core.systemRecord, { id: SYSTEM.sivala });
+    expect(types.check('eve.system', system)).toEqual({ ok: true });
+  });
+
+  it('lets an order be followed: its location, type and system are references', () => {
+    expect(
+      types
+        .referencesIn('eve.market.order')
+        .map((t) => t.id)
+        .sort(),
+    ).toEqual(['eve.location.reference', 'eve.system.reference', 'eve.type.reference']);
+  });
+
+  it('allows a margin below zero and a return above 100%', () => {
+    expect(types.check('eve.percentage', -25).ok).toBe(true);
+    expect(types.check('eve.percentage', 250).ok).toBe(true);
+    expect(types.check('eve.percentage', Number.NaN).ok).toBe(false);
   });
 });

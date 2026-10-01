@@ -5,24 +5,27 @@ import type {
   CapabilityUse,
   Clock,
   SemanticPort,
+  SemanticTypeDefinition,
 } from '@eve-fabric/domain';
 import {
   capabilityId,
   capabilityVersion,
   isCapabilityUse,
   scopesFromUses,
-  semanticTypeId,
   sourceFromUses,
 } from '@eve-fabric/domain';
 import type { PublicScopeTree, ScopeTree } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
+import { typeIdOf, type TypeRef } from './define-type.js';
 
-/** One port of a capability, by semantic type id. */
+/** One port of a capability: its semantic type, by id or definition. */
 export interface PortConfig {
-  readonly type: string;
+  readonly type: TypeRef;
   readonly description?: string | undefined;
   /** Inputs only. Defaults to true. */
   readonly required?: boolean | undefined;
+  /** Inputs only. The port also takes a name, which `run` looks up. */
+  readonly acceptsName?: boolean | undefined;
 }
 
 export type PortsConfig = Readonly<Record<string, PortConfig>>;
@@ -85,6 +88,13 @@ export interface CapabilityConfig<
         readonly esiCallCount?: number | undefined;
       }
     | undefined;
+  /**
+   * Hang the capability on a type as a field: `{ on: 'eve.type', as:
+   * 'orders', subject: 'item' }` makes a type's orders one move away, fed
+   * through the `item` input.
+   */
+  readonly attach?:
+    { readonly on: TypeRef; readonly as: string; readonly subject: keyof I & string } | undefined;
   readonly run: (
     inputs: InputValues<I>,
     context: ContextFor<U>,
@@ -94,12 +104,13 @@ export interface CapabilityConfig<
 function toPorts(record: PortsConfig, isInput: boolean): ReadonlyMap<string, SemanticPort> {
   const map = new Map<string, SemanticPort>();
   for (const [name, config] of Object.entries(record)) {
-    map.set(name, {
+    const port: SemanticPort = {
       name,
-      semanticType: semanticTypeId(config.type),
+      semanticType: typeIdOf(config.type),
       description: config.description,
       required: isInput ? (config.required ?? true) : true,
-    });
+    };
+    map.set(name, isInput && config.acceptsName === true ? { ...port, acceptsName: true } : port);
   }
   return map;
 }
@@ -124,6 +135,11 @@ export function defineCapability<
   if (Object.keys(config.outputs).length === 0) {
     throw new Error(`Capability "${config.id}" must declare at least one output`);
   }
+  if (config.attach !== undefined && !(config.attach.subject in config.inputs)) {
+    throw new Error(
+      `Capability "${config.id}" attaches through "${config.attach.subject}", which is not one of its inputs`,
+    );
+  }
   const scopes = scopesFromUses(uses);
   const source = sourceFromUses(uses);
   const cacheable = config.cache?.cacheable ?? source !== 'DERIVED';
@@ -131,7 +147,7 @@ export function defineCapability<
     id: capabilityId(id),
   }));
 
-  return {
+  const definition: CapabilityDefinition = {
     id: capabilityId(config.id),
     version: capabilityVersion(config.version),
     name: config.name,
@@ -156,5 +172,35 @@ export function defineCapability<
     // The typed run is narrower than the core's opaque signature; the
     // executor builds the context from the same `uses`, so the cast holds.
     run: config.run as unknown as CapabilityRun,
+    attach:
+      config.attach === undefined
+        ? undefined
+        : {
+            on: typeIdOf(config.attach.on),
+            as: config.attach.as,
+            subject: config.attach.subject,
+          },
   };
+  portTypes.set(definition, definitionsIn(config));
+  return definition;
+}
+
+/** Type definitions a capability names by object, so its pack can collect them. */
+const portTypes = new WeakMap<CapabilityDefinition, readonly SemanticTypeDefinition[]>();
+
+export function typesUsedBy(capability: CapabilityDefinition): readonly SemanticTypeDefinition[] {
+  return portTypes.get(capability) ?? [];
+}
+
+function definitionsIn(config: {
+  readonly inputs: PortsConfig;
+  readonly outputs: PortsConfig;
+  readonly attach?: { readonly on: TypeRef } | undefined;
+}): SemanticTypeDefinition[] {
+  const refs: TypeRef[] = [
+    ...Object.values(config.inputs).map((p) => p.type),
+    ...Object.values(config.outputs).map((p) => p.type),
+  ];
+  if (config.attach !== undefined) refs.push(config.attach.on);
+  return refs.filter((ref): ref is SemanticTypeDefinition => typeof ref !== 'string');
 }

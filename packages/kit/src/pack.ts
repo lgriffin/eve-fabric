@@ -1,17 +1,45 @@
-import type { CapabilityDefinition } from '@eve-fabric/domain';
+import type { CapabilityDefinition, SemanticTypeDefinition } from '@eve-fabric/domain';
+import { typesUsedBy } from './define-capability.js';
+import { typesMentionedBy } from './define-type.js';
 
 /**
- * A pack: an npm package of capabilities, installed by whoever operates the
- * fabric. Packs carry code; weaves carry data (constitution IX).
+ * A pack: an npm package of capabilities and the semantic types they use,
+ * installed by whoever operates the fabric. Packs carry code; weaves carry
+ * data (constitution IX).
  */
 export interface Pack {
   /** The npm name or a namespaced id, for diagnostics. */
   readonly id: string;
+  /** The types the pack defines; a pack may use only types another pack installs. */
+  readonly types?: readonly SemanticTypeDefinition[] | undefined;
   readonly capabilities: readonly CapabilityDefinition[];
+}
+
+/** The given types plus every type they or the capabilities name by object. */
+function collectTypes(
+  packId: string,
+  types: readonly SemanticTypeDefinition[],
+  capabilities: readonly CapabilityDefinition[],
+): SemanticTypeDefinition[] {
+  const byId = new Map<string, SemanticTypeDefinition>();
+  const pending = [...types, ...capabilities.flatMap(typesUsedBy)];
+  while (pending.length > 0) {
+    const type = pending.pop()!;
+    const known = byId.get(type.id);
+    if (known === type) continue;
+    if (known !== undefined) {
+      throw new Error(`Pack "${packId}" defines semantic type "${type.id as string}" twice`);
+    }
+    byId.set(type.id, type);
+    pending.push(...typesMentionedBy(type));
+  }
+  return [...byId.values()];
 }
 
 export function definePack(config: {
   readonly id: string;
+  /** Types the pack defines. Types its capabilities name by object are collected too. */
+  readonly types?: readonly SemanticTypeDefinition[] | undefined;
   readonly capabilities: readonly CapabilityDefinition[];
 }): Pack {
   const seen = new Set<string>();
@@ -27,5 +55,9 @@ export function definePack(config: {
     }
     seen.add(key);
   }
-  return { id: config.id, capabilities: config.capabilities };
+  return {
+    id: config.id,
+    types: collectTypes(config.id, config.types ?? [], config.capabilities),
+    capabilities: config.capabilities,
+  };
 }

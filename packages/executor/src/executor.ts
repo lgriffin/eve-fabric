@@ -61,6 +61,21 @@ export class SourceUnavailableError extends Error {
   }
 }
 
+/** A port value is not a value of the port's semantic type. */
+export class PortValueError extends Error {
+  readonly port: string;
+  readonly direction: 'input' | 'output';
+  readonly typeId: string;
+
+  constructor(direction: 'input' | 'output', port: string, typeId: string, reason: string) {
+    super(`${direction === 'input' ? 'Input' : 'Output'} "${port}" is not a ${typeId}: ${reason}`);
+    this.name = 'PortValueError';
+    this.port = port;
+    this.direction = direction;
+    this.typeId = typeId;
+  }
+}
+
 const DEFAULT_MAX_CONCURRENCY = 5;
 const DEFAULT_CACHE_TTL_SECONDS = 300;
 
@@ -296,6 +311,7 @@ export class Executor {
         new Error(`Capability "${id}" has no run function (FAB-VAL-01)`),
       );
     }
+    this.checkPorts(step, definition, 'input', inputs);
     const context = this.contextFor(definition);
     let result: unknown;
     try {
@@ -310,7 +326,40 @@ export class Executor {
         new Error('run must return an object of output port values'),
       );
     }
-    return result as Readonly<Record<string, unknown>>;
+    const outputs = result as Readonly<Record<string, unknown>>;
+    this.checkPorts(step, definition, 'output', outputs);
+    return outputs;
+  }
+
+  /**
+   * Port values must be values of the port's type (constitution XVI, phase
+   * 3). An absent value (null or undefined) is not checked: an optional input
+   * left out, or an output with nothing to report, such as the lowest sell
+   * price in a market with no sellers. A catalog without types checks nothing.
+   */
+  private checkPorts(
+    step: ExecutionStep,
+    definition: CapabilityDefinition,
+    direction: 'input' | 'output',
+    values: Readonly<Record<string, unknown>>,
+  ): void {
+    const types = this.catalog.types;
+    if (types === undefined) return;
+    const ports = direction === 'input' ? definition.inputs : definition.outputs;
+    for (const [name, port] of ports) {
+      const value = values[name];
+      if (value === undefined || value === null) continue;
+      if (port.acceptsName === true && typeof value === 'string' && value.trim() !== '') continue;
+      if (!types.has(port.semanticType)) continue;
+      const check = types.check(port.semanticType, value);
+      if (!check.ok) {
+        throw new StepExecutionError(
+          step.id,
+          definition.id,
+          new PortValueError(direction, name, port.semanticType, check.message),
+        );
+      }
+    }
   }
 
   private contextFor(definition: CapabilityDefinition): RunContext {

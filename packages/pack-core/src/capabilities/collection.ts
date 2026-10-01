@@ -23,6 +23,7 @@ export const filter = defineCapability({
   outputs: {
     result: { type: 'eve.market.order.collection', description: 'Filtered collection' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'atOrBelow', subject: 'collection' },
   cost: PURE,
   run({ collection, threshold }) {
     if (!Array.isArray(collection)) return { result: [] };
@@ -42,6 +43,7 @@ export const sort = defineCapability({
   outputs: {
     result: { type: 'eve.market.order.collection', description: 'Sorted collection' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'byPrice', subject: 'collection' },
   cost: PURE,
   run({ collection }) {
     if (!Array.isArray(collection)) return { result: [] };
@@ -62,6 +64,7 @@ export const limit = defineCapability({
   outputs: {
     result: { type: 'eve.market.order.collection', description: 'Limited collection' },
   },
+  attach: { on: 'eve.market.order.collection', as: 'first', subject: 'collection' },
   cost: PURE,
   run({ collection, count }) {
     if (!Array.isArray(collection)) return { result: [] };

@@ -1,6 +1,15 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 2.0.0 -> 2.1.0 (MINOR)
+  Modified principles:
+    - VI. Semantic Type System: values, references and records; every
+      reference names its resolver; `attach`; port and configured values
+      checked; eve.* reserved for the core pack.
+  Added requirements: FAB-TYPE-01, FAB-TYPE-02 (both Enforced).
+
+  Previous amendment
+  ------------------
   Version change: 1.0.0 -> 2.0.0 (MAJOR)
   Modified principles:
     - V. Capability-First Design: a capability is one module holding its
@@ -230,6 +239,17 @@ Semantic types SHOULD include concepts such as:
 
 Semantic types MUST be extensible without modifying the compiler
 core.
+
+A semantic type is a value, a reference or a record (a list is a list of
+one of these). A record's fields are themselves semantic types, so an
+ESI market order's `location_id` is a location reference, not a number.
+Every reference type MUST name the capability that resolves it to its
+record, and a capability MUST NOT register if it emits a reference that
+cannot be followed (FAB-TYPE-01). A capability MAY `attach` to a type,
+which makes it a field of that type (`market.orders` is `orders` on
+`eve.type`). Port values are checked against their types when a step
+runs, and configured values when a pipeline compiles (FAB-TYPE-02). The
+`eve.*` namespace belongs to the core pack; other packs name their own.
 
 ### VII. Pipeline Composition
 
@@ -678,23 +698,25 @@ Each requirement has an id, the mechanism that enforces it, and a
 status. A requirement is **Enforced** only when its mechanism runs in
 CI. Statuses move forward as the overhaul phases land.
 
-| Id          | Requirement                                                                                                                                | Enforced by                                             | Status            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ----------------- |
-| FAB-ARCH-01 | The core (`packages/domain`) imports `zod` and nothing else.                                                                               | `pnpm run lint:layers`                                  | Enforced          |
-| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package) and the kit and packs never import a source adapter. | `pnpm run lint:layers`                                  | Enforced          |
-| FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts` values; the kit and packs import its types only.                      | `pnpm run lint:layers`                                  | Enforced          |
-| FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                                  | `pnpm run lint:determinism` (shrink-only baseline)      | Enforced          |
-| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                                 | `engines`, CI matrix 22 and 24                          | Enforced          |
-| FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                             | gateway runtime tests                                   | Enforced          |
-| FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                      | `pnpm run test:bank`                                    | Enforced          |
-| FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                             | `CapabilityCatalog({ executable: true })`, fabric tests | Enforced          |
-| FAB-VAL-02  | The engine shall offer a move only if applying it yields a draft that compiles once its holes are filled.                                  | property test over random walks                         | Planned (phase 4) |
-| FAB-VAL-03  | If a move is applied that the engine did not offer for that draft, then the draft shall reject it and remain unchanged.                    | draft tests                                             | Planned (phase 4) |
-| FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                       | draft tests                                             | Planned (phase 4) |
-| FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.                  | schema derivation tests                                 | Planned (phase 7) |
-| FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                             | GraphQL round-trip tests                                | Planned (phase 7) |
-| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                  | bank Q6                                                 | Planned (phase 6) |
-| FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                          | bank Q8                                                 | Planned (phase 8) |
+| Id          | Requirement                                                                                                                                    | Enforced by                                             | Status            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ----------------- |
+| FAB-ARCH-01 | The core (`packages/domain`) imports `zod` and nothing else.                                                                                   | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package) and the kit and packs never import a source adapter.     | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts` values; the kit and packs import its types only.                          | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                                      | `pnpm run lint:determinism` (shrink-only baseline)      | Enforced          |
+| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                                     | `engines`, CI matrix 22 and 24                          | Enforced          |
+| FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                                 | gateway runtime tests                                   | Enforced          |
+| FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                          | `pnpm run test:bank`                                    | Enforced          |
+| FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                                 | `CapabilityCatalog({ executable: true })`, fabric tests | Enforced          |
+| FAB-TYPE-01 | When a capability emits a reference type that names no installed resolver, the fabric shall refuse to install it and name the type.            | `CapabilityCatalog({ types })`, fabric install          | Enforced          |
+| FAB-TYPE-02 | If a port or configured value is not a value of its port's type, then the step shall fail, or the pipeline shall not compile, naming the port. | executor and compiler tests                             | Enforced          |
+| FAB-VAL-02  | The engine shall offer a move only if applying it yields a draft that compiles once its holes are filled.                                      | property test over random walks                         | Planned (phase 4) |
+| FAB-VAL-03  | If a move is applied that the engine did not offer for that draft, then the draft shall reject it and remain unchanged.                        | draft tests                                             | Planned (phase 4) |
+| FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                           | draft tests                                             | Planned (phase 4) |
+| FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.                      | schema derivation tests                                 | Planned (phase 7) |
+| FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                                 | GraphQL round-trip tests                                | Planned (phase 7) |
+| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                      | bank Q6                                                 | Planned (phase 6) |
+| FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                              | bank Q8                                                 | Planned (phase 8) |
 
 ## Governance
 
@@ -729,4 +751,4 @@ All pull requests and code reviews MUST verify compliance with
 this constitution. Complexity MUST be justified against these
 principles.
 
-**Version**: 2.0.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-01
+**Version**: 2.1.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-01

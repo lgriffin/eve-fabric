@@ -2,6 +2,7 @@ import type { CapabilityId, CapabilityVersion, CapabilityRef } from './capabilit
 import type { AuthRequirement, CachePolicy, CostModel, CapabilitySource } from './value-objects.js';
 import type { SemanticPort } from './semantic-port.js';
 import type { Clock } from '../ports/clock.js';
+import type { SemanticTypeId } from '../semantic-type/semantic-type.js';
 
 export interface PipelineRef {
   readonly id: string;
@@ -39,6 +40,17 @@ export type CapabilityRun = (
   context: RunContext,
 ) => Readonly<Record<string, unknown>> | Promise<Readonly<Record<string, unknown>>>;
 
+/**
+ * Where a capability hangs in the type graph: a field named `as` on the
+ * `on` type, fed through the input port `subject`. `market.orders` attaches
+ * to `eve.type` as `orders`, so a type's orders are one move away.
+ */
+export interface CapabilityAttach {
+  readonly on: SemanticTypeId;
+  readonly as: string;
+  readonly subject: string;
+}
+
 export interface CapabilityDefinition {
   readonly id: CapabilityId;
   readonly version: CapabilityVersion;
@@ -57,4 +69,6 @@ export interface CapabilityDefinition {
   readonly uses?: readonly CapabilityUse[] | undefined;
   /** The code behind the contract. Required to register in an executable catalog. */
   readonly run?: CapabilityRun | undefined;
+  /** See {@link CapabilityAttach}. */
+  readonly attach?: CapabilityAttach | undefined;
 }

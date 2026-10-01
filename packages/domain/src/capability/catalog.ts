@@ -2,6 +2,7 @@ import type { CapabilityId, CapabilityRef, CapabilityVersion } from './capabilit
 import type { CapabilityDefinition } from './capability-definition.js';
 import type { CapabilitySource } from './value-objects.js';
 import type { SemanticTypeId } from '../semantic-type/semantic-type.js';
+import { type SemanticTypeRegistry, UnknownSemanticTypeError } from '../semantic-type/registry.js';
 import { capabilityDefinitionSchema } from './schemas.js';
 import type { SemanticPort } from './semantic-port.js';
 import { capabilityId, capabilityVersion, compareVersions } from './capability-id.js';
@@ -37,6 +38,39 @@ export interface CapabilityCatalogOptions {
    * view, a compiler test) leaves it off.
    */
   readonly executable?: boolean | undefined;
+  /**
+   * The semantic types the catalog's ports may name. With it, a capability
+   * registers only when every port type is known, every reference type it
+   * emits names a resolver, and its `attach` fits; without it (a contracts
+   * view) port types are taken on trust.
+   */
+  readonly types?: SemanticTypeRegistry | undefined;
+}
+
+/** A capability emits a reference type that names no resolver. */
+export class UnresolvableReferenceError extends Error {
+  readonly capabilityId: string;
+  readonly typeId: string;
+
+  constructor(capability: string, typeId: string, port: string) {
+    super(
+      `Capability "${capability}" emits "${typeId}" on "${port}", but that reference type names no resolver; every reference a capability emits must be followable`,
+    );
+    this.name = 'UnresolvableReferenceError';
+    this.capabilityId = capability;
+    this.typeId = typeId;
+  }
+}
+
+/** A capability's `attach` does not fit its ports, or takes a name already taken. */
+export class InvalidAttachError extends Error {
+  readonly capabilityId: string;
+
+  constructor(capability: string, reason: string) {
+    super(`Capability "${capability}" cannot attach: ${reason}`);
+    this.name = 'InvalidAttachError';
+    this.capabilityId = capability;
+  }
 }
 
 /** Thrown when an executable catalog is offered a capability with no code behind it. */
@@ -55,11 +89,89 @@ export class CapabilityNotExecutableError extends Error {
 export class CapabilityCatalog {
   private readonly definitions = new Map<string, CapabilityDefinition>();
   private readonly latestVersions = new Map<string, CapabilityVersion>();
+  /** `${on}.${as}` to the capability attached there. */
+  private readonly attachments = new Map<string, CapabilityId>();
   /** Whether this catalog enforces the catalog gate. */
   readonly executable: boolean;
+  /** The types ports are checked against, when given. */
+  readonly types: SemanticTypeRegistry | undefined;
 
   constructor(options?: CapabilityCatalogOptions) {
     this.executable = options?.executable ?? false;
+    this.types = options?.types;
+  }
+
+  /** Every capability attached to a type, by the field name it attaches as. */
+  attachedTo(typeId: SemanticTypeId | string): CapabilityDefinition[] {
+    return this.list().filter((def) => (def.attach?.on as string | undefined) === typeId);
+  }
+
+  private checkTypes(def: CapabilityDefinition): void {
+    const types = this.types;
+    if (types === undefined) return;
+    const id = def.id as string;
+    for (const [direction, ports] of [
+      ['input', def.inputs],
+      ['output', def.outputs],
+    ] as const) {
+      for (const [name, port] of ports) {
+        if (!types.has(port.semanticType)) {
+          throw new UnknownSemanticTypeError(port.semanticType, `${direction} "${name}" of ${id}`);
+        }
+      }
+    }
+    for (const [name, port] of def.outputs) {
+      for (const reference of types.referencesIn(port.semanticType)) {
+        if (reference.resolver === undefined) {
+          throw new UnresolvableReferenceError(id, reference.id, name);
+        }
+      }
+    }
+    if (def.attach !== undefined) this.checkAttach(def, types);
+  }
+
+  private checkAttach(def: CapabilityDefinition, types: SemanticTypeRegistry): void {
+    const id = def.id as string;
+    const { on, as, subject } = def.attach!;
+    if (!types.has(on)) throw new InvalidAttachError(id, `"${on}" is not a known type`);
+    const port = def.inputs.get(subject);
+    if (port === undefined) {
+      throw new InvalidAttachError(id, `"${subject}" is not one of its inputs`);
+    }
+    if (port.semanticType !== on && types.entityOf(port.semanticType) !== on) {
+      throw new InvalidAttachError(
+        id,
+        `its subject "${subject}" is a "${port.semanticType}", which is neither "${on}" nor a reference to it`,
+      );
+    }
+    const holder = this.attachments.get(`${on}.${as}`);
+    if (holder !== undefined && holder !== def.id) {
+      throw new InvalidAttachError(
+        id,
+        `"${on}" already has "${as}", attached by "${holder as string}"`,
+      );
+    }
+  }
+
+  private store(def: CapabilityDefinition): void {
+    const id = capabilityId(def.id);
+    const version = capabilityVersion(def.version);
+    const key = catalogKey(id, version);
+    if (this.definitions.has(key)) {
+      throw new Error(
+        `Capability "${id as string}" version ${version as string} is already registered`,
+      );
+    }
+    this.checkTypes(def);
+
+    this.definitions.set(key, def);
+    if (def.attach !== undefined) {
+      this.attachments.set(`${def.attach.on as string}.${def.attach.as}`, id);
+    }
+    const currentLatest = this.latestVersions.get(id);
+    if (currentLatest === undefined || compareVersions(version, currentLatest) > 0) {
+      this.latestVersions.set(id, version);
+    }
   }
 
   register(definition: CapabilityDefinition | Record<string, unknown>): void {
@@ -75,23 +187,7 @@ export class CapabilityCatalog {
 
     // If inputs is already a Map, this is a normalized CapabilityDefinition
     if (def.inputs instanceof Map) {
-      const normalized = definition as CapabilityDefinition;
-      const id = capabilityId(normalized.id);
-      const version = capabilityVersion(normalized.version);
-      const key = catalogKey(id, version);
-
-      if (this.definitions.has(key)) {
-        throw new Error(
-          `Capability "${id as string}" version ${version as string} is already registered`,
-        );
-      }
-
-      this.definitions.set(key, normalized);
-
-      const currentLatest = this.latestVersions.get(id);
-      if (currentLatest === undefined || compareVersions(version, currentLatest) > 0) {
-        this.latestVersions.set(id, version);
-      }
+      this.store(definition as CapabilityDefinition);
       return;
     }
 
@@ -105,13 +201,6 @@ export class CapabilityCatalog {
 
     const id = capabilityId(data.id);
     const version = capabilityVersion(data.version);
-    const key = catalogKey(id, version);
-
-    if (this.definitions.has(key)) {
-      throw new Error(
-        `Capability "${id as string}" version ${version as string} is already registered`,
-      );
-    }
 
     const normalized: CapabilityDefinition = {
       id,
@@ -145,12 +234,7 @@ export class CapabilityCatalog {
           : undefined,
     };
 
-    this.definitions.set(key, normalized);
-
-    const currentLatest = this.latestVersions.get(id);
-    if (currentLatest === undefined || compareVersions(version, currentLatest) > 0) {
-      this.latestVersions.set(id, version);
-    }
+    this.store(normalized);
   }
 
   get(id: CapabilityId, version?: CapabilityVersion): CapabilityDefinition {

@@ -6,6 +6,11 @@ export interface SemanticPort {
   readonly semanticType: SemanticTypeId;
   readonly description?: string | undefined;
   readonly required: boolean;
+  /**
+   * Inputs only. The port also takes a name in place of the reference, which
+   * the capability looks up (the `universe.resolve.*` lookups).
+   */
+  readonly acceptsName?: boolean | undefined;
 }
 
 export const semanticPortSchema = z.object({

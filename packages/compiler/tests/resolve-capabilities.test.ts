@@ -1,7 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { resolveCapabilities } from '../src/resolve-capabilities.js';
-import { CAPABILITY_NOT_FOUND, MISSING_INPUT, UNKNOWN_PIPELINE_INPUT } from '../src/diagnostics.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
+import {
+  CAPABILITY_NOT_FOUND,
+  INVALID_CONFIGURED_VALUE,
+  MISSING_INPUT,
+  UNKNOWN_PIPELINE_INPUT,
+} from '../src/diagnostics.js';
+import { z } from 'zod';
+import {
+  CapabilityCatalog,
+  SemanticTypeRegistry,
+  capabilityId,
+  capabilityVersion,
+  createSemanticType,
+  semanticTypeId,
+} from '@eve-fabric/domain';
 import type { PipelineDefinition } from '../src/pipeline-types.js';
 
 function marketOrdersDef() {
@@ -228,5 +241,102 @@ describe('resolveCapabilities: undeclared pipeline inputs', () => {
     const codes = resolveCapabilities(pipeline, catalog).map((d) => d.code);
     expect(codes).toContain(UNKNOWN_PIPELINE_INPUT);
     expect(codes).toContain(MISSING_INPUT);
+  });
+});
+
+describe('resolveCapabilities: configured values', () => {
+  function typedCatalog(): CapabilityCatalog {
+    const types = new SemanticTypeRegistry();
+    types.register(
+      createSemanticType({
+        id: 'test.region.reference',
+        description: 'A region id',
+        schema: z.number().int().positive(),
+        category: 't',
+      }),
+    );
+    const catalog = new CapabilityCatalog({ types });
+    catalog.register({
+      id: capabilityId('test.lookup'),
+      version: capabilityVersion('1.0.0'),
+      name: 'Lookup',
+      description: 'Takes a region, or its name',
+      inputs: new Map([
+        [
+          'region',
+          { name: 'region', semanticType: semanticTypeId('test.region.reference'), required: true },
+        ],
+        [
+          'query',
+          {
+            name: 'query',
+            semanticType: semanticTypeId('test.region.reference'),
+            required: false,
+            acceptsName: true,
+          },
+        ],
+      ]),
+      outputs: new Map([
+        [
+          'out',
+          { name: 'out', semanticType: semanticTypeId('test.region.reference'), required: true },
+        ],
+      ]),
+      source: 'DERIVED',
+      dependencies: [],
+      auth: { required: false, scopes: [] },
+      cache: {
+        cacheable: false,
+        defaultTtlSeconds: 0,
+        stalePermitted: false,
+        identityInKey: false,
+      },
+      cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
+    });
+    return catalog;
+  }
+
+  const pipeline: PipelineDefinition = {
+    id: 'p',
+    version: 1,
+    name: 'p',
+    inputs: [],
+    nodes: [{ id: 'n', capability: { id: 'test.lookup', version: '1.0.0' } }],
+    edges: [],
+    outputs: [{ name: 'out', source: 'n.out' }],
+  };
+
+  it('refuses a configured value that is not of its port type', () => {
+    const diagnostics = resolveCapabilities(pipeline, typedCatalog(), {
+      configuredInputs: { n: { region: 'The Forge' } },
+    });
+    expect(diagnostics).toEqual([
+      expect.objectContaining({
+        code: INVALID_CONFIGURED_VALUE,
+        location: { nodeId: 'n', field: 'region' },
+        context: { expectedType: 'test.region.reference' },
+      }),
+    ]);
+  });
+
+  it('accepts a value of the type, a name where the port takes names, and nothing at all', () => {
+    expect(
+      resolveCapabilities(pipeline, typedCatalog(), {
+        configuredInputs: { n: { region: 10000002, query: 'The Forge', other: 'ignored' } },
+      }),
+    ).toEqual([]);
+    expect(
+      resolveCapabilities(pipeline, typedCatalog(), {
+        configuredInputs: { n: { region: 10000002, query: null } },
+      }),
+    ).toEqual([]);
+  });
+
+  it('checks nothing in a catalog without types', () => {
+    const catalog = new CapabilityCatalog();
+    catalog.register(typedCatalog().list()[0]!);
+    expect(
+      resolveCapabilities(pipeline, catalog, { configuredInputs: { n: { region: 'The Forge' } } }),
+    ).toEqual([]);
   });
 });

@@ -93,17 +93,48 @@ The compiler validates semantic wiring (you can't connect a `RegionReference` to
 
 ## Key Concepts
 
-### Semantic Types (Branded)
+### Semantic Types
 
-Every port on a capability has a semantic type. TypeScript branded types prevent mixing up values that share a runtime representation:
+Every port on a capability has a semantic type, and a type is one of three
+things. A **value** has a schema (`eve.currency.isk`). A **reference** is an id
+that names a record held elsewhere, and it names the capability that resolves
+it (`eve.location.reference` is followed by `universe.location`). A **record**
+is an object whose fields are themselves semantic types, which is what lets an
+ESI order be followed from its `location_id` to the station and on to the
+system:
 
 ```typescript
-type RegionReference = number & { readonly __brand: 'eve.region.reference' };
-type TypeReference = number & { readonly __brand: 'eve.type.reference' };
+import { defineType, listOf } from '@eve-fabric/kit';
 
-// These are both numbers at runtime, but the compiler prevents:
-// connecting a RegionReference output to a TypeReference input
+export const EveLocationRef = defineType({
+  kind: 'reference',
+  id: 'eve.location.reference',
+  description: 'An NPC station, a solar system or a player structure',
+  entity: 'eve.location',
+  resolver: { capability: 'universe.location', input: 'id', output: 'location' },
+});
+
+export const EveMarketOrder = defineType({
+  kind: 'record',
+  id: 'eve.market.order',
+  description: 'A market order, as ESI sends it',
+  fields: {
+    order_id: EveId,
+    type_id: EveTypeRef,
+    location_id: EveLocationRef,
+    price: EveCurrencyIsk /* … */,
+  },
+});
+
+export const EveMarketOrders = listOf(EveMarketOrder); // eve.market.order.collection
 ```
+
+Two values that are both integers at runtime are still different types, so the
+compiler refuses to wire a region into a type port. A fabric refuses a
+capability that emits a reference no installed capability can follow
+(FAB-TYPE-01), checks every port value against its type when a step runs, and
+refuses to compile a configured value of the wrong type (FAB-TYPE-02). The
+`eve.*` types live in `@eve-fabric/pack-core`, which owns that namespace.
 
 ### Capabilities
 
@@ -115,7 +146,7 @@ scopes and the context its `run` receives:
 import { defineCapability, definePack } from '@eve-fabric/kit';
 
 export const orders = defineCapability({
-  id: 'market.orders',
+  id: 'my.market.orders',
   version: '2.0.0',
   name: 'Market Orders',
   description: 'Live market orders for an item in a region',
@@ -125,6 +156,8 @@ export const orders = defineCapability({
   },
   outputs: { orders: { type: 'eve.market.order.collection' } },
   uses: ['esi.public'],
+  // A field on eve.type: a type's orders are one move away.
+  attach: { on: 'eve.type', as: 'myOrders', subject: 'item' },
   async run({ region, item }, { esi }) {
     const found = [];
     for await (const order of esi.market(Number(region)).orders.get({

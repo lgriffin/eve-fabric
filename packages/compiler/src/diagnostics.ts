@@ -34,6 +34,26 @@ export const CAPABILITY_NOT_FOUND = 'CAPABILITY_NOT_FOUND';
 export const MISSING_INPUT = 'MISSING_INPUT';
 export const SEMANTIC_SUGGESTION = 'SEMANTIC_SUGGESTION';
 export const UNKNOWN_PIPELINE_INPUT = 'UNKNOWN_PIPELINE_INPUT';
+export const INVALID_CONFIGURED_VALUE = 'INVALID_CONFIGURED_VALUE';
+
+/**
+ * Creates a diagnostic for a value configured on a port that is not a value
+ * of the port's semantic type.
+ */
+export function invalidConfiguredValue(
+  nodeId: string,
+  port: string,
+  expectedType: string,
+  reason: string,
+): CompilerDiagnostic {
+  return {
+    code: INVALID_CONFIGURED_VALUE,
+    severity: 'error',
+    message: `The value configured for "${nodeId}.${port}" is not a ${expectedType}: ${reason}`,
+    location: { nodeId, field: port },
+    context: { expectedType },
+  };
+}
 
 /**
  * Creates a diagnostic for a semantic type mismatch between two connected ports.

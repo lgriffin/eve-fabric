@@ -1,6 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
+import { z } from 'zod';
 import {
   CapabilityCatalog,
+  SemanticTypeRegistry,
+  createSemanticType,
   capabilityId,
   capabilityVersion,
   fixedClock,
@@ -16,7 +19,12 @@ import type {
 } from '@eve-fabric/domain';
 import { defineCapability } from '@eve-fabric/kit';
 import { compile } from '@eve-fabric/compiler';
-import { Executor, SourceUnavailableError, StepExecutionError } from '../src/index.js';
+import {
+  Executor,
+  PortValueError,
+  SourceUnavailableError,
+  StepExecutionError,
+} from '../src/index.js';
 
 // ── Capabilities ──────────────────────────────────────────────
 
@@ -521,6 +529,68 @@ describe('Executor', () => {
     const catalog = catalogWith(double);
     expect(catalog.get(capabilityId('test.double'), capabilityVersion('1.0.0')).run).toBeTypeOf(
       'function',
+    );
+  });
+});
+
+describe('port values against their types', () => {
+  const half = defineCapability({
+    id: 'test.half',
+    version: '1.0.0',
+    name: 'Half',
+    description: 'Halves a quantity, which may not stay whole',
+    inputs: { value: { type: 'eve.quantity' } },
+    outputs: { result: { type: 'eve.quantity' } },
+    run: ({ value }) => ({ result: value === 0 ? null : Number(value) / 2 }),
+  });
+
+  function typedCatalog(...defs: CapabilityDefinition[]): CapabilityCatalog {
+    const types = new SemanticTypeRegistry();
+    types.register(
+      createSemanticType({
+        id: 'eve.quantity',
+        description: 'A count',
+        schema: z.number().int().nonnegative(),
+        category: 'common',
+      }),
+    );
+    const catalog = new CapabilityCatalog({ executable: true, types });
+    for (const def of defs) catalog.register(def);
+    return catalog;
+  }
+
+  it('refuses an output that is not a value of its type', async () => {
+    const catalog = typedCatalog(half);
+    const executor = new Executor({ catalog });
+    const plan = planFor(single(half, 'n', 'eve.quantity'), catalog);
+    const failure = await executor.execute(plan, new Map([['n', 3]])).catch((e: unknown) => e);
+    expect(failure).toBeInstanceOf(StepExecutionError);
+    expect((failure as Error).cause).toBeInstanceOf(PortValueError);
+    expect((failure as Error).message).toContain('Output "result" is not a eve.quantity');
+    expect((failure as PortValueError & { cause: PortValueError }).cause).toMatchObject({
+      direction: 'output',
+      port: 'result',
+      typeId: 'eve.quantity',
+    });
+  });
+
+  it('passes values of the type, and absent ones', async () => {
+    const catalog = typedCatalog(half);
+    const executor = new Executor({ catalog });
+    const plan = planFor(single(half, 'n', 'eve.quantity'), catalog);
+    expect((await executor.execute(plan, new Map([['n', 4]]))).outputs.get('step')).toEqual({
+      result: 2,
+    });
+    expect((await executor.execute(plan, new Map([['n', 0]]))).outputs.get('step')).toEqual({
+      result: null,
+    });
+  });
+
+  it('refuses an input that is not a value of its type', async () => {
+    const catalog = typedCatalog(half);
+    const plan = planFor(single(half, 'n', 'eve.quantity'), catalog);
+    await expect(new Executor({ catalog }).execute(plan, new Map([['n', -1]]))).rejects.toThrow(
+      'Input "value" is not a eve.quantity',
     );
   });
 });

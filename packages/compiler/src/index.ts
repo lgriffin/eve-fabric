@@ -5,11 +5,13 @@ export {
   CAPABILITY_NOT_FOUND,
   MISSING_INPUT,
   UNKNOWN_PIPELINE_INPUT,
+  INVALID_CONFIGURED_VALUE,
   SEMANTIC_SUGGESTION,
   semanticTypeMismatch,
   cycleDetected,
   capabilityNotFound,
   missingInput,
+  invalidConfiguredValue,
   semanticSuggestion,
 } from './diagnostics.js';
 
