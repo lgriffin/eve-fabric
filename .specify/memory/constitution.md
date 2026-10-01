@@ -678,23 +678,23 @@ Each requirement has an id, the mechanism that enforces it, and a
 status. A requirement is **Enforced** only when its mechanism runs in
 CI. Statuses move forward as the overhaul phases land.
 
-| Id          | Requirement                                                                                                                           | Enforced by                                        | Status            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------- |
-| FAB-ARCH-01 | The core (`packages/domain`) imports `zod` and nothing else.                                                                          | `pnpm run lint:layers`                             | Enforced          |
-| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package, capability-sdk) never imports a source adapter. | `pnpm run lint:layers`                             | Enforced          |
-| FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts`.                                                                 | `pnpm run lint:layers`                             | Enforced          |
-| FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                             | `pnpm run lint:determinism` (shrink-only baseline) | Enforced          |
-| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                            | `engines`, CI matrix 22 and 24                     | Enforced          |
-| FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                        | gateway runtime tests                              | Enforced          |
-| FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                 | `pnpm run test:bank`                               | Enforced          |
-| FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                        | catalog tests                                      | Planned (phase 2) |
-| FAB-VAL-02  | The engine shall offer a move only if applying it yields a draft that compiles once its holes are filled.                             | property test over random walks                    | Planned (phase 4) |
-| FAB-VAL-03  | If a move is applied that the engine did not offer for that draft, then the draft shall reject it and remain unchanged.               | draft tests                                        | Planned (phase 4) |
-| FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                  | draft tests                                        | Planned (phase 4) |
-| FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.             | schema derivation tests                            | Planned (phase 7) |
-| FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                        | GraphQL round-trip tests                           | Planned (phase 7) |
-| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.             | bank Q6                                            | Planned (phase 6) |
-| FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                     | bank Q8                                            | Planned (phase 8) |
+| Id          | Requirement                                                                                                                                | Enforced by                                             | Status            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- | ----------------- |
+| FAB-ARCH-01 | The core (`packages/domain`) imports `zod` and nothing else.                                                                               | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package) and the kit and packs never import a source adapter. | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts` values; the kit and packs import its types only.                      | `pnpm run lint:layers`                                  | Enforced          |
+| FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                                  | `pnpm run lint:determinism` (shrink-only baseline)      | Enforced          |
+| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                                 | `engines`, CI matrix 22 and 24                          | Enforced          |
+| FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                             | gateway runtime tests                                   | Enforced          |
+| FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                      | `pnpm run test:bank`                                    | Enforced          |
+| FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                             | `CapabilityCatalog({ executable: true })`, fabric tests | Enforced          |
+| FAB-VAL-02  | The engine shall offer a move only if applying it yields a draft that compiles once its holes are filled.                                  | property test over random walks                         | Planned (phase 4) |
+| FAB-VAL-03  | If a move is applied that the engine did not offer for that draft, then the draft shall reject it and remain unchanged.                    | draft tests                                             | Planned (phase 4) |
+| FAB-VAL-04  | While a draft has an unfilled hole, the fabric shall not plan, publish or export it.                                                       | draft tests                                             | Planned (phase 4) |
+| FAB-VAL-05  | The schema shall expose a field only if every input of its capability is supplied by the parent entity or by an argument.                  | schema derivation tests                                 | Planned (phase 7) |
+| FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                             | GraphQL round-trip tests                                | Planned (phase 7) |
+| FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                  | bank Q6                                                 | Planned (phase 6) |
+| FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                          | bank Q8                                                 | Planned (phase 8) |
 
 ## Governance
 

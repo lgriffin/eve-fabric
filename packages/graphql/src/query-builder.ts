@@ -24,7 +24,7 @@ export interface ExecutorLike {
     plan: ExecutionPlan,
     inputs: ReadonlyMap<string, unknown>,
   ): Promise<{
-    readonly outputs: ReadonlyMap<string, unknown>;
+    readonly outputs: ReadonlyMap<string, Readonly<Record<string, unknown>>>;
     readonly provenance: ReadonlyMap<string, ProvenanceRecord>;
   }>;
 }
@@ -83,10 +83,13 @@ function buildResolve(
 
       const output: Record<string, unknown> = {};
       for (const pipelineOutput of pipeline.outputs) {
+        // A pipeline output names a node and the port it reads: "nodeId.port".
         const dotIndex = pipelineOutput.source.indexOf('.');
         const nodeId =
           dotIndex >= 0 ? pipelineOutput.source.slice(0, dotIndex) : pipelineOutput.source;
-        output[pipelineOutput.name] = result.outputs.get(nodeId);
+        const step = result.outputs.get(nodeId);
+        output[pipelineOutput.name] =
+          dotIndex >= 0 ? step?.[pipelineOutput.source.slice(dotIndex + 1)] : step;
       }
 
       if (includeProvenance === true) {

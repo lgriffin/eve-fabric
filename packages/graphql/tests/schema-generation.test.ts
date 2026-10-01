@@ -334,7 +334,7 @@ describe('schema with executor', () => {
 
     const mockExecutor = {
       execute: async () => ({
-        outputs: new Map([['agg', 42.5]]),
+        outputs: new Map([['agg', { lowestSell: 42.5, highestBuy: 40 }]]),
         provenance: new Map(),
       }),
     };

@@ -1,0 +1,25 @@
+{
+  "name": "@eve-fabric/pack-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The built-in capabilities, each with its run beside its contract.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@eve-fabric/domain": "workspace:*",
+    "@eve-fabric/kit": "workspace:*",
+    "@lgriffin/esi.ts": "11.1.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "@eve-fabric/test-support": "workspace:*"
+  }
+}

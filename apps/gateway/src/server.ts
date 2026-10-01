@@ -1,7 +1,8 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
 import type { GraphQLSchema } from 'graphql';
-import type { EsiClient } from '@lgriffin/esi.ts';
+import type { Esi } from '@lgriffin/esi.ts/client';
+import type { StaticSource } from '@eve-fabric/domain';
 import { schemaPackageRoutes } from './routes/schema-package.js';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createPublishRoutes } from './routes/publish-routes.js';
@@ -20,7 +21,9 @@ export interface ServerOptions {
   readonly typeDefs?: string | undefined;
   readonly resolvers?: Record<string, Record<string, unknown>> | undefined;
   readonly sdeDataPath?: string | undefined;
-  readonly esiClient?: EsiClient | undefined;
+  /** ESI.ts's runtime; tests pass one over a mock transport. */
+  readonly esi?: Esi | undefined;
+  readonly sde?: StaticSource | undefined;
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
@@ -30,7 +33,8 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(tracingPlugin);
 
   const runtime = new GatewayRuntime({
-    esiClient: options?.esiClient,
+    esi: options?.esi,
+    sde: options?.sde,
     sdeDataPath: options?.sdeDataPath,
   });
 
@@ -97,6 +101,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(
     createPublishRoutes(
       runtime.registry,
+      (pipeline, options) => runtime.fabric.publishComposite(pipeline, options),
       (id, version) => {
         return runtime.pipelineRepository
           .getById(id)

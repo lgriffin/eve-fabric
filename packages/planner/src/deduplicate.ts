@@ -15,6 +15,8 @@ function stepSignature(step: ExecutionStep): string {
 export interface DeduplicationResult {
   readonly steps: readonly ExecutionStep[];
   readonly mergedCount: number;
+  /** Each merged step id and the kept step whose result it shares. */
+  readonly aliases: ReadonlyMap<string, string>;
 }
 
 export function deduplicateSteps(steps: readonly ExecutionStep[]): DeduplicationResult {
@@ -33,7 +35,7 @@ export function deduplicateSteps(steps: readonly ExecutionStep[]): Deduplication
     }
   }
 
-  if (mergeMap.size === 0) return { steps, mergedCount: 0 };
+  if (mergeMap.size === 0) return { steps, mergedCount: 0, aliases: mergeMap };
 
   const rewired = kept.map((step) => ({
     ...step,
@@ -47,5 +49,5 @@ export function deduplicateSteps(steps: readonly ExecutionStep[]): Deduplication
     }),
   }));
 
-  return { steps: rewired, mergedCount: mergeMap.size };
+  return { steps: rewired, mergedCount: mergeMap.size, aliases: mergeMap };
 }

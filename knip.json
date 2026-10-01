@@ -2,16 +2,13 @@
   "$schema": "https://unpkg.com/knip@5/schema.json",
   "workspaces": {
     ".": {
-      "entry": ["scripts/*.ts", "bank/steps/**/*.ts"],
-      "project": ["scripts/**/*.ts", "bank/**/*.ts"],
+      "entry": ["scripts/*.ts", "bank/steps/**/*.ts", "examples/**/*.ts"],
+      "project": ["scripts/**/*.ts", "bank/**/*.ts", "examples/**/*.ts"],
       "ignoreDependencies": [
         "@stryker-mutator/api",
-        "@eve-fabric/domain",
         "@eve-fabric/compiler",
         "@eve-fabric/planner",
         "@eve-fabric/schema-package",
-        "@eve-fabric/esi-adapter",
-        "@eve-fabric/sde-adapter",
         "lint-staged"
       ],
       "typedoc": false

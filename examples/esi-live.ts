@@ -1,440 +1,114 @@
 /**
- * EVE Fabric — Live ESI + SDE Demo
+ * EVE Fabric — live ESI smoke test
  *
- * Demonstrates the full adapter layer using both live ESI API calls and
- * SDE static data. Shows how the two data sources complement each other:
- * SDE provides item/region/system metadata, ESI provides live market data
- * and route calculations.
+ * Runs the core pack against Tranquility: one market lookup filtered to an
+ * item, its price summary, and a route. Names come from the SDE fixture; the
+ * prices and the route come from ESI live. Exits non-zero if any step fails,
+ * so the nightly workflow notices when ESI or ESI.ts moves under us.
  *
- * Run: npx tsx examples/esi-live.ts
- *      — or —
- *      pnpm run demo:esi
+ * Run: pnpm run demo:esi
  */
-import { EsiAdapter, EsiClient } from '@eve-fabric/esi-adapter';
-import { SdeAdapter, createMemorySdeProvider } from '@eve-fabric/sde-adapter';
-import type { CapabilityDefinition, SourceAdapterResult } from '@eve-fabric/domain';
+import {
+  capabilityId,
+  capabilityVersion,
+  semanticTypeId,
+  type PipelineDefinition,
+  type PipelineNode,
+} from '@eve-fabric/domain';
+import { createFabric } from '@eve-fabric/fabric';
+import { corePack } from '@eve-fabric/pack-core';
+import { tranquilitySde } from '@eve-fabric/test-support';
+import { createEsi } from '@lgriffin/esi.ts/client';
 
-// Inline SDE seed data for the demo (types, regions, systems).
+const COMPATIBILITY_DATE = '2026-08-18';
 
-const TYPES = [
-  {
-    typeId: 34,
-    name: 'Tritanium',
-    groupId: 18,
-    mass: 0,
-    volume: 0.01,
-    portionSize: 1,
-    published: true,
-    marketGroupId: 1857,
-    iconId: 22,
-    description:
-      'The most abundant mineral in New Eden, Tritanium is the basic building block of most structures and ships.',
-    packagedVolume: null,
-    radius: null,
-    graphicId: null,
-    soundId: null,
-    raceId: null,
-    basePrice: null,
-    capacity: null,
-    isRepackable: null,
-  },
-  {
-    typeId: 35,
-    name: 'Pyerite',
-    groupId: 18,
-    mass: 0,
-    volume: 0.01,
-    portionSize: 1,
-    published: true,
-    marketGroupId: 1857,
-    iconId: 22,
-    description: 'A versatile mineral commonly used in electronics and armor plating.',
-    packagedVolume: null,
-    radius: null,
-    graphicId: null,
-    soundId: null,
-    raceId: null,
-    basePrice: null,
-    capacity: null,
-    isRepackable: null,
-  },
-  {
-    typeId: 36,
-    name: 'Mexallon',
-    groupId: 18,
-    mass: 0,
-    volume: 0.01,
-    portionSize: 1,
-    published: true,
-    marketGroupId: 1857,
-    iconId: 22,
-    description: 'A light, flexible mineral used in ship hulls and electronic components.',
-    packagedVolume: null,
-    radius: null,
-    graphicId: null,
-    soundId: null,
-    raceId: null,
-    basePrice: null,
-    capacity: null,
-    isRepackable: null,
-  },
-  {
-    typeId: 587,
-    name: 'Rifter',
-    groupId: 25,
-    mass: 1067000,
-    volume: 27289,
-    portionSize: 1,
-    published: true,
-    marketGroupId: 1377,
-    iconId: 0,
-    description:
-      'The Rifter is a very powerful combat frigate and can easily tackle the best frigates out there.',
-    packagedVolume: null,
-    radius: null,
-    graphicId: null,
-    soundId: null,
-    raceId: null,
-    basePrice: null,
-    capacity: null,
-    isRepackable: null,
-  },
-];
-
-const REGIONS = [
-  {
-    regionId: 10000002,
-    name: 'The Forge',
-    constellationIDs: [] as number[],
-    description: '',
-    factionId: 0,
-    nebulaId: 0,
-    position: { x: 0, y: 0, z: 0 },
-    wormholeClassId: 0,
-  },
-  {
-    regionId: 10000043,
-    name: 'Domain',
-    constellationIDs: [] as number[],
-    description: '',
-    factionId: 0,
-    nebulaId: 0,
-    position: { x: 0, y: 0, z: 0 },
-    wormholeClassId: 0,
-  },
-  {
-    regionId: 10000032,
-    name: 'Sinq Laison',
-    constellationIDs: [] as number[],
-    description: '',
-    factionId: 0,
-    nebulaId: 0,
-    position: { x: 0, y: 0, z: 0 },
-    wormholeClassId: 0,
-  },
-  {
-    regionId: 10000030,
-    name: 'Heimatar',
-    constellationIDs: [] as number[],
-    description: '',
-    factionId: 0,
-    nebulaId: 0,
-    position: { x: 0, y: 0, z: 0 },
-    wormholeClassId: 0,
-  },
-];
-
-const SOLAR_SYSTEMS = [
-  {
-    systemId: 30000142,
-    name: 'Jita',
-    constellationId: 20000020,
-    regionId: 10000002,
-    securityStatus: 0.9459,
-    border: false,
-    hub: true,
-    international: false,
-    luminosity: 0,
-    planetIDs: [] as number[],
-    position: { x: 0, y: 0, z: 0 },
-    position2D: { x: 0, y: 0 },
-    radius: 0,
-    regional: false,
-    securityClass: 'A',
-    starId: 0,
-    stargateIDs: [] as number[],
-    corridor: null,
-    fringe: null,
-    wormholeClassId: null,
-    visualEffect: null,
-  },
-  {
-    systemId: 30002187,
-    name: 'Amarr',
-    constellationId: 20000322,
-    regionId: 10000043,
-    securityStatus: 1.0,
-    border: false,
-    hub: true,
-    international: false,
-    luminosity: 0,
-    planetIDs: [] as number[],
-    position: { x: 0, y: 0, z: 0 },
-    position2D: { x: 0, y: 0 },
-    radius: 0,
-    regional: false,
-    securityClass: 'A',
-    starId: 0,
-    stargateIDs: [] as number[],
-    corridor: null,
-    fringe: null,
-    wormholeClassId: null,
-    visualEffect: null,
-  },
-  {
-    systemId: 30002659,
-    name: 'Dodixie',
-    constellationId: 20000389,
-    regionId: 10000032,
-    securityStatus: 0.8709,
-    border: false,
-    hub: true,
-    international: false,
-    luminosity: 0,
-    planetIDs: [] as number[],
-    position: { x: 0, y: 0, z: 0 },
-    position2D: { x: 0, y: 0 },
-    radius: 0,
-    regional: false,
-    securityClass: 'B',
-    starId: 0,
-    stargateIDs: [] as number[],
-    corridor: null,
-    fringe: null,
-    wormholeClassId: null,
-    visualEffect: null,
-  },
-  {
-    systemId: 30002544,
-    name: 'Rens',
-    constellationId: 20000373,
-    regionId: 10000030,
-    securityStatus: 0.8969,
-    border: false,
-    hub: true,
-    international: false,
-    luminosity: 0,
-    planetIDs: [] as number[],
-    position: { x: 0, y: 0, z: 0 },
-    position2D: { x: 0, y: 0 },
-    radius: 0,
-    regional: false,
-    securityClass: 'B',
-    starId: 0,
-    stargateIDs: [] as number[],
-    corridor: null,
-    fringe: null,
-    wormholeClassId: null,
-    visualEffect: null,
-  },
-];
-
-function makeCapability(id: string, source: 'ESI' | 'SDE' | 'DERIVED'): CapabilityDefinition {
-  return {
-    id: id as never,
-    version: '1.0.0' as never,
-    name: id,
-    description: id,
-    inputs: new Map(),
-    outputs: new Map(),
-    source: source as never,
-    dependencies: [],
-    auth: { required: false, scopes: [] },
-    cache: {
-      cacheable: true,
-      defaultTtlSeconds: 300,
-      stalePermitted: false,
-      identityInKey: false,
-    },
-    cost: { estimatedLatencyMs: 200, esiCallCount: source === 'ESI' ? 1 : 0 },
-  };
+function node(id: string, capability: string): PipelineNode {
+  return { id, capability: { id: capabilityId(capability), version: capabilityVersion('2.0.0') } };
 }
 
-function section(title: string): void {
-  console.log(`\n${'='.repeat(60)}`);
-  console.log(`  ${title}`);
-  console.log(`${'='.repeat(60)}`);
+function input(name: string, type: string) {
+  return { name, semanticType: semanticTypeId(type), required: true };
 }
 
-function provenance(result: SourceAdapterResult): string {
-  const p = result.provenance;
-  const time = p.retrievedAt ?? p.calculatedAt ?? 'N/A';
-  return `source=${p.source}, cached=${p.cached}, at=${time instanceof Date ? time.toISOString() : time}`;
-}
+const tradeHubs: PipelineDefinition = {
+  id: 'esi-live',
+  version: 1,
+  name: 'Live trade hub check',
+  inputs: [
+    input('item', 'eve.type.reference'),
+    input('region', 'eve.region.reference'),
+    input('origin', 'eve.system.reference'),
+    input('destination', 'eve.system.reference'),
+  ],
+  nodes: [
+    node('type', 'universe.resolve.type'),
+    node('region', 'universe.resolve.region'),
+    node('origin', 'universe.resolve.solar.system'),
+    node('destination', 'universe.resolve.solar.system'),
+    node('orders', 'market.orders'),
+    node('prices', 'market.aggregate'),
+    node('route', 'route.distance'),
+  ],
+  edges: [
+    { from: 'input.item', to: 'type.query' },
+    { from: 'input.region', to: 'region.query' },
+    { from: 'input.origin', to: 'origin.query' },
+    { from: 'input.destination', to: 'destination.query' },
+    { from: 'type.type', to: 'orders.item' },
+    { from: 'region.region', to: 'orders.region' },
+    { from: 'orders.orders', to: 'prices.orders' },
+    { from: 'origin.system', to: 'route.origin' },
+    { from: 'destination.system', to: 'route.destination' },
+  ],
+  outputs: [
+    { name: 'lowestSell', source: 'prices.lowestSell' },
+    { name: 'highestBuy', source: 'prices.highestBuy' },
+    { name: 'jumps', source: 'route.distance' },
+  ],
+};
 
 async function main(): Promise<void> {
-  console.log('EVE Fabric — Live ESI + SDE Demo');
-  console.log('Combining static game data (SDE) with live market data (ESI)\n');
-
-  const client = new EsiClient({
+  const esi = createEsi({
     userAgent:
-      process.env['ESI_USER_AGENT'] ??
-      'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)',
+      process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)',
+    compatibilityDate: COMPATIBILITY_DATE,
   });
-  const esiAdapter = new EsiAdapter({ client });
-  const sdeProvider = await createMemorySdeProvider({
-    types: TYPES,
-    regions: REGIONS,
-    solarSystems: SOLAR_SYSTEMS,
+  const fabric = createFabric({
+    esi,
+    esiCompatibilityDate: COMPATIBILITY_DATE,
+    sde: tranquilitySde(),
+    packs: [corePack],
   });
-  const sdeAdapter = new SdeAdapter({ provider: sdeProvider });
 
-  // -- Step 1: Resolve items from SDE --
-  section('Step 1: SDE — Resolve Items by Name');
+  try {
+    const result = await fabric.run(tradeHubs, {
+      item: 'Tritanium',
+      region: 'The Forge',
+      origin: 'Jita',
+      destination: 'Amarr',
+    });
+    const prices = result.outputs.get('prices') ?? {};
+    const route = result.outputs.get('route') ?? {};
+    const orders = result.outputs.get('orders')?.['orders'];
 
-  const minerals = ['Tritanium', 'Pyerite', 'Mexallon'];
-  const typeCap = makeCapability('universe.resolve.type', 'SDE');
+    console.log(`Tritanium in The Forge: ${Array.isArray(orders) ? orders.length : 0} orders`);
+    console.log(`  lowest sell ${String(prices['lowestSell'])} ISK`);
+    console.log(`  highest buy ${String(prices['highestBuy'])} ISK`);
+    console.log(`Jita to Amarr: ${String(route['distance'])} jumps`);
+    console.log(`Provenance: ${result.provenance.get('orders')?.sourceVersion ?? 'unknown'}`);
 
-  for (const name of minerals) {
-    const result = await sdeAdapter.execute(typeCap, new Map([['query', name]]));
-    const type = result.data as Record<string, unknown>;
-    console.log(
-      `  ${(type['name'] as string).padEnd(12)} typeId=${type['typeId']}  ` +
-        `vol=${type['volume']}m3  group=${type['groupId']}`,
-    );
+    if (!Array.isArray(orders) || orders.length === 0) {
+      throw new Error('ESI returned no Tritanium orders in The Forge');
+    }
+    if (typeof route['distance'] !== 'number' || route['distance'] < 1) {
+      throw new Error('ESI returned no route from Jita to Amarr');
+    }
+  } finally {
+    esi.shutdown();
   }
-
-  const rifterResult = await sdeAdapter.execute(typeCap, new Map([['query', 'Rifter']]));
-  const rifter = rifterResult.data as Record<string, unknown>;
-  console.log(
-    `  ${(rifter['name'] as string).padEnd(12)} typeId=${rifter['typeId']}  ` +
-      `vol=${rifter['volume']}m3  mass=${(rifter['mass'] as number).toLocaleString()}kg`,
-  );
-  console.log(`\n  Provenance: ${provenance(rifterResult)}`);
-
-  // -- Step 2: Resolve trade hub systems from SDE --
-  section('Step 2: SDE — Resolve Trade Hub Systems');
-
-  const systemCap = makeCapability('universe.resolve.solar.system', 'SDE');
-  const hubs = ['Jita', 'Amarr', 'Dodixie', 'Rens'];
-  const hubSystems: Array<{ name: string; id: number; security: number; regionId: number }> = [];
-
-  for (const hub of hubs) {
-    const result = await sdeAdapter.execute(systemCap, new Map([['query', hub]]));
-    const sys = result.data as Record<string, unknown>;
-    const entry = {
-      name: sys['name'] as string,
-      id: sys['systemId'] as number,
-      security: sys['securityStatus'] as number,
-      regionId: sys['regionId'] as number,
-    };
-    hubSystems.push(entry);
-    console.log(
-      `  ${entry.name.padEnd(10)} systemId=${entry.id}  ` +
-        `security=${entry.security.toFixed(4)}  regionId=${entry.regionId}`,
-    );
-  }
-
-  // -- Step 3: Resolve regions from SDE --
-  section('Step 3: SDE — Resolve Regions');
-
-  const regionCap = makeCapability('universe.resolve.region', 'SDE');
-  for (const hub of hubSystems) {
-    const result = await sdeAdapter.execute(regionCap, new Map([['query', hub.regionId]]));
-    const region = result.data as Record<string, unknown>;
-    console.log(`  ${hub.name.padEnd(10)} -> ${region['name']} (${region['regionId']})`);
-  }
-
-  // -- Step 4: Live ESI — Market history for Tritanium --
-  section('Step 4: ESI — Live Market History for Tritanium');
-
-  console.log('  Fetching from esi.evetech.net...');
-  const history = await client.market.getMarketHistory(10000002, 34);
-  const recent = history.slice(-5);
-  console.log(`  ${history.length} days of history (showing last 5):\n`);
-  for (const day of recent) {
-    console.log(
-      `  ${day.date}  avg=${day.average.toFixed(2)} ISK  ` +
-        `vol=${day.volume.toLocaleString()}  orders=${day.order_count}`,
-    );
-  }
-
-  // -- Step 5: Live ESI — Global prices for our SDE minerals --
-  section('Step 5: ESI — Live Prices for SDE Minerals');
-
-  console.log('  Fetching global average prices...');
-  const prices = await client.market.getMarketPrices();
-  for (const name of minerals) {
-    const typeResult = await sdeAdapter.execute(typeCap, new Map([['query', name]]));
-    const typeData = typeResult.data as Record<string, unknown>;
-    const typeId = typeData['typeId'] as number;
-    const price = prices.find((p) => p.type_id === typeId);
-    console.log(
-      `  ${name.padEnd(12)} (SDE typeId=${typeId})  ->  ` +
-        `avg=${price?.average_price?.toFixed(2) ?? 'N/A'} ISK  ` +
-        `adjusted=${price?.adjusted_price?.toFixed(2) ?? 'N/A'} ISK  [ESI live]`,
-    );
-  }
-
-  // -- Step 6: Live ESI — Route between trade hubs --
-  section('Step 6: ESI — Routes Between Trade Hubs (via Adapter)');
-
-  const routeCap = makeCapability('route.distance', 'ESI');
-  const jita = hubSystems[0];
-  for (const dest of hubSystems.slice(1)) {
-    const result = await esiAdapter.execute(
-      routeCap,
-      new Map<string, unknown>([
-        ['origin', jita.id],
-        ['destination', dest.id],
-      ]),
-    );
-    console.log(
-      `  ${jita.name} -> ${dest.name.padEnd(10)} ${String(result.data).padStart(3)} jumps  ` +
-        `[${provenance(result)}]`,
-    );
-  }
-
-  // -- Step 7: Live ESI — System details via adapter --
-  section('Step 7: ESI — Live System Details (via Adapter)');
-
-  const universeCap = makeCapability('universe.resolve.location', 'ESI');
-  const jitaResult = await esiAdapter.execute(
-    universeCap,
-    new Map<string, unknown>([['location', 30000142]]),
-  );
-  const jitaLive = jitaResult.data as Record<string, unknown>;
-  console.log('  Jita (live from ESI):');
-  console.log(`    name:              ${jitaLive['name']}`);
-  console.log(`    security_status:   ${jitaLive['security_status']}`);
-  console.log(`    constellation_id:  ${jitaLive['constellation_id']}`);
-  console.log(`    star_id:           ${jitaLive['star_id']}`);
-  console.log(
-    `    stations:          ${(jitaLive['stations'] as number[] | undefined)?.length ?? 0} stations`,
-  );
-  console.log(
-    `    stargates:         ${(jitaLive['stargates'] as number[] | undefined)?.length ?? 0} stargates`,
-  );
-
-  // -- Summary --
-  section('Summary: SDE + ESI Working Together');
-  console.log('  SDE (static data via MemorySdeProvider from @lgriffin/esi.ts/sde/memory):');
-  console.log('    - Resolved item types by name -> typeId, volume, description');
-  console.log('    - Resolved solar systems by name -> systemId, security, region');
-  console.log('    - Resolved regions by ID -> region name');
-  console.log();
-  console.log('  ESI (live data via EsiClient):');
-  console.log('    - Market history for Tritanium -> daily price/volume');
-  console.log('    - Global market prices -> avg/adjusted prices for all types');
-  console.log('    - Route calculations -> jump distances between systems');
-  console.log('    - System details -> live constellation, stations, stargates');
-  console.log();
-  console.log('  The adapter layer wraps both data sources behind the same');
-  console.log('  SourceAdapter interface, so the pipeline executor can mix');
-  console.log('  SDE lookups and ESI calls in a single execution plan.\n');
 }
 
-main().catch((err) => {
-  console.error('Demo failed:', err);
+main().catch((err: unknown) => {
+  console.error(err);
   process.exit(1);
 });

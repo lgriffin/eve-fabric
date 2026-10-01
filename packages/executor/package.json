@@ -16,7 +16,7 @@
     "@eve-fabric/planner": "workspace:*"
   },
   "devDependencies": {
-    "@eve-fabric/capability-sdk": "workspace:*",
+    "@eve-fabric/kit": "workspace:*",
     "@eve-fabric/compiler": "workspace:*",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"

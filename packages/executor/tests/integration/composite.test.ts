@@ -6,7 +6,7 @@ import {
   semanticTypeId,
 } from '@eve-fabric/domain';
 import type { PipelineDefinition } from '@eve-fabric/domain';
-import { publishAsComposite } from '@eve-fabric/capability-sdk';
+import { publishAsComposite } from '@eve-fabric/kit';
 import { compile } from '@eve-fabric/compiler';
 import { resolveComposites } from '@eve-fabric/compiler';
 import type { PipelineRegistry } from '@eve-fabric/compiler';

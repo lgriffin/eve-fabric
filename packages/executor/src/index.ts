@@ -1,5 +1,7 @@
 export {
   Executor,
+  StepExecutionError,
+  SourceUnavailableError,
   type ExecutorConfig,
   type ExecutionResult,
   type ExecutionMetrics,
@@ -14,5 +16,3 @@ export {
 } from './tracing.js';
 
 export { aggregateProvenance } from './aggregate-provenance.js';
-
-export { DerivedAdapter } from './derived-adapter.js';

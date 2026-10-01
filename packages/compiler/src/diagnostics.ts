@@ -33,6 +33,7 @@ export const GRAPH_CYCLE_DETECTED = 'GRAPH_CYCLE_DETECTED';
 export const CAPABILITY_NOT_FOUND = 'CAPABILITY_NOT_FOUND';
 export const MISSING_INPUT = 'MISSING_INPUT';
 export const SEMANTIC_SUGGESTION = 'SEMANTIC_SUGGESTION';
+export const UNKNOWN_PIPELINE_INPUT = 'UNKNOWN_PIPELINE_INPUT';
 
 /**
  * Creates a diagnostic for a semantic type mismatch between two connected ports.
@@ -100,6 +101,21 @@ export function missingInput(capabilityId: string, port: string): CompilerDiagno
     },
     context: {
       capability: capabilityId,
+    },
+  };
+}
+
+/**
+ * Creates a diagnostic for an edge that reads a pipeline input the pipeline
+ * does not declare. Such an edge wires nothing.
+ */
+export function unknownPipelineInput(name: string, to: string): CompilerDiagnostic {
+  return {
+    code: UNKNOWN_PIPELINE_INPUT,
+    severity: 'error',
+    message: `Edge to "${to}" reads pipeline input "${name}", which the pipeline does not declare`,
+    location: {
+      field: name,
     },
   };
 }

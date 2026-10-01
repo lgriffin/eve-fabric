@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
+import { tranquilityEsi } from '@eve-fabric/test-support';
 import { createServer } from '../../src/server.js';
 
 describe('Execution and reference data routes', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
-    app = createServer();
+    // ESI answers from the fixture; the tests never reach Tranquility.
+    app = createServer({ esi: tranquilityEsi().esi });
     await app.ready();
   });
 
@@ -40,9 +42,7 @@ describe('Execution and reference data routes', () => {
       expect(body.error.message).toContain('region');
     });
 
-    it('accepts valid inputs and attempts real execution', async () => {
-      // With valid inputs, should not return 400 (compile error) or 404 (not found).
-      // May return 200 (success) or 500/502 (ESI unavailable in test) depending on network.
+    it('runs the capability and returns its output ports', async () => {
       const response = await app.inject({
         method: 'POST',
         url: '/api/capabilities/route.distance/execute',
@@ -54,9 +54,11 @@ describe('Execution and reference data routes', () => {
           },
         }),
       });
-      expect(response.statusCode).not.toBe(400);
-      expect(response.statusCode).not.toBe(404);
-    }, 15000);
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.outputs['node-1']).toEqual({ distance: 4 });
+      expect(body.provenance['node-1'].sourceVersion).toBe('esi-compat:2026-08-18');
+    });
   });
 
   describe('GET /api/reference/regions', () => {

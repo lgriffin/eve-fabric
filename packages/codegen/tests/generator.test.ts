@@ -199,16 +199,24 @@ describe('emitIndexTs', () => {
     expect(output).toContain('/** eve.region.reference */');
   });
 
-  it('imports only required adapters', () => {
-    expect(output).toContain('import { EsiAdapter }');
-    expect(output).toContain('import { SdeAdapter }');
-    expect(output).not.toContain('DerivedAdapter');
+  it('runs on a fabric with the core pack and carries no capability code', () => {
+    expect(output).toContain(
+      "import { createFabric, type FabricOptions } from '@eve-fabric/fabric';",
+    );
+    expect(output).toContain("import { corePack } from '@eve-fabric/pack-core';");
+    expect(output).toContain('packs: [corePack, ...(options.packs ?? [])]');
+    expect(output).not.toContain('defineCapability(');
   });
 
-  it('includes defineCapability calls for each capability', () => {
-    expect(output).toContain('defineCapability(');
-    expect(output).toContain('"universe.resolve"');
-    expect(output).toContain('"market.orders"');
+  it('names each pinned capability in the header', () => {
+    expect(output).toContain('universe.resolve@');
+    expect(output).toContain('market.orders@');
+  });
+
+  it('gives ESI a user agent and loads the SDE only when the plan needs them', () => {
+    expect(output).toContain('createEsi({');
+    expect(output).toContain("process.env['ESI_USER_AGENT']");
+    expect(output).toContain('loadSdeDirectory');
   });
 
   it('inlines the execution plan', () => {
@@ -274,14 +282,16 @@ describe('emitPackageJson', () => {
     expect(pkg.name).toBe('market-snapshot');
   });
 
-  it('includes only required adapter dependencies', () => {
+  it('depends on the fabric, the core pack and the sources the plan needs', () => {
     const json = emitPackageJson(
       { packageName: 'test', version: '1.0.0', description: 'test' },
       makePlan(),
     );
     const pkg = JSON.parse(json);
-    expect(pkg.dependencies['@eve-fabric/esi-adapter']).toBeDefined();
-    expect(pkg.dependencies['@eve-fabric/sde-adapter']).toBeDefined();
+    expect(pkg.dependencies['@eve-fabric/fabric']).toBeDefined();
+    expect(pkg.dependencies['@eve-fabric/pack-core']).toBeDefined();
+    expect(pkg.dependencies['@lgriffin/esi.ts']).toBe('11.1.1');
+    expect(pkg.dependencies['@eve-fabric/source-sde']).toBeDefined();
   });
 });
 

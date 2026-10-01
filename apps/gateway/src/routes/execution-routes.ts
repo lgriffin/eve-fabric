@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { PipelineDefinition, ExecutionPlan } from '@eve-fabric/domain';
 import { capabilityId as toCapabilityId, capabilityVersion } from '@eve-fabric/domain';
-import { compile } from '@eve-fabric/compiler';
+import type { CompileResult } from '@eve-fabric/compiler';
 import type { GatewayRuntime } from '../runtime.js';
 
 export function createExecutionRoutes(runtime: GatewayRuntime): (app: FastifyInstance) => void {
@@ -69,7 +69,7 @@ export function createExecutionRoutes(runtime: GatewayRuntime): (app: FastifyIns
         })),
       };
 
-      const compileResult = compile(pipeline, runtime.catalog);
+      const compileResult = runtime.fabric.compile(pipeline);
       if (!compileResult.success || !compileResult.plan) {
         return reply.status(400).send({
           error: {
@@ -199,9 +199,9 @@ export function createExecutionRoutes(runtime: GatewayRuntime): (app: FastifyIns
         inputs: mutableInputs,
       };
 
-      let compileResult: ReturnType<typeof compile>;
+      let compileResult: CompileResult;
       try {
-        compileResult = compile(pipelineDef, catalog, { configuredInputs });
+        compileResult = runtime.fabric.compile(pipelineDef, { configuredInputs });
       } catch (compileErr) {
         return reply.status(400).send({
           error: {

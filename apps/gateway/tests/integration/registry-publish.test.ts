@@ -63,7 +63,7 @@ describe('Registry + Publish integration', () => {
         nodes: [
           {
             id: 'node-1',
-            capability: { id: 'market.orders', version: '1.0.0' },
+            capability: { id: 'market.orders', version: '2.0.0' },
           },
         ],
         edges: [
@@ -117,9 +117,15 @@ describe('Registry + Publish integration', () => {
         id: 'dup-pipeline',
         name: 'Dup Pipeline',
         version: 1,
-        nodes: [{ id: 'node-1', capability: { id: 'market.orders', version: '1.0.0' } }],
-        edges: [{ from: 'input.in', to: 'node-1.region' }],
-        inputs: [{ name: 'in', semanticType: 'eve.type.reference', required: true }],
+        nodes: [{ id: 'node-1', capability: { id: 'market.orders', version: '2.0.0' } }],
+        edges: [
+          { from: 'input.in', to: 'node-1.region' },
+          { from: 'input.item', to: 'node-1.item' },
+        ],
+        inputs: [
+          { name: 'in', semanticType: 'eve.region.reference', required: true },
+          { name: 'item', semanticType: 'eve.type.reference', required: true },
+        ],
         outputs: [{ name: 'out', source: 'node-1.orders' }],
       },
     });
@@ -135,7 +141,7 @@ describe('Registry + Publish integration', () => {
         description: 'Testing immutability',
         pipelineId: pipeline.id,
         pipelineVersion: 1,
-        selectedInputs: ['in'],
+        selectedInputs: ['in', 'item'],
         selectedOutputs: ['out'],
       },
     });

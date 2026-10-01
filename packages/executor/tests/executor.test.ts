@@ -1,126 +1,142 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Executor } from '../src/executor.js';
-import { CapabilityCatalog } from '@eve-fabric/domain';
-import type {
-  ExecutionPlan,
-  ExecutionStep,
-  SourceAdapter,
-  SourceAdapterResult,
-  CachePort,
-  CacheEntry,
+import { describe, it, expect, vi } from 'vitest';
+import {
+  CapabilityCatalog,
+  capabilityId,
+  capabilityVersion,
+  fixedClock,
+  semanticTypeId,
 } from '@eve-fabric/domain';
+import type {
+  CacheEntry,
+  CachePort,
+  CapabilityDefinition,
+  ExecutionPlan,
+  PipelineDefinition,
+  SourcePorts,
+} from '@eve-fabric/domain';
+import { defineCapability } from '@eve-fabric/kit';
+import { compile } from '@eve-fabric/compiler';
+import { Executor, SourceUnavailableError, StepExecutionError } from '../src/index.js';
 
-// ── Test helpers ──────────────────────────────────────────────
+// ── Capabilities ──────────────────────────────────────────────
 
-function makeTestCatalog(capabilityIds: string[], source = 'ESI'): CapabilityCatalog {
-  const catalog = new CapabilityCatalog();
-  for (const id of capabilityIds) {
-    catalog.register({
-      id,
-      version: 1,
-      name: id,
-      description: `Test capability ${id}`,
-      inputs: { input: { name: 'input', semanticType: 'eve.type.reference', required: false } },
-      outputs: { result: { name: 'result', semanticType: 'eve.type.reference', required: true } },
-      source,
-      dependencies: [],
-      auth: { required: false, scopes: [] },
-      cache: {
-        cacheable: false,
-        defaultTtlSeconds: 0,
-        stalePermitted: false,
-        identityInKey: false,
-      },
-      cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
-    });
-  }
+const double = defineCapability({
+  id: 'test.double',
+  version: '1.0.0',
+  name: 'Double',
+  description: 'Doubles a number',
+  inputs: { value: { type: 'eve.quantity' } },
+  outputs: { doubled: { type: 'eve.quantity' }, original: { type: 'eve.quantity' } },
+  run: ({ value }) => ({ doubled: Number(value) * 2, original: value }),
+});
+
+const increment = defineCapability({
+  id: 'test.increment',
+  version: '1.0.0',
+  name: 'Increment',
+  description: 'Adds one',
+  inputs: { value: { type: 'eve.quantity' } },
+  outputs: { result: { type: 'eve.quantity' } },
+  cache: { cacheable: true, defaultTtlSeconds: 60 },
+  run: ({ value }) => ({ result: Number(value) + 1 }),
+});
+
+const typeName = defineCapability({
+  id: 'test.type.name',
+  version: '1.0.0',
+  name: 'Type Name',
+  description: 'Looks a type up in the SDE',
+  inputs: { typeId: { type: 'eve.type.reference' } },
+  outputs: { name: { type: 'eve.quantity' } },
+  uses: ['sde'],
+  run: ({ typeId }, { sde }) => ({ name: sde.getType(Number(typeId))?.name ?? null }),
+});
+
+const regionOrders = defineCapability({
+  id: 'test.region.orders',
+  version: '1.0.0',
+  name: 'Region Orders',
+  description: 'Reaches the public ESI view',
+  inputs: { region: { type: 'eve.region.reference' } },
+  outputs: { orders: { type: 'eve.market.order.collection' } },
+  uses: ['esi.public'],
+  run: ({ region }, { esi }) => ({ orders: [{ esi: typeof esi, region }] }),
+});
+
+const walletRead = defineCapability({
+  id: 'test.wallet',
+  version: '1.0.0',
+  name: 'Wallet',
+  description: 'Needs a scope',
+  inputs: { character: { type: 'eve.character.reference' } },
+  outputs: { balance: { type: 'eve.currency.isk' } },
+  uses: ['esi:esi-wallet.read_character_wallet.v1'],
+  run: () => ({ balance: 0 }),
+});
+
+function catalogWith(...defs: CapabilityDefinition[]): CapabilityCatalog {
+  const catalog = new CapabilityCatalog({ executable: true });
+  for (const def of defs) catalog.register(def);
   return catalog;
 }
 
-function makeStep(id: string, overrides?: Partial<ExecutionStep>): ExecutionStep {
-  return {
-    id,
-    capability: { id: `test.${id}` as never, version: undefined },
-    inputs: [],
-    dependsOn: [],
-    canParallelize: true,
-    ...overrides,
-  } as ExecutionStep;
+function node(id: string, cap: CapabilityDefinition) {
+  return { id, capability: { id: cap.id, version: cap.version } };
 }
 
-function makePlan(overrides: {
-  steps: readonly ExecutionStep[];
-  sourceRequirements?: readonly { source: string; capabilities: readonly { id: string }[] }[];
-  cacheStrategy?: readonly {
-    stepId: string;
-    cacheable: boolean;
-    ttlSeconds: number;
-    identityInKey: boolean;
-  }[];
-}): ExecutionPlan {
-  return {
-    id: 'test-plan',
-    pipelineRef: { id: 'test-pipeline', version: 1 },
-    steps: overrides.steps,
-    parallelGroups: [],
-    sourceRequirements: overrides.sourceRequirements ?? [
-      {
-        source: 'TEST',
-        capabilities: overrides.steps.map((s) => ({ id: s.capability.id })),
-      },
-    ],
-    authRequirements: { required: false, scopes: [] },
-    cacheStrategy: overrides.cacheStrategy ?? [],
-    costEstimate: { totalLatencyMs: 0, esiCallCount: 0, parallelLatencyMs: 0 },
-    createdAt: new Date(),
-  } as ExecutionPlan;
+function planFor(pipeline: PipelineDefinition, catalog: CapabilityCatalog): ExecutionPlan {
+  const result = compile(pipeline, catalog, { clock: fixedClock(0) });
+  if (!result.success || result.plan === undefined) {
+    throw new Error(JSON.stringify(result.diagnostics));
+  }
+  return result.plan as unknown as ExecutionPlan;
 }
 
-function makeTestAdapter(name: string, data: unknown = { result: 'ok' }): SourceAdapter {
+function single(
+  cap: CapabilityDefinition,
+  inputName: string,
+  inputType: string,
+): PipelineDefinition {
+  const port = [...cap.inputs.keys()][0]!;
   return {
-    name,
-    supports: (_cap: unknown) => true,
-    execute: vi.fn(
-      async (
-        _cap: unknown,
-        _inputs: ReadonlyMap<string, unknown>,
-      ): Promise<SourceAdapterResult> => ({
-        data,
-        provenance: {
-          source: name as never,
-          capability: { id: 'test.step' as never },
-          capabilityVersion: '1.0.0',
-          cached: false,
-          upstream: [],
-        },
-      }),
+    id: `single-${cap.id as string}`,
+    version: 1,
+    name: 'single',
+    inputs: [{ name: inputName, semanticType: semanticTypeId(inputType), required: true }],
+    nodes: [node('step', cap)],
+    edges: [{ from: `input.${inputName}`, to: `step.${port}` }],
+    outputs: [...cap.outputs.keys()].map((name) => ({ name, source: `step.${name}` })),
+  };
+}
+
+const chain: PipelineDefinition = {
+  id: 'chain',
+  version: 1,
+  name: 'Chain',
+  inputs: [{ name: 'n', semanticType: semanticTypeId('eve.quantity'), required: true }],
+  nodes: [node('first', double), node('second', increment)],
+  edges: [
+    { from: 'input.n', to: 'first.value' },
+    { from: 'first.doubled', to: 'second.value' },
+  ],
+  outputs: [{ name: 'result', source: 'second.result' }],
+};
+
+function memoryCache(): CachePort & { store: Map<string, unknown> } {
+  const store = new Map<string, unknown>();
+  return {
+    store,
+    get: vi.fn(async (key: string): Promise<CacheEntry | undefined> =>
+      store.has(key) ? { data: store.get(key), storedAt: new Date(0), ttlSeconds: 60 } : undefined,
     ),
-  } as unknown as SourceAdapter;
-}
-
-function makeTestCache(): CachePort & {
-  _store: Map<string, { data: unknown; ttlSeconds: number }>;
-} {
-  const store = new Map<string, { data: unknown; ttlSeconds: number }>();
-  return {
-    _store: store,
-    get: vi.fn(async (key: string): Promise<CacheEntry | undefined> => {
-      const entry = store.get(key);
-      if (entry === undefined) return undefined;
-      return {
-        data: entry.data,
-        storedAt: new Date(),
-        ttlSeconds: entry.ttlSeconds,
-      };
+    set: vi.fn(async (key: string, data: unknown) => {
+      store.set(key, data);
     }),
-    set: vi.fn(async (key: string, data: unknown, ttlSeconds: number): Promise<void> => {
-      store.set(key, { data, ttlSeconds });
-    }),
-    has: vi.fn(async (key: string): Promise<boolean> => store.has(key)),
-    delete: vi.fn(async (key: string): Promise<void> => {
+    has: vi.fn(async (key: string) => store.has(key)),
+    delete: vi.fn(async (key: string) => {
       store.delete(key);
     }),
-    clear: vi.fn(async (): Promise<void> => {
+    clear: vi.fn(async () => {
       store.clear();
     }),
   };
@@ -129,366 +145,327 @@ function makeTestCache(): CachePort & {
 // ── Tests ─────────────────────────────────────────────────────
 
 describe('Executor', () => {
-  let adapter: SourceAdapter;
-  let catalog: CapabilityCatalog;
-
-  beforeEach(() => {
-    adapter = makeTestAdapter('TEST');
-    catalog = makeTestCatalog([
-      'test.step1',
-      'test.step2',
-      'test.a',
-      'test.b',
-      'test.c',
-      'test.d',
-      'test.x',
-    ]);
-  });
-
-  describe('basic execution', () => {
-    it('executes a single-step plan', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1')],
-      });
-
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.outputs.has('step1')).toBe(true);
-      expect(result.outputs.get('step1')).toEqual({ result: 'ok' });
+  describe('running capabilities', () => {
+    it('runs each capability and keys its outputs by step then port', async () => {
+      const catalog = catalogWith(double);
+      const executor = new Executor({ catalog });
+      const result = await executor.execute(
+        planFor(single(double, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 21]]),
+      );
+      expect(result.outputs.get('step')).toEqual({ doubled: 42, original: 21 });
     });
 
-    it('executes multiple independent steps', async () => {
-      const plan = makePlan({
-        steps: [makeStep('a'), makeStep('b'), makeStep('c')],
-      });
-
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.outputs.size).toBe(3);
-      expect(result.outputs.has('a')).toBe(true);
-      expect(result.outputs.has('b')).toBe(true);
-      expect(result.outputs.has('c')).toBe(true);
+    it('feeds a step the upstream port its binding names, not the whole output', async () => {
+      const catalog = catalogWith(double, increment);
+      const executor = new Executor({ catalog });
+      const result = await executor.execute(planFor(chain, catalog), new Map([['n', 5]]));
+      expect(result.outputs.get('second')).toEqual({ result: 11 });
     });
 
-    it('executes steps with dependencies in correct order', async () => {
-      const orderedAdapter: SourceAdapter = {
-        name: 'TEST',
-        supports: () => true,
-        execute: vi.fn(async (_cap, _inputs) => {
-          // We'll track order externally
-          return {
-            data: { result: 'ok' },
-            provenance: {
-              source: 'TEST' as never,
-              capability: { id: 'test.x' as never },
-              capabilityVersion: '1.0.0',
-              cached: false,
-              upstream: [],
-            },
-          };
-        }),
-      } as unknown as SourceAdapter;
+    it('runs independent steps and respects maxConcurrency', async () => {
+      let running = 0;
+      let peak = 0;
+      const slow = defineCapability({
+        id: 'test.slow',
+        version: '1.0.0',
+        name: 'Slow',
+        description: 'Waits a tick',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { value: { type: 'eve.quantity' } },
+        async run({ value }) {
+          running++;
+          peak = Math.max(peak, running);
+          await new Promise((r) => setTimeout(r, 5));
+          running--;
+          return { value };
+        },
+      });
+      const catalog = catalogWith(slow);
+      const pipeline: PipelineDefinition = {
+        id: 'fan',
+        version: 1,
+        name: 'Fan',
+        inputs: ['a', 'b', 'c', 'd'].map((id) => ({
+          name: id,
+          semanticType: semanticTypeId('eve.quantity'),
+          required: true,
+        })),
+        nodes: ['a', 'b', 'c', 'd'].map((id) => node(id, slow)),
+        edges: ['a', 'b', 'c', 'd'].map((id) => ({ from: `input.${id}`, to: `${id}.value` })),
+        outputs: ['a', 'b', 'c', 'd'].map((id) => ({ name: id, source: `${id}.value` })),
+      };
+      const executor = new Executor({ catalog, maxConcurrency: 2 });
+      const inputs = new Map([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+        ['d', 4],
+      ]);
+      const result = await executor.execute(planFor(pipeline, catalog), inputs);
+      expect(result.outputs.size).toBe(4);
+      expect(peak).toBe(2);
+    });
 
-      const plan = makePlan({
-        steps: [
-          makeStep('a'),
-          makeStep('b', { dependsOn: ['a'], canParallelize: false }),
-          makeStep('c', { dependsOn: ['b'], canParallelize: false }),
+    it('runs identical steps once and gives each step id the shared result', async () => {
+      const run = vi.fn(({ value }: { readonly value: unknown }) => ({ value }));
+      const echo = defineCapability({
+        id: 'test.echo',
+        version: '1.0.0',
+        name: 'Echo',
+        description: 'Echoes',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { value: { type: 'eve.quantity' } },
+        run,
+      });
+      const catalog = catalogWith(echo);
+      const pipeline: PipelineDefinition = {
+        id: 'twins',
+        version: 1,
+        name: 'Twins',
+        inputs: [{ name: 'n', semanticType: semanticTypeId('eve.quantity'), required: true }],
+        nodes: [node('a', echo), node('b', echo)],
+        edges: [
+          { from: 'input.n', to: 'a.value' },
+          { from: 'input.n', to: 'b.value' },
         ],
-      });
+        outputs: [
+          { name: 'a', source: 'a.value' },
+          { name: 'b', source: 'b.value' },
+        ],
+      };
+      const result = await new Executor({ catalog }).execute(
+        planFor(pipeline, catalog),
+        new Map([['n', 9]]),
+      );
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(result.outputs.get('a')).toEqual({ value: 9 });
+      expect(result.outputs.get('b')).toEqual({ value: 9 });
+      expect(result.provenance.has('b')).toBe(true);
+    });
 
-      const executor = new Executor({ adapters: [orderedAdapter], catalog });
-      const result = await executor.execute(plan, new Map());
+    it("feeds a step reading a merged step the kept step's result", async () => {
+      const catalog = catalogWith(double, increment);
+      const pipeline: PipelineDefinition = {
+        id: 'merged-upstream',
+        version: 1,
+        name: 'Merged upstream',
+        inputs: [{ name: 'n', semanticType: semanticTypeId('eve.quantity'), required: true }],
+        nodes: [node('a', double), node('b', double), node('next', increment)],
+        edges: [
+          { from: 'input.n', to: 'a.value' },
+          { from: 'input.n', to: 'b.value' },
+          { from: 'b.doubled', to: 'next.value' },
+        ],
+        outputs: [
+          { name: 'a', source: 'a.doubled' },
+          { name: 'next', source: 'next.result' },
+        ],
+      };
+      const result = await new Executor({ catalog }).execute(
+        planFor(pipeline, catalog),
+        new Map([['n', 3]]),
+      );
+      expect(result.outputs.get('next')).toEqual({ result: 7 });
+    });
 
-      expect(result.outputs.size).toBe(3);
+    it('measures with the injected clock', async () => {
+      const catalog = catalogWith(double);
+      const executor = new Executor({ catalog, clock: fixedClock(1000) });
+      const result = await executor.execute(
+        planFor(single(double, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
+      expect(result.metrics.totalDurationMs).toBe(0);
+      expect(result.metrics.stepDurations.get('step')).toBe(0);
     });
   });
 
-  describe('metrics', () => {
-    it('tracks total duration', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1')],
+  describe('failures', () => {
+    it('names the step and capability when a run throws', async () => {
+      const broken = defineCapability({
+        id: 'test.broken',
+        version: '1.0.0',
+        name: 'Broken',
+        description: 'Throws',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { value: { type: 'eve.quantity' } },
+        run: () => {
+          throw new Error('boom');
+        },
       });
-
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.metrics.totalDurationMs).toBeGreaterThanOrEqual(0);
+      const catalog = catalogWith(broken);
+      const executor = new Executor({ catalog });
+      const run = executor.execute(
+        planFor(single(broken, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
+      await expect(run).rejects.toBeInstanceOf(StepExecutionError);
+      await expect(run).rejects.toThrow('Step "step" (test.broken) failed: boom');
     });
 
-    it('tracks per-step duration', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1'), makeStep('step2')],
+    it('rejects a run that does not return an object of port values', async () => {
+      const bad = defineCapability({
+        id: 'test.bad',
+        version: '1.0.0',
+        name: 'Bad',
+        description: 'Returns a bare value',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { value: { type: 'eve.quantity' } },
+        run: () => 7 as never,
       });
-
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.metrics.stepDurations.has('step1')).toBe(true);
-      expect(result.metrics.stepDurations.has('step2')).toBe(true);
+      const catalog = catalogWith(bad);
+      const executor = new Executor({ catalog });
+      await expect(
+        executor.execute(planFor(single(bad, 'n', 'eve.quantity'), catalog), new Map([['n', 1]])),
+      ).rejects.toThrow('run must return an object of output port values');
     });
 
-    it('counts cache misses when no cache configured', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1')],
+    it('refuses a capability without a run (FAB-VAL-01)', async () => {
+      const contractOnly = new CapabilityCatalog();
+      contractOnly.register({ ...double, run: undefined });
+      const plan = planFor(single(double, 'n', 'eve.quantity'), contractOnly);
+      const executor = new Executor({ catalog: contractOnly });
+      await expect(executor.execute(plan, new Map([['n', 1]]))).rejects.toThrow(
+        'has no run function (FAB-VAL-01)',
+      );
+    });
+
+    it('fails a capability whose source the executor was not given', async () => {
+      const catalog = catalogWith(typeName);
+      const executor = new Executor({ catalog });
+      await expect(
+        executor.execute(
+          planFor(single(typeName, 't', 'eve.type.reference'), catalog),
+          new Map([['t', 34]]),
+        ),
+      ).rejects.toBeInstanceOf(SourceUnavailableError);
+    });
+
+    it('fails a scoped ESI capability until identities arrive', async () => {
+      const catalog = catalogWith(walletRead);
+      const executor = new Executor({
+        catalog,
+        sources: { esi: { public: {}, compatibilityDate: '2026-08-18' } },
       });
+      await expect(
+        executor.execute(
+          planFor(single(walletRead, 'c', 'eve.character.reference'), catalog),
+          new Map([['c', 1]]),
+        ),
+      ).rejects.toThrow('(no identity)');
+    });
+  });
 
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
+  describe('sources and provenance', () => {
+    const sources: SourcePorts = {
+      esi: { public: { marker: 'public view' }, compatibilityDate: '2026-08-18' },
+      sde: {
+        provider: { getType: (id: number) => (id === 34 ? { name: 'Tritanium' } : undefined) },
+        buildVersion: () => '3142455',
+      },
+    };
 
-      expect(result.metrics.cacheMisses).toBe(1);
-      expect(result.metrics.cacheHits).toBe(0);
+    it('hands an SDE capability the provider and records the SDE build', async () => {
+      const catalog = catalogWith(typeName);
+      const executor = new Executor({ catalog, sources, clock: fixedClock(0) });
+      const result = await executor.execute(
+        planFor(single(typeName, 't', 'eve.type.reference'), catalog),
+        new Map([['t', 34]]),
+      );
+      expect(result.outputs.get('step')).toEqual({ name: 'Tritanium' });
+      const prov = result.provenance.get('step')!;
+      expect(prov.source).toBe('SDE');
+      expect(prov.sourceVersion).toBe('sde:3142455');
+      expect(prov.retrievedAt).toEqual(new Date(0));
+    });
+
+    it('hands an ESI capability the public view and records the compatibility date', async () => {
+      const catalog = catalogWith(regionOrders);
+      const executor = new Executor({ catalog, sources });
+      const result = await executor.execute(
+        planFor(single(regionOrders, 'r', 'eve.region.reference'), catalog),
+        new Map([['r', 10000002]]),
+      );
+      expect(result.outputs.get('step')).toEqual({
+        orders: [{ esi: 'object', region: 10000002 }],
+      });
+      expect(result.provenance.get('step')!.sourceVersion).toBe('esi-compat:2026-08-18');
+    });
+
+    it('records a derived step as calculated', async () => {
+      const catalog = catalogWith(double);
+      const executor = new Executor({ catalog, clock: fixedClock(5) });
+      const result = await executor.execute(
+        planFor(single(double, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
+      const prov = result.provenance.get('step')!;
+      expect(prov.source).toBe('DERIVED');
+      expect(prov.calculatedAt).toEqual(new Date(5));
+      expect(prov.sourceVersion).toBeUndefined();
     });
   });
 
   describe('caching', () => {
-    it('checks cache before executing adapter', async () => {
-      const cache = makeTestCache();
-      // Pre-populate cache
-      cache._store.set('cache-key-1', { data: { cached: true }, ttlSeconds: 60 });
+    it('caches a cacheable step by capability, version and inputs, and serves the repeat', async () => {
+      const catalog = catalogWith(increment);
+      const cache = memoryCache();
+      const executor = new Executor({ catalog, cache });
+      const plan = planFor(single(increment, 'n', 'eve.quantity'), catalog);
 
-      const plan = makePlan({
-        steps: [makeStep('step1', { cacheKey: 'cache-key-1' })],
-      });
+      const first = await executor.execute(plan, new Map([['n', 1]]));
+      expect(first.metrics.cacheMisses).toBe(1);
+      expect([...cache.store.keys()]).toEqual(['test.increment@1.0.0:{"value":1}']);
 
-      const executor = new Executor({ adapters: [adapter], catalog, cache });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.outputs.get('step1')).toEqual({ cached: true });
-      expect(result.metrics.cacheHits).toBe(1);
-      expect(result.metrics.cacheMisses).toBe(0);
-      // Adapter should not have been called
-      expect(adapter.execute).not.toHaveBeenCalled();
+      const second = await executor.execute(plan, new Map([['n', 1]]));
+      expect(second.metrics.cacheHits).toBe(1);
+      expect(second.outputs.get('step')).toEqual({ result: 2 });
+      expect(second.provenance.get('step')!.cached).toBe(true);
     });
 
-    it('stores adapter result in cache after execution', async () => {
-      const cache = makeTestCache();
-
-      const plan = makePlan({
-        steps: [makeStep('step1', { cacheKey: 'cache-key-1' })],
-        cacheStrategy: [
-          { stepId: 'step1', cacheable: true, ttlSeconds: 120, identityInKey: false },
-        ],
+    it('never caches an ESI step; ESI.ts caches those itself', async () => {
+      const cachedEsi = defineCapability({
+        id: 'test.esi.cached',
+        version: '1.0.0',
+        name: 'ESI',
+        description: 'ESI with a cache policy',
+        inputs: { region: { type: 'eve.region.reference' } },
+        outputs: { orders: { type: 'eve.market.order.collection' } },
+        uses: ['esi.public'],
+        cache: { cacheable: true, defaultTtlSeconds: 300 },
+        run: () => ({ orders: [] }),
       });
-
-      const executor = new Executor({ adapters: [adapter], catalog, cache });
-      await executor.execute(plan, new Map());
-
-      expect(cache.set).toHaveBeenCalledWith('cache-key-1', { result: 'ok' }, 120);
+      const catalog = catalogWith(cachedEsi);
+      const cache = memoryCache();
+      const executor = new Executor({
+        catalog,
+        cache,
+        sources: { esi: { public: {}, compatibilityDate: '2026-08-18' } },
+      });
+      await executor.execute(
+        planFor(single(cachedEsi, 'r', 'eve.region.reference'), catalog),
+        new Map([['r', 1]]),
+      );
+      expect(cache.set).not.toHaveBeenCalled();
     });
 
-    it('does not check cache when step has no cacheKey', async () => {
-      const cache = makeTestCache();
-
-      const plan = makePlan({
-        steps: [makeStep('step1')], // no cacheKey
-      });
-
-      const executor = new Executor({ adapters: [adapter], catalog, cache });
-      await executor.execute(plan, new Map());
-
+    it('does not cache a step whose policy says not to', async () => {
+      const catalog = catalogWith(double);
+      const cache = memoryCache();
+      const executor = new Executor({ catalog, cache });
+      await executor.execute(
+        planFor(single(double, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
       expect(cache.get).not.toHaveBeenCalled();
     });
   });
 
-  describe('provenance', () => {
-    it('attaches provenance to each step result', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1')],
-      });
-
-      const executor = new Executor({ adapters: [adapter], catalog });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.provenance.has('step1')).toBe(true);
-      const prov = result.provenance.get('step1') as Record<string, unknown>;
-      expect(prov).toBeDefined();
-    });
-
-    it('marks provenance as cached when served from cache', async () => {
-      const cache = makeTestCache();
-      cache._store.set('key1', { data: 'cached-data', ttlSeconds: 60 });
-
-      const plan = makePlan({
-        steps: [makeStep('step1', { cacheKey: 'key1' })],
-      });
-
-      const executor = new Executor({ adapters: [adapter], catalog, cache });
-      const result = await executor.execute(plan, new Map());
-
-      const prov = result.provenance.get('step1') as Record<string, unknown>;
-      expect(prov).toBeDefined();
-      expect(prov['cached']).toBe(true);
-      expect(prov['source']).toBe('CACHE');
-    });
-  });
-
-  describe('adapter routing', () => {
-    it('routes to the correct adapter by source name', async () => {
-      const esiAdapter = makeTestAdapter('ESI', { esi: true });
-      const sdeAdapter = makeTestAdapter('SDE', { sde: true });
-
-      const routingCatalog = new CapabilityCatalog();
-      routingCatalog.register({
-        id: 'market.orders',
-        version: 1,
-        name: 'Market Orders',
-        description: 'test',
-        inputs: {
-          region: { name: 'region', semanticType: 'eve.region.reference', required: true },
-        },
-        outputs: {
-          orders: { name: 'orders', semanticType: 'eve.market.order.collection', required: true },
-        },
-        source: 'ESI',
-        dependencies: [],
-        auth: { required: false, scopes: [] },
-        cache: {
-          cacheable: false,
-          defaultTtlSeconds: 0,
-          stalePermitted: false,
-          identityInKey: false,
-        },
-        cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
-      });
-      routingCatalog.register({
-        id: 'sde.types',
-        version: 1,
-        name: 'SDE Types',
-        description: 'test',
-        inputs: { query: { name: 'query', semanticType: 'eve.type.reference', required: true } },
-        outputs: { type: { name: 'type', semanticType: 'eve.type.reference', required: true } },
-        source: 'SDE',
-        dependencies: [],
-        auth: { required: false, scopes: [] },
-        cache: {
-          cacheable: false,
-          defaultTtlSeconds: 0,
-          stalePermitted: false,
-          identityInKey: false,
-        },
-        cost: { estimatedLatencyMs: 0, esiCallCount: 0 },
-      });
-
-      const plan = makePlan({
-        steps: [
-          makeStep('a', { capability: { id: 'market.orders' as never } }),
-          makeStep('b', { capability: { id: 'sde.types' as never } }),
-        ],
-        sourceRequirements: [
-          { source: 'ESI', capabilities: [{ id: 'market.orders' }] },
-          { source: 'SDE', capabilities: [{ id: 'sde.types' }] },
-        ],
-      });
-
-      const executor = new Executor({
-        adapters: [esiAdapter, sdeAdapter],
-        catalog: routingCatalog,
-      });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.outputs.get('a')).toEqual({ esi: true });
-      expect(result.outputs.get('b')).toEqual({ sde: true });
-    });
-
-    it('throws when no adapter matches', async () => {
-      const plan = makePlan({
-        steps: [makeStep('step1')],
-        sourceRequirements: [{ source: 'UNKNOWN', capabilities: [{ id: 'test.step1' }] }],
-      });
-
-      const emptyCatalog = makeTestCatalog(['test.step1'], 'DERIVED');
-      const executor = new Executor({ adapters: [], catalog: emptyCatalog });
-      await expect(executor.execute(plan, new Map())).rejects.toThrow(/[Nn]o adapter/);
-    });
-  });
-
-  describe('concurrency', () => {
-    it('respects maxConcurrency limit', async () => {
-      let activeConcurrency = 0;
-      let maxObserved = 0;
-
-      const slowAdapter: SourceAdapter = {
-        name: 'TEST',
-        supports: () => true,
-        execute: vi.fn(async () => {
-          activeConcurrency++;
-          maxObserved = Math.max(maxObserved, activeConcurrency);
-          await new Promise((r) => setTimeout(r, 50));
-          activeConcurrency--;
-          return {
-            data: { done: true },
-            provenance: {
-              source: 'TEST' as never,
-              capability: { id: 'test.x' as never },
-              capabilityVersion: '1.0.0',
-              cached: false,
-              upstream: [],
-            },
-          };
-        }),
-      } as unknown as SourceAdapter;
-
-      const plan = makePlan({
-        steps: [makeStep('a'), makeStep('b'), makeStep('c'), makeStep('d')],
-      });
-
-      const executor = new Executor({
-        adapters: [slowAdapter],
-        catalog,
-        maxConcurrency: 2,
-      });
-      const result = await executor.execute(plan, new Map());
-
-      expect(result.outputs.size).toBe(4);
-      expect(maxObserved).toBeLessThanOrEqual(2);
-    });
-  });
-
-  describe('input resolution', () => {
-    it('passes pipeline inputs to steps', async () => {
-      let receivedInputs: ReadonlyMap<string, unknown> | undefined;
-
-      const capturingAdapter: SourceAdapter = {
-        name: 'TEST',
-        supports: () => true,
-        execute: vi.fn(async (_cap, inputs) => {
-          receivedInputs = inputs;
-          return {
-            data: { result: 'ok' },
-            provenance: {
-              source: 'TEST' as never,
-              capability: { id: 'test.step1' as never },
-              capabilityVersion: '1.0.0',
-              cached: false,
-              upstream: [],
-            },
-          };
-        }),
-      } as unknown as SourceAdapter;
-
-      const plan = makePlan({
-        steps: [
-          makeStep('step1', {
-            inputs: [
-              {
-                portName: 'region_id',
-                source: 'pipeline-input',
-                pipelineInputName: 'regionId',
-              },
-            ],
-          }),
-        ],
-      });
-
-      const pipelineInputs = new Map<string, unknown>([['regionId', 10000002]]);
-      const executor = new Executor({ adapters: [capturingAdapter], catalog });
-      await executor.execute(plan, pipelineInputs);
-
-      expect(receivedInputs).toBeDefined();
-      expect(receivedInputs!.get('region_id')).toBe(10000002);
-    });
+  it('accepts plan capability refs pinned by version', () => {
+    const catalog = catalogWith(double);
+    expect(catalog.get(capabilityId('test.double'), capabilityVersion('1.0.0')).run).toBeTypeOf(
+      'function',
+    );
   });
 });
