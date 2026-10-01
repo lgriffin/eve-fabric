@@ -9,6 +9,7 @@
 import type { CapabilityCatalog, CapabilityDefinition, Clock } from '@eve-fabric/domain';
 import { capabilityId, capabilityVersion } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
+import { splitPortPath } from './port-path.js';
 import {
   type CompilerDiagnostic,
   capabilityNotFound,
@@ -46,7 +47,7 @@ export function resolveCapabilities(
   const wiredInputs = new Map<string, Set<string>>();
   for (const edge of pipeline.edges) {
     if (edge.from.startsWith('input.')) {
-      const name = edge.from.substring('input.'.length);
+      const name = splitPortPath(edge.from.substring('input.'.length)).port;
       if (!declaredInputs.has(name)) {
         diagnostics.push(unknownPipelineInput(name, edge.to));
         continue;

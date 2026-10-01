@@ -9,7 +9,7 @@
 import { DEFAULT_PER_ITEM_CAP, type CapabilityCatalog } from '@eve-fabric/domain';
 import type { PipelineDefinition } from './pipeline-types.js';
 import type { ExecutionStep, InputBinding, StepGroup } from './execution-types.js';
-import { outputBinding } from './port-path.js';
+import { outputBinding, splitPortPath } from './port-path.js';
 
 export interface CapabilityGraph {
   readonly steps: ExecutionStep[];
@@ -57,11 +57,13 @@ export function buildCapabilityGraph(
 
     if (fromNode === 'input') {
       // Pipeline input binding
-      const fromPort = extractPortName(edge.from);
+      // An edge may read a field of a record given as an input, too.
+      const { port, fieldPath } = splitPortPath(extractPortName(edge.from));
       bindings.get(toNode)?.push({
         portName: toPort,
         source: 'pipeline-input' as const,
-        pipelineInputName: fromPort,
+        pipelineInputName: port,
+        ...(fieldPath.length > 0 ? { fieldPath } : {}),
       });
     } else if (fromNode !== 'output') {
       // Step-to-step binding

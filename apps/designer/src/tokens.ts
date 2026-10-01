@@ -34,14 +34,6 @@ export const colors = {
   },
 } as const;
 
-export const SOURCE_COLORS: Record<string, string> = {
-  ESI: colors.source.ESI,
-  SDE: colors.source.SDE,
-  DERIVED: colors.source.DERIVED,
-  CACHE: colors.source.CACHE,
-  COMPOSITE: colors.source.COMPOSITE,
-};
-
 export const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
   ESI: { color: colors.source.ESI, label: 'ESI' },
   SDE: { color: colors.source.SDE, label: 'SDE' },
@@ -49,15 +41,6 @@ export const SOURCE_BADGES: Record<string, { color: string; label: string }> = {
   CACHE: { color: colors.source.CACHE, label: 'CACHE' },
   COMPOSITE: { color: colors.source.COMPOSITE, label: 'COMPOSITE' },
 };
-
-export const spacing = {
-  xs: 4,
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-} as const;
 
 export const fontSize = {
   xs: '10px',

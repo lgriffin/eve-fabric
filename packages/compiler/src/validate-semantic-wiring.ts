@@ -84,11 +84,12 @@ function resolvePortType(
 
   // Pipeline-level input
   if (parsed.nodeId === 'input') {
-    const pipelineInput = pipeline.inputs.find((inp) => inp.name === parsed.portName);
-    if (pipelineInput) {
-      return pipelineInput.semanticType;
-    }
-    return undefined;
+    const { port, fieldPath } = splitPortPath(parsed.portName);
+    const pipelineInput = pipeline.inputs.find((inp) => inp.name === port);
+    if (pipelineInput === undefined) return undefined;
+    return fieldPath.length === 0
+      ? pipelineInput.semanticType
+      : fieldType(ref, pipelineInput.semanticType, fieldPath, catalog, diagnostics);
   }
 
   // Pipeline-level output

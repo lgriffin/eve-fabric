@@ -41,7 +41,6 @@ export const usePipelineStore = create<PipelineStore>()(
 export type {
   ExecutionNodeState,
   ExecutionStepMetrics,
-  BridgingSuggestion,
   CapabilityNodeData,
   CapabilityFlowNode,
   DrilldownEntry,

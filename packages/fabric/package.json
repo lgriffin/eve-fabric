@@ -21,6 +21,7 @@
     "@eve-fabric/source-esi": "workspace:*",
     "@eve-fabric/source-sde": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
+    "graphql": "^16.9.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {

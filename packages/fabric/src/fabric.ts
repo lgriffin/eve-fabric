@@ -30,6 +30,8 @@ import { publishAsComposite, type Pack } from '@eve-fabric/kit';
 import { createEsiSource } from '@eve-fabric/source-esi';
 import { createStaticSource } from '@eve-fabric/source-sde';
 import { CharacterMismatchError, Draft, type DraftHost, type FabricIdentity } from './draft.js';
+import { deriveSchema, GraphQLDraftError, parseDraft } from './graphql.js';
+import { parse, validate, type GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
 
@@ -127,6 +129,7 @@ export class Fabric implements DraftHost {
   readonly sources: SourcePorts;
   readonly clock: Clock;
   private readonly pipelines = new Map<string, PipelineDefinition>();
+  private derived: GraphQLSchema | undefined;
 
   constructor(options: FabricOptions = {}) {
     this.clock = options.clock ?? systemClock;
@@ -166,6 +169,7 @@ export class Fabric implements DraftHost {
    * on the first capability the catalog refuses.
    */
   install(pack: Pack): void {
+    this.derived = undefined;
     const fresh = (pack.types ?? []).filter((type) => this.checkType(pack, type));
     for (const type of fresh) this.types.register(type);
     const added: CapabilityDefinition[] = [];
@@ -236,6 +240,7 @@ export class Fabric implements DraftHost {
   ): CapabilityDefinition {
     const compiled = this.compile(pipeline);
     if (!compiled.success) throw new PublishRefusedError(pipeline.id, compiled.diagnostics);
+    this.derived = undefined;
     // Each composite keeps its own copy of the pipeline it was published
     // from, so publishing another view of the same pipeline (other inputs or
     // outputs selected) never changes how an earlier composite expands.
@@ -311,6 +316,31 @@ export class Fabric implements DraftHost {
   }
 
   /**
+   * The draft a GraphQL document describes. Each field is a move and its
+   * arguments fill the holes the move opens, so a document that parses is a
+   * draft the fabric offered, and one that is complete plans (FAB-VAL-06).
+   */
+  fromGraphQL(document: string, options: { readonly as?: FabricIdentity | undefined } = {}): Draft {
+    // Checked against the derived schema first, so a document this takes is
+    // one the schema says is valid: every subject named once, every hole given.
+    const errors = validate(this.schema(), parse(document));
+    if (errors.length > 0) {
+      throw new GraphQLDraftError(errors.map((e) => e.message).join('; '));
+    }
+    return parseDraft(this, document, options.as);
+  }
+
+  /**
+   * The GraphQL schema derived from what is installed: each type's fields are
+   * the moves a draft offers on it, their arguments the holes those moves
+   * open (FAB-VAL-05). For introspection and tooling.
+   */
+  schema(): GraphQLSchema {
+    this.derived ??= deriveSchema(this);
+    return this.derived;
+  }
+
+  /**
    * Runs a complete draft and gives the value at its cursor. Throws while it
    * has holes. `perItemCap` raises the cap on per-item steps for this query.
    */
@@ -349,7 +379,8 @@ export class Fabric implements DraftHost {
     });
     // A composite at the cursor runs as its inner steps; read the one it names.
     const answer = this.expand(draft.pipeline()).pipeline.outputs.find((o) => o.name === 'answer');
-    return { answer: readAt(result, answer?.source ?? draft.cursor.ref), result };
+    const value = readAt(result, answer?.source ?? draft.cursor.ref);
+    return { answer: narrowed(value, draft.selection), result };
   }
 
   /** Runs one capability on its own, its inputs given by port, as `as` if given. */
@@ -422,6 +453,15 @@ export class Fabric implements DraftHost {
       return false;
     }
   }
+}
+
+/** A record answer with only the fields a draft selected; as it is when it selected none. */
+function narrowed(value: unknown, fields: readonly string[]): unknown {
+  if (fields.length === 0 || value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return value;
+  }
+  const record = value as Readonly<Record<string, unknown>>;
+  return Object.fromEntries(fields.filter((f) => f in record).map((f) => [f, record[f]]));
 }
 
 /** The engine's view of an identity: a cache key, scopes, and ESI.ts's credentials. */
