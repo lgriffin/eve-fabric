@@ -65,7 +65,7 @@ EVE Fabric treats every EVE Online data operation as a **capability** — a type
 }
 ```
 
-Under the question is a pipeline (a directed acyclic graph of capabilities), and the compiler is the oracle: it validates semantic wiring (a `RegionReference` cannot be wired into a `TypeReference`), detects cycles, and produces an execution plan that respects dependencies, runs steps in parallel where it can, and tracks provenance — all before a single API call is made. A pipeline is never written by hand; a pack publishes one as a composite capability, and a question's pipeline is read off its moves.
+Under the question is a pipeline (a directed acyclic graph of capabilities), and the compiler is the oracle: it validates semantic wiring (a `RegionReference` cannot be wired into a `TypeReference`), detects cycles, and produces an execution plan that respects dependencies, runs steps in parallel where it can, and tracks provenance — all before a single API call is made. A question's pipeline is read off its moves, never wired by hand; a pack that wants a pipeline of its own publishes it as a composite capability.
 
 ## Architecture
 
@@ -73,49 +73,52 @@ Under the question is a pipeline (a directed acyclic graph of capabilities), and
 ┌──────────────────┬──────────────────┬───────────────────┐
 │     apps/cli     │  apps/designer   │   apps/gateway    │
 │   pnpm fabric    │ moves and holes, │ drafts, weaves,   │
-│                  │ scaffold drawn   │ derived GraphQL   │
+│                  │ composed on a    │ derived GraphQL   │
+│                  │ canvas           │ at /graphql       │
 ├──────────────────┴──────────────────┴───────────────────┤
-│              fabric (createFabric), the one             │
-│  composition root: draft · fromGraphQL · compile · run  │
-│                 · weave · add · restore                 │
-├──────────┬──────────┬───────────┬──────────┬────────────┤
-│ compiler │ planner  │ executor  │ graphql  │   weave    │
-│ 12-step  │ Dep order│ Parallel  │ Type     │ format v2  │
-│ semantic │ Parallel │ executor  │ builder  │ digest     │
-│ compiler │ groups   │ Proven-   │ Scalars  │ git index  │
-│ DAG      │ Coalesce │ ance      │ Pruning  │ secrets    │
-├──────────┴──────────┴───────────┴──────────┴────────────┤
+│   fabric (createFabric), the one composition root:      │
+│   draft · fromGraphQL · schema · compile · run · weave  │
+│   · add · restore          codegen: a weave → a package │
+├──────────┬──────────┬──────────┬──────────┬─────────────┤
+│ compiler │ planner  │ executor │  weave   │ cache ·     │
+│ semantic │ dep order│ parallel │ format v2│ persistence │
+│ wiring,  │ parallel │ per-item │ digest   │ TTL cache,  │
+│ cycles,  │ groups,  │ maps,    │ ranges   │ the Store   │
+│ the plan │ coalesce │ proven-  │ git index│ (SQLite)    │
+│          │          │ ance     │ secrets  │             │
+├──────────┴──────────┴──────────┴──────────┴─────────────┤
 │  kit (defineCapability, definePack)  ·  pack-core       │
-├──────────┬──────────┬───────────┬──────────┬────────────┤
-│   core   │source-esi│source-sde │  cache   │persistence │
-│ Branded  │ ESI.ts   │ Static    │ In-mem   │ the Store  │
-│ types    │ views    │ data      │ TTL      │ (SQLite)   │
-│ Zod only │          │           │          │            │
-└──────────┴──────────┴───────────┴──────────┴────────────┘
+├──────────────────┬──────────────────┬───────────────────┤
+│       core       │    source-esi    │    source-sde     │
+│  types, ports,   │  ESI.ts's views  │  ESI.ts's static  │
+│  errors; zod     │                  │  data provider    │
+│  only            │                  │                   │
+└──────────────────┴──────────────────┴───────────────────┘
 ```
 
 Every surface talks to the fabric, and only the fabric talks to the sources:
-the engine row never imports a source, and `core` imports nothing but zod
-(`pnpm run lint:layers` enforces both).
+the engine row, the kit and the packs never import a source, and `core`
+imports nothing but zod (`pnpm run lint:layers` enforces both, FAB-ARCH-01 to
+03). `@eve-fabric/fixture` stands in for both sources offline.
 
 ### Package Overview
 
-| Package                   | Purpose                                                                                                                      |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `@eve-fabric/core`        | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
-| `@eve-fabric/compiler`    | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
-| `@eve-fabric/planner`     | Dependency ordering, parallel group detection, request coalescing                                                            |
-| `@eve-fabric/executor`    | Concurrent execution engine with provenance tracking                                                                         |
-| `@eve-fabric/graphql`     | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
-| `@eve-fabric/kit`         | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
-| `@eve-fabric/pack-core`   | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
-| `@eve-fabric/fabric`      | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
-| `@eve-fabric/source-esi`  | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
-| `@eve-fabric/source-sde`  | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
-| `@eve-fabric/cache`       | In-memory cache with TTL and stale-while-revalidate                                                                          |
-| `@eve-fabric/weave`       | Package format v2: a weave as data, its digest, version ranges, secret scanning, and a git index to find weaves in           |
-| `@eve-fabric/persistence` | The `Store` port over SQLite (`node:sqlite`), through Drizzle                                                                |
-| `@eve-fabric/fixture`     | The Tranquility fixture: a slice of New Eden over ESI.ts's mock transport and in-memory SDE, for tests and `--offline`       |
+| Package                   | Purpose                                                                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `@eve-fabric/core`        | Branded types, capability model, pipeline model, provenance, error hierarchy, ports (`Clock`, `Store`)                    |
+| `@eve-fabric/compiler`    | The semantic compiler: resolve, check wiring, detect cycles, build the graph, determine sources/auth/cache, estimate cost |
+| `@eve-fabric/planner`     | Dependency ordering, parallel group detection, request coalescing                                                         |
+| `@eve-fabric/executor`    | Runs each step's capability, in parallel where it can, with per-item maps and provenance                                  |
+| `@eve-fabric/kit`         | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser               |
+| `@eve-fabric/pack-core`   | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry, character        |
+| `@eve-fabric/fabric`      | `createFabric`: sources and packs in; drafts, the derived GraphQL schema, compile, run, and weaves added and kept         |
+| `@eve-fabric/source-esi`  | Hands capabilities ESI.ts's public view and records the compatibility date                                                |
+| `@eve-fabric/source-sde`  | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                   |
+| `@eve-fabric/cache`       | In-memory cache with TTL, for SDE and derived steps (ESI steps use ESI.ts's own cache)                                    |
+| `@eve-fabric/weave`       | Package format v2: a weave as data, its digest, version ranges, secret scanning, and a git index to find weaves in        |
+| `@eve-fabric/persistence` | The `Store` port over SQLite (`node:sqlite`), through Drizzle                                                             |
+| `@eve-fabric/fixture`     | The Tranquility fixture: a slice of New Eden over ESI.ts's mock transport and in-memory SDE, for tests and `--offline`    |
+| `@eve-fabric/codegen`     | A weave in, a runnable package out: the weave, a typed `index.ts` and a `package.json` (`eve-fabric codegen`)             |
 
 ### Apps
 
@@ -202,7 +205,7 @@ const draft = fabric
   .fill('region', 'The Forge')
   .apply('total cost');
 
-draft.plan().steps.find((s) => s.each); // { over: 'material', cap: 100, esiCallsPerItem: 1, … }
+draft.plan().steps.find((s) => s.each)?.each; // { over: 'material', cap: 100, callsPerItem: 1, esiCallsPerItem: 1 }
 await fabric.query(draft, { perItemCap: 250 }); // raise the cap for this query only
 ```
 
@@ -216,7 +219,7 @@ A draft's saved, shareable form is a GraphQL document. Each field is a move, and
 
 ```ts
 draft.toGraphQL();
-// { type(name: "Tritanium") { orders(region: "The Forge") { prices { highestBuy } } } }
+// { type(name: "Tritanium") { orders(region: "The Forge") { prices { lowestSell } } } }
 
 const same = fabric.fromGraphQL(document); // replays the moves and fills it names
 fabric.schema(); // the derived schema, for introspection and tooling
@@ -242,7 +245,7 @@ const draft = fabric
   .apply('biggest spend this week');
 
 draft.plan().scopes; // ['esi-wallet.read_character_wallet.v1']
-await fabric.query(draft); // 2000000, spent on market_transaction
+await fabric.query(draft); // 2000000 (ISK, spent on market transactions)
 ```
 
 `my orders` then `undercut` checks each open order against its own region's market, one lookup per order.
@@ -299,22 +302,24 @@ const fabric = createFabric({
 const result = await fabric.run(pipeline, { item: 'Tritanium', region: 'The Forge' });
 ```
 
-### 12-Step Compiler
+### The Compiler
 
-The compiler validates and optimizes pipelines through a deterministic sequence:
+The compiler checks a pipeline and plans it in a fixed order, and fails before
+anything runs for whatever it can see statically:
 
-1. **Parse** — validate pipeline structure with Zod
-2. **Validate** — structural completeness checks
-3. **Resolve capabilities** — look up each node's capability in the catalog
-4. **Validate wiring** — semantic type compatibility on every edge
-5. **Resolve dependencies** — transitive dependency inclusion
-6. **Build graph** — construct the capability DAG
-7. **Detect cycles** — topological sort with cycle reporting
-8. **Determine sources** — classify each step (ESI, SDE, DERIVED, COMPOSITE)
-9. **Determine auth** — aggregate required OAuth scopes
-10. **Determine cache** — compute per-step and pipeline-level cache policies
-11. **Estimate cost** — weight-based execution cost estimation
-12. **Produce plan** — emit an immutable `ExecutionPlan` or diagnostics
+1. **Validate structure** — the pipeline has steps and outputs
+2. **Resolve capabilities** — each step's capability is in the catalog at the version named, every required input is wired or configured (a missing one is a `MISSING_INPUT`, which a draft calls a hole), and configured values are checked against their types
+3. **Validate wiring** — semantic type compatibility on every edge
+4. **Detect cycles** — a cycle is a diagnostic naming its steps
+5. **Build the graph** — the capability DAG and the groups that can run in parallel
+6. **Determine sources, auth and cache** — each step is ESI, SDE, DERIVED or COMPOSITE; the scopes the whole needs; per-step cache policy
+7. **Estimate cost** — latency across the parallel groups, and the ESI calls, counting a per-item step's calls per item
+8. **Produce the plan** — an immutable `ExecutionPlan`, or diagnostics that are both readable and typed (`code`, `severity`, `message`)
+
+Parsing happens where a pipeline comes in: a GraphQL document is checked
+against the derived schema, and a weave is checked against its schema and its
+digest. Composites are expanded into their steps by the fabric before the
+compiler sees them.
 
 ### Composite Capabilities
 
@@ -378,20 +383,25 @@ Every result carries provenance metadata:
 ```typescript
 interface ProvenanceRecord {
   source: 'ESI' | 'SDE' | 'DERIVED' | 'CACHE';
-  capability: string;
-  version: number;
+  sourceVersion?: string; // the ESI compatibility date or the SDE build
+  capability: CapabilityRef;
+  capabilityVersion: string;
   retrievedAt?: Date;
+  calculatedAt?: Date;
   cached: boolean;
+  upstream: readonly ProvenanceRecord[]; // what a derived value was computed from
 }
 ```
 
-GraphQL consumers can opt into provenance via the `_provenance` field — it adds zero cost when not requested.
+`fabric.query(draft)` returns the answer and the full `result`, whose
+`provenance` holds one record per step, so a derived value keeps the source
+facts it was computed from.
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 22.12+
+- Node.js 22.13+
 - pnpm 9+
 
 ### Setup
@@ -400,7 +410,7 @@ GraphQL consumers can opt into provenance via the `_provenance` field — it add
 git clone https://github.com/lgriffin/eve-fabric.git
 cd eve-fabric
 pnpm install
-pnpm -r run build
+pnpm run build
 ```
 
 ### Run Tests
@@ -409,7 +419,7 @@ pnpm -r run build
 pnpm test               # unit tests, from source: no build needed
 pnpm run test:bdd       # BDD scenarios
 pnpm run test:bank      # the question bank (--live asks Tranquility's ESI)
-pnpm run validate       # the full gate CI runs
+pnpm run validate       # lint, layers, determinism, format, docs, typecheck, coverage, knip
 ```
 
 `pnpm test` resolves `@eve-fabric/*` to each package's source, so it runs on a
@@ -428,8 +438,8 @@ Set `FABRIC_DB` to a file to keep added weaves across restarts.
 
 ### Published Packages
 
-The packages listed in `scripts/published.json` are versioned 0.1.0 and set
-up for npm: `core`, `kit` and `pack-core`, so a pack can be written outside
+The packages listed in `scripts/published.json` share one version, 0.2.0, and
+are set up for npm (none is published yet): `core`, `kit` and `pack-core`, so a pack can be written outside
 this repository, and `fabric` with the sources, engine, `weave`, `persistence`,
 `fixture` and `codegen` it needs, so the CLI (`@eve-fabric/cli`, the
 `eve-fabric` bin) runs with `npx @eve-fabric/cli --offline ask question.graphql`.
@@ -487,51 +497,53 @@ that fails any check gets a 401.
 | [`quickstart`](examples/quickstart/README.md) | `pnpm quickstart`   | Your own capability, a question, its GraphQL form and a weave    |
 | [`e2e-demo`](examples/e2e-demo/README.md)     | `pnpm demo`         | The same flow over the gateway's HTTP API, with curl equivalents |
 | [`incursions-pack`](examples/incursions-pack) | (question bank Q5)  | A third-party pack with its own types                            |
-| [`esi-live.ts`](examples/esi-live.ts)         | `pnpm run demo:esi` | A pipeline against live ESI (the nightly smoke test)             |
+| [`esi-live.ts`](examples/esi-live.ts)         | `pnpm run demo:esi` | The saved questions asked of live ESI (the nightly smoke test)   |
 | [`questions`](examples/questions/README.md)   | `pnpm fabric ask`   | Saved questions against the core pack, one `.graphql` file each  |
 
 The quickstart and the demo run offline by default; both take `--live`.
 
 ## Tooling
 
-| Tool        | Command                                       | Purpose                               |
-| ----------- | --------------------------------------------- | ------------------------------------- |
-| Vitest      | `pnpm -r run test`                            | Unit and integration tests            |
-| Cucumber.js | `pnpm --filter @eve-fabric/core run test:bdd` | Behavior-driven scenarios             |
-| Playwright  | `pnpm run test:e2e`                           | The designer's journeys in a browser  |
-| Stryker     | `pnpm run mutate`                             | Mutation testing (compiler + planner) |
-| TypeDoc     | `pnpm run docs`                               | API documentation generation          |
-| ESLint      | `pnpm run lint`                               | Linting with TypeScript rules         |
-| Prettier    | `pnpm run format`                             | Code formatting                       |
-| Changesets  | `pnpm changeset`                              | Version management                    |
-| Husky       | automatic                                     | Pre-commit secret scanning            |
+| Tool        | Command             | Purpose                                                               |
+| ----------- | ------------------- | --------------------------------------------------------------------- |
+| Vitest      | `pnpm test`         | Unit and integration tests                                            |
+| Cucumber.js | `pnpm run test:bdd` | Behavior-driven scenarios                                             |
+| Playwright  | `pnpm run test:e2e` | The designer's journeys in a browser                                  |
+| Stryker     | `pnpm run mutate`   | Mutation testing (compiler + planner)                                 |
+| TypeDoc     | `pnpm run docs`     | API documentation generation                                          |
+| ESLint      | `pnpm run lint`     | Linting with TypeScript rules                                         |
+| Prettier    | `pnpm run format`   | Code formatting                                                       |
+| Changesets  | `pnpm changeset`    | Change notes; releases are cut by a `v*` tag                          |
+| Husky       | automatic           | Pre-commit secret scan and lint-staged; commitlint on commit messages |
 
 ## Project Constitution
 
-This project follows a [constitution](.specify/memory/constitution.md) with 26 principles covering:
+This project follows a [constitution](.specify/memory/constitution.md): 28
+principles and a register of requirements, each named by the check in CI that
+enforces it. Among them:
 
-- **Clean Architecture** — core has zero infrastructure dependencies
-- **Branded types** — semantic safety at the type level
-- **TDD + BDD** — tests before implementation, behavior specifications
-- **Gateway boundary** — never reimplement what ESI.ts already provides
-- **Provenance** — every data point traceable to its source
-- **No secrets in packages** — exported weaves are scanned
+- **Layering** — `core` imports only zod, and the engine never imports a source (IV)
+- **Semantic types** — two integers are not the same thing; the compiler refuses the wiring (VI)
+- **Valid by construction** — a move is offered only if the pipeline it gives compiles (XXVIII)
+- **TDD + BDD** — tests before implementation, behavior specifications, a question bank that never regresses (XVIII)
+- **Repository boundary** — never reimplement what ESI.ts already provides (XXV)
+- **Provenance** — every value traceable to its source (XIII)
 
 ## Tech Stack
 
-| Layer         | Technology                                     |
-| ------------- | ---------------------------------------------- |
-| Language      | TypeScript 5.x (strict mode)                   |
-| Runtime       | Node.js 22.12+                                 |
-| Server        | Fastify + GraphQL Yoga                         |
-| Schema        | graphql-js type construction                   |
-| Validation    | Zod                                            |
-| EVE Data      | @lgriffin/esi.ts 11.1.1                        |
-| Frontend      | React 18 + React Flow + Zustand                |
-| Persistence   | Drizzle ORM + SQLite                           |
-| Testing       | Vitest + Cucumber.js + Stryker                 |
-| Observability | Structured request/response tracing middleware |
+| Layer         | Technology                                                           |
+| ------------- | -------------------------------------------------------------------- |
+| Language      | TypeScript, strict (5.9 in the packages, 6.0 for the root's tooling) |
+| Runtime       | Node.js 22.13+                                                       |
+| Server        | Fastify + GraphQL Yoga                                               |
+| Schema        | graphql-js type construction                                         |
+| Validation    | Zod                                                                  |
+| EVE Data      | @lgriffin/esi.ts 11.1.1                                              |
+| Frontend      | React 18 + React Flow + Zustand                                      |
+| Persistence   | Drizzle ORM + SQLite                                                 |
+| Testing       | Vitest + Cucumber.js + Stryker                                       |
+| Observability | Structured request/response tracing middleware                       |
 
 ## License
 
-ISC
+ISC; see [LICENSE](LICENSE).

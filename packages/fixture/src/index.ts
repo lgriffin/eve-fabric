@@ -329,7 +329,7 @@ export interface TranquilityEsi {
 export function tranquilityEsi(): TranquilityEsi {
   const transport = tranquilityTransport();
   const esi = createEsi({
-    userAgent: 'eve-fabric-tests/0.1 (+https://github.com/lgriffin/eve-fabric)',
+    userAgent: 'eve-fabric-tests/0.2 (+https://github.com/lgriffin/eve-fabric)',
     transport,
     enableETagCache: false,
     logLevel: 'fatal',

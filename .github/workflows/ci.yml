@@ -48,7 +48,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22, 24]
+        # 22.13 is the floor `engines` promises (constitution XXVII), 22 the
+        # latest of that line, 24 the current LTS.
+        node-version: ['22.13', 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -196,7 +198,7 @@ jobs:
       - run: pnpm quickstart
       - run: pnpm run demo
 
-  # The designer's two journeys, in a browser, over the offline workbench.
+  # The designer's three journeys, in a browser, over the offline workbench.
   designer-journeys:
     name: Designer Journeys
     runs-on: ubuntu-latest

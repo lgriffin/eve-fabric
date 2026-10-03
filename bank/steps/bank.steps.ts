@@ -49,7 +49,7 @@ function esiFor(): Esi {
   if (!LIVE) return tranquilityEsi().esi;
   liveEsi ??= createEsi({
     userAgent:
-      process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)',
+      process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.2 (+https://github.com/lgriffin/eve-fabric)',
     compatibilityDate: COMPATIBILITY_DATE,
   });
   return liveEsi;

@@ -40,7 +40,7 @@ export interface QuickstartResult {
 function fabricWith(packs: readonly Pack[], live: boolean): Fabric {
   const esi = live
     ? createEsi({
-        userAgent: 'eve-fabric-quickstart/0.1 (+https://github.com/lgriffin/eve-fabric)',
+        userAgent: 'eve-fabric-quickstart/0.2 (+https://github.com/lgriffin/eve-fabric)',
         compatibilityDate: COMPATIBILITY_DATE,
       })
     : tranquilityEsi().esi;

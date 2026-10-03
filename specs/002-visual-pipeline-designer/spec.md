@@ -2,7 +2,7 @@
 
 **Feature Branch**: `002-visual-pipeline-designer`  
 **Created**: 2026-08-19  
-**Status**: Draft  
+**Status**: Superseded by 007 and 008 (the designer builds drafts, not hand-wired pipelines)
 **Input**: User description: "Create a UI-centric visual pipeline designer for EVE Forge, inspired by the interaction model of Jenkins Pipeline and node-based workflow tools."
 
 ## User Scenarios & Testing _(mandatory)_

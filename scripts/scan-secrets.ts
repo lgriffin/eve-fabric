@@ -1,26 +1,31 @@
 /**
- * Secret-scanning check for schema package exports.
- * Can be used as a pre-commit hook or CI check.
+ * Secret scanning for what this repository shares: the weaves in the git
+ * index and the examples. JSON files and weave files (`weave.yaml`,
+ * `*.weave.yaml`) are scanned field by field (FAB-SEC-01). Runs as the pre-commit hook and in CI.
  *
  * Usage:
  *   tsx scripts/scan-secrets.ts [directory...]
  *
- * Defaults to scanning examples/ and any exported schema packages
- * under packages that contain JSON files.
+ * Defaults to examples/, weaves/ and bank/.
  */
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import { scanForSecrets, type SecretFinding } from '@eve-fabric/weave';
 
-const DEFAULT_SCAN_DIRS = ['examples'];
+const DEFAULT_SCAN_DIRS = ['examples', 'weaves', 'bank'];
 
 interface FileFinding {
   readonly filePath: string;
   readonly findings: SecretFinding[];
 }
 
-function collectJsonFiles(dir: string): string[] {
+function isWeaveFile(name: string): boolean {
+  return name === 'weave.yaml' || name.endsWith('.weave.yaml');
+}
+
+function collectFiles(dir: string): string[] {
   const results: string[] = [];
 
   if (!fs.existsSync(dir)) {
@@ -32,12 +37,13 @@ function collectJsonFiles(dir: string): string[] {
     const fullPath = path.join(dir, entry.name);
 
     if (entry.isDirectory() && entry.name !== 'node_modules' && entry.name !== '.git') {
-      results.push(...collectJsonFiles(fullPath));
+      results.push(...collectFiles(fullPath));
     } else if (
       entry.isFile() &&
-      entry.name.endsWith('.json') &&
-      entry.name !== 'package.json' &&
-      entry.name !== 'tsconfig.json'
+      (isWeaveFile(entry.name) ||
+        (entry.name.endsWith('.json') &&
+          entry.name !== 'package.json' &&
+          entry.name !== 'tsconfig.json'))
     ) {
       results.push(fullPath);
     }
@@ -51,9 +57,9 @@ function scanFile(filePath: string): FileFinding | null {
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(content);
+    parsed = isWeaveFile(path.basename(filePath)) ? parseYaml(content) : JSON.parse(content);
   } catch {
-    // Skip files that are not valid JSON
+    // Skip files that do not parse
     return null;
   }
 
@@ -76,15 +82,15 @@ function main(): void {
 
   const jsonFiles: string[] = [];
   for (const dir of dirsToScan) {
-    jsonFiles.push(...collectJsonFiles(dir));
+    jsonFiles.push(...collectFiles(dir));
   }
 
   if (jsonFiles.length === 0) {
-    console.log('No JSON files found to scan.');
+    console.log('No files found to scan.');
     process.exit(0);
   }
 
-  console.log(`Scanning ${jsonFiles.length} JSON file(s) for secrets...\n`);
+  console.log(`Scanning ${jsonFiles.length} file(s) for secrets...\n`);
 
   const allFindings: FileFinding[] = [];
 

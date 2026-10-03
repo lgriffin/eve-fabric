@@ -235,7 +235,7 @@ describe('eve-fabric codegen', () => {
     expect(readFileSync(join(out, 'index.ts'), 'utf8')).toContain('export async function jumps(');
     expect(JSON.parse(readFileSync(join(out, 'package.json'), 'utf8'))).toMatchObject({
       name: 'my-route-jumps',
-      dependencies: { '@eve-fabric/fabric': '^0.1.0' },
+      dependencies: { '@eve-fabric/fabric': '^0.2.0' },
     });
   });
 

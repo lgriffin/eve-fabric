@@ -1,5 +1,5 @@
 /**
- * lint:layers — enforces the package layering in constitution 2.0.0 (FAB-ARCH-01..03).
+ * lint:layers — enforces the package layering in constitution 2.2.0 (FAB-ARCH-01..03).
  *
  * Each workspace package belongs to a layer. A layer names the bare module
  * specifiers its source may import; anything else is a violation. Violations
@@ -51,8 +51,8 @@ const LAYERS: readonly Layer[] = [
       'packages/planner',
       'packages/executor',
       'packages/cache',
-      'packages/graphql',
       'packages/persistence',
+      'packages/weave',
     ],
     check: noSources,
   },

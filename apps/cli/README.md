@@ -15,9 +15,12 @@ npx @eve-fabric/cli --offline codegen cheapest.weave.yaml --out ./cheapest
 
 Without `--offline` the fabric asks Tranquility's ESI, and names resolve from
 the SDE export at `SDE_DATA_PATH`. `--pack <module>` installs a pack you wrote
-with `@eve-fabric/kit`; `--db <file>` (or `FABRIC_DB`) keeps added weaves
-across runs. Bad usage exits 2 with the help text; a failure exits 1 with one
-line saying why.
+with `@eve-fabric/kit`: a `.js` module on any supported Node, or a `.ts` one
+where Node strips types (22.18 and later, or 22.13 with
+`NODE_OPTIONS=--experimental-strip-types`). `--db <file>` (or `FABRIC_DB`)
+keeps added weaves across runs. Bad usage exits 2 with the help text; a
+failure exits 1 with an `error:` line saying why, sometimes followed by a
+hint.
 
 The full reference is
 [docs/cli.md](https://github.com/lgriffin/eve-fabric/blob/master/docs/cli.md)

@@ -111,8 +111,8 @@ describe('generate', () => {
     expect(pkg.name).toBe('bank-route-jumps');
     expect(pkg.version).toBe('1.0.0');
     expect(pkg.dependencies).toEqual({
-      '@eve-fabric/fabric': '^0.1.0',
-      '@eve-fabric/pack-core': '^0.1.0',
+      '@eve-fabric/fabric': '^0.2.0',
+      '@eve-fabric/pack-core': '^0.2.0',
       '@lgriffin/esi.ts': '11.1.1',
     });
     expect(pkg['eve-fabric']).toMatchObject({

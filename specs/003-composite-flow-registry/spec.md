@@ -2,7 +2,7 @@
 
 **Feature Branch**: `003-composite-flow-registry`  
 **Created**: 2026-08-19  
-**Status**: Draft  
+**Status**: Implemented (composites remain; sharing moved to weaves in 007)
 **Input**: User description: "Extend Eve Fabric so that any successfully validated Fabric Flow can be published as a new reusable capability, with a unified Fabric Registry, recursive composition, drill-down inspection, versioning, dependency tracking, and provenance lineage."
 
 ## User Scenarios & Testing _(mandatory)_

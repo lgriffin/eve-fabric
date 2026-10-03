@@ -7,13 +7,19 @@ a pack runs without it.
 ```bash
 pnpm install && pnpm run build
 pnpm demo              # offline, over the Tranquility fixture
-pnpm demo -- --live    # Tranquility's ESI
+pnpm demo --live       # Tranquility's ESI
 ```
 
 `pnpm demo` starts a gateway on a free port, makes the calls below and stops
-it. For the same calls by hand, start a gateway first. With no `SDE_DATA_PATH`
-it has an empty SDE, so names such as "Tritanium" only resolve when it points
-at an SDE export:
+it. For the same calls by hand, start the gateway over the same offline
+fixture, so every name below resolves and the answers match the demo's:
+
+```bash
+pnpm workbench --no-designer   # port 3456, the Tranquility fixture
+```
+
+Against Tranquility instead, run the gateway itself. Names such as
+"Tritanium" then resolve only when `SDE_DATA_PATH` points at an SDE export:
 
 ```bash
 SDE_DATA_PATH=/path/to/sde pnpm --filter @eve-fabric/gateway run dev   # port 3456
@@ -86,7 +92,19 @@ jq -Rs '{document: .}' forge-prices.weave.yaml |
 curl -s localhost:3456/api/weaves
 ```
 
-`forge prices` is now a move on any item. `GET /api/weaves/demo.forge.prices`
+`forge prices` is now a move on any item. Ask it of Pyerite:
+
+```bash
+curl -s localhost:3456/api/drafts/run -H 'content-type: application/json' -d '{
+  "subject": { "kind": "type", "value": "Pyerite" },
+  "steps": [
+    { "kind": "move", "move": "forge prices" },
+    { "kind": "fill", "hole": "region", "value": "The Forge" }
+  ]
+}'
+```
+
+`GET /api/weaves/demo.forge.prices`
 exports it again, and `DELETE /api/weaves/demo.forge.prices?version=1.0.0`
 removes it. Set `FABRIC_DB` to keep added weaves across restarts.
 
