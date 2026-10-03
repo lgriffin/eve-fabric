@@ -100,7 +100,7 @@ execFileSync(bin, ['--offline', 'codegen', weave, '--out', 'jumps'], {
 });
 // The generated package sits inside the consumer, so its dependencies, the
 // published packages, resolve from the consumer's node_modules. Node runs its
-// index.ts with types stripped; the CLI needs Node 22.12, which has that.
+// index.ts with types stripped; the CLI needs Node 22.13, which has that.
 writeFileSync(
   join(consumer, 'run.mjs'),
   `import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';

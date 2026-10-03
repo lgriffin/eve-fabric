@@ -1,6 +1,6 @@
 {
   "name": "@eve-fabric/cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "eve-fabric on the command line: ask saved questions about New Eden, explore moves, and move weaves in and out of a fabric. --offline needs no network.",
   "license": "ISC",
   "type": "module",
@@ -21,7 +21,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "tsc",

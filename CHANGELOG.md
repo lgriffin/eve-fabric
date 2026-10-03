@@ -1,14 +1,56 @@
 # Changelog
 
-Every merged pull request since the overhaul landed, newest first. Nothing has
-been published to npm yet: the entries below are all unreleased, and 0.1.0 is
-cut by pushing a `v0.1.0` tag (see the Release workflow). Changesets is set up
-in `.changeset/` for the releases that follow; until then this page is kept by
-hand, one entry per pull request. Earlier history is in git.
+Every merged pull request since the overhaul landed, newest first, one entry
+per pull request; earlier history is in git. Every package in
+`scripts/published.json` shares one version, and a release is cut by pushing a
+`v<version>` tag (see the Release workflow). Nothing has been published to npm
+yet.
 
-## Unreleased
+## 0.2.0 (not yet published)
 
-### Phase 6: composing on the canvas
+0.1.0 was the version the overhaul was to ship as, and it was never tagged or
+published. Since then the CLI, the fixture, codegen and the thin-client
+designer joined the published set and the legacy pipeline model was removed
+(**breaking** for anyone who built against it), so the first release is 0.2.0.
+Nothing here is 1.0: the API may still change between minor versions.
+
+### [#51](https://github.com/lgriffin/eve-fabric/pull/51) final polish: docs, examples and architecture checked against the code
+
+- **Version.** Every package is 0.2.0, the published set and the private apps
+  alike; the default ESI user agents say 0.2.
+- **Node 22.13 is the floor.** `node:sqlite`, which the store needs, does not
+  load on 22.12 without a flag, so the 22.12 floor was never true. `engines`,
+  `.nvmrc`, the docs and constitution XXVII say 22.13, and CI now tests that
+  exact version beside the latest 22 and 24.
+- **Constitution 2.2.0.** It is the EVE Fabric constitution; IV names the
+  package layers `lint:layers` holds instead of a directory convention; XV and
+  XVI speak of weaves and drafts; XVIII names Playwright and the question bank.
+  The register gains FAB-SEC-01, FAB-DOC-01, FAB-DOC-02, FAB-PKG-01,
+  FAB-IDX-01, FAB-UI-01 and FAB-EX-01, each enforced in CI.
+- **Layering.** `packages/weave` is checked as engine (it was in no layer).
+  `packages/graphql`, which nothing imported, is removed; the derived schema
+  has always come from `@eve-fabric/fabric`.
+- **Secret scanning** covers the committed weaves (`weaves/`), the bank and
+  the examples, JSON and YAML, and fails on a file it cannot parse; it only
+  read JSON under `examples/` before.
+- **Examples.** `pnpm run demo:esi` asks the saved questions live instead of a
+  hand-wired pipeline; a test asks each saved question offline and checks the
+  answers its README now shows; the gateway demo's by-hand setup uses the
+  fixture, and the incursions pack says how to run it.
+- **Docs.** READMEs for the ten published packages that had none; the README's
+  architecture, package table, compiler steps, provenance shape and tooling
+  match the code; `docs/gateway-api.md` fixes its example question and reply
+  shapes, lists every error and the gateway's environment, and a test now
+  sends its example drafts to the gateway; `docs/cli.md` says a build comes
+  first and how exit codes show through pnpm; `specs/README.md` indexes the
+  specs, and 001 to 006 say whether they were implemented or superseded.
+- **Gateway.** `POST /api/drafts/weave` answers a `CharacterMismatchError`
+  with 422, as the draft routes do, instead of a 500; `/graphql` takes
+  `"variables": null` as no variables instead of failing with a 500.
+- A `LICENSE` file (ISC, as every package already declared); the Changesets
+  config publishes publicly and versions the published set as one.
+
+### [#50](https://github.com/lgriffin/eve-fabric/pull/50) composing on the canvas
 
 - In Build, the canvas takes gestures: a subject dropped on the empty canvas
   starts the question, a move dragged from the panel onto the scaffold is
@@ -20,7 +62,7 @@ hand, one entry per pull request. Earlier history is in git.
 - A third Playwright journey composes a two-step question by drag and drop,
   runs it and saves it.
 
-### Phase 5: a harness for outsiders
+### [#49](https://github.com/lgriffin/eve-fabric/pull/49) a harness for outsiders
 
 - **TESTING.md**, the CLI reference (`docs/cli.md`, generated from the CLI's
   help by `pnpm run docs:cli`), the gateway's HTTP API reference
@@ -71,6 +113,8 @@ hand, one entry per pull request. Earlier history is in git.
 - The gateway serves `/api/drafts/*`, `/api/weaves/*` and the derived schema at
   `/graphql`; the designer's canvas is a read-only view of the open draft; the
   examples are saved `.graphql` questions.
+
+## 0.1.0 (never published)
 
 ### [#44](https://github.com/lgriffin/eve-fabric/pull/44) CLI and designer import/export, plus pnpm workbench
 

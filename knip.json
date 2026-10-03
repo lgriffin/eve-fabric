@@ -4,12 +4,7 @@
     ".": {
       "entry": ["scripts/*.ts", "bank/steps/**/*.ts", "examples/**/*.ts"],
       "project": ["scripts/**/*.ts", "bank/**/*.ts", "examples/**/*.ts"],
-      "ignoreDependencies": [
-        "@stryker-mutator/api",
-        "@eve-fabric/compiler",
-        "@eve-fabric/planner",
-        "lint-staged"
-      ],
+      "ignoreDependencies": ["@stryker-mutator/api", "@eve-fabric/compiler", "@eve-fabric/planner"],
       "typedoc": false
     },
     "packages/*": {
@@ -24,8 +19,7 @@
       "ignoreDependencies": ["@lgriffin/esi.ts"]
     },
     "packages/persistence": {
-      "project": ["src/**/*.ts"],
-      "ignoreDependencies": ["drizzle-kit"]
+      "project": ["src/**/*.ts"]
     },
     "apps/gateway": {
       "entry": ["tests/**/*.test.ts"],
@@ -35,6 +29,5 @@
       "entry": ["e2e/**/*.ts"],
       "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts"]
     }
-  },
-  "ignore": [".husky/**"]
+  }
 }

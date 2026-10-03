@@ -7,7 +7,7 @@ an EVE account, ESI access or an SDE download.
 
 ## You need
 
-- Node.js 22.12 or newer (`node --version`)
+- Node.js 22.13 or newer (`node --version`)
 - pnpm 9 or newer (`corepack enable` gives you one if you have none)
 - A terminal and about 2 GB of disk for the dependencies and the build
 
@@ -89,8 +89,8 @@ pnpm test                 # unit tests, from source
 pnpm run build
 pnpm run test:bdd         # the BDD scenarios
 pnpm run test:bank        # the question bank: prints "bank: 8 of 8"
-pnpm run test:e2e         # the designer's two browser journeys over pnpm workbench
-pnpm run validate         # the full gate CI runs: lint, format, typecheck, coverage, knip
+pnpm run test:e2e         # the designer's three browser journeys over pnpm workbench
+pnpm run validate         # lint, layers, format, docs, typecheck, coverage, knip
 ```
 
 `pnpm run test:bank --live` asks Tranquility's ESI instead of the fixture. The
@@ -100,7 +100,7 @@ workflow runs it.
 
 ## What is known not to work yet
 
-- **Nothing is on npm yet.** `npx @eve-fabric/cli` works once a `v0.1.0`
+- **Nothing is on npm yet.** `npx @eve-fabric/cli` works once a `v0.2.0`
   tag is pushed; until then, run `pnpm fabric` from a checkout.
 - **Live use needs an SDE export.** Without `SDE_DATA_PATH`, a live run takes
   ids only, and says so. The workbench and the quickstart use the fixture's

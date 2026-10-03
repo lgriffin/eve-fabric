@@ -2,7 +2,7 @@
 
 **Feature Branch**: `004-semantic-discovery`  
 **Created**: 2026-08-19  
-**Status**: Draft  
+**Status**: Implemented
 **Input**: User description: "Extend Eve Fabric with a semantic discovery engine that understands the inputs, outputs, relationships, requirements, and compatibility of capabilities registered within the Fabric Registry. The objective is to allow Fabric Studio to actively guide users while constructing Fabric Flows rather than requiring them to already understand every available ESI, SDE, derived, or composite capability."
 
 ## User Scenarios & Testing _(mandatory)_

@@ -125,7 +125,7 @@ async function opened(
     esi: settings.offline
       ? tranquilityEsi().esi
       : createEsi({
-          userAgent: 'eve-fabric-cli/0.1 (+https://github.com/lgriffin/eve-fabric)',
+          userAgent: 'eve-fabric-cli/0.2 (+https://github.com/lgriffin/eve-fabric)',
           compatibilityDate: DEFAULT_COMPATIBILITY_DATE,
         }),
     esiCompatibilityDate: DEFAULT_COMPATIBILITY_DATE,

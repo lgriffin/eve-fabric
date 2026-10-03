@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-schema-gateway-mvp`
 **Created**: 2026-08-19
-**Status**: Draft
+**Status**: Implemented (its schema package, format v1, was retired by 007 in favour of the weave)
 **Input**: User description: "EVE Schema Gateway initial product and architecture specification"
 
 ## User Scenarios & Testing _(mandatory)_

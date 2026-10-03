@@ -17,7 +17,7 @@
  *   7. Ask the new move about another item
  *   8. See how a mistake is refused
  *
- * Run: pnpm run demo   (or: pnpm run demo -- --live)
+ * Run: pnpm run demo   (or: pnpm demo --live)
  */
 import { createEsi } from '@lgriffin/esi.ts/client';
 import { createStaticSource } from '@eve-fabric/source-sde';
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     logger: false,
     esi: live
       ? createEsi({
-          userAgent: 'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)',
+          userAgent: 'eve-fabric-demo/0.2 (+https://github.com/lgriffin/eve-fabric)',
           compatibilityDate: COMPATIBILITY_DATE,
         })
       : tranquilityEsi().esi,

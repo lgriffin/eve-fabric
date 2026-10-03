@@ -28,6 +28,7 @@ const REFUSALS = new Set([
   'GraphQLDraftError',
   'GraphQLError',
   'ScopeMissingError',
+  'CharacterMismatchError',
 ]);
 
 /** The longest weave document the gateway reads. */

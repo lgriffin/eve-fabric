@@ -2,7 +2,7 @@
 
 **Feature Branch**: `006-designer-dx-overhaul`
 **Created**: 2026-08-20
-**Status**: Draft
+**Status**: Superseded by 007 and 008
 **Input**: User description: "Fix broken gateway integration, YAML import, silent errors; add execution inputs, undo/redo, keyboard shortcuts; refactor code quality in the visual pipeline designer"
 
 ## User Scenarios & Testing _(mandatory)_

@@ -43,7 +43,7 @@ function indexFor(config: GatewayRuntimeConfig | undefined): WeaveIndex | undefi
 }
 
 /** Who is calling ESI, as CCP asks every application to say. */
-const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)';
+const DEFAULT_ESI_USER_AGENT = 'eve-fabric/0.2 (+https://github.com/lgriffin/eve-fabric)';
 
 function staticSourceFor(config: GatewayRuntimeConfig | undefined): StaticSource {
   if (config?.sde !== undefined) return config.sde;

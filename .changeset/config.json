@@ -2,10 +2,28 @@
   "$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
   "changelog": "@changesets/cli/changelog",
   "commit": false,
-  "fixed": [],
+  "fixed": [
+    [
+      "@eve-fabric/core",
+      "@eve-fabric/kit",
+      "@eve-fabric/pack-core",
+      "@eve-fabric/cache",
+      "@eve-fabric/compiler",
+      "@eve-fabric/planner",
+      "@eve-fabric/executor",
+      "@eve-fabric/source-esi",
+      "@eve-fabric/source-sde",
+      "@eve-fabric/weave",
+      "@eve-fabric/persistence",
+      "@eve-fabric/fixture",
+      "@eve-fabric/fabric",
+      "@eve-fabric/codegen",
+      "@eve-fabric/cli"
+    ]
+  ],
   "linked": [],
-  "access": "restricted",
+  "access": "public",
   "baseBranch": "master",
   "updateInternalDependencies": "patch",
-  "ignore": []
+  "ignore": ["@eve-fabric/gateway", "@eve-fabric/designer"]
 }

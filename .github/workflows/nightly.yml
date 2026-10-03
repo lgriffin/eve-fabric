@@ -43,7 +43,9 @@ jobs:
       - run: pnpm run demo:esi
 
   # The question bank against Tranquility's ESI: every question that is not
-  # asked as a character must still answer in shape, prices and routes live.
+  # asked as a character (Q6, Q7) and does not follow a live id into the SDE
+  # (Q1, Q4, Q5, skipped while SDE_DATA_PATH is unset) must still answer in
+  # shape, prices and routes live.
   question-bank-live:
     name: Question bank (live ESI)
     runs-on: ubuntu-latest

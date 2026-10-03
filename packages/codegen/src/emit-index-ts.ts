@@ -118,7 +118,7 @@ export function emitIndexTs(weave: ResolvedWeave, types: SemanticTypeRegistry): 
     defaults.push(
       '  // Who is calling ESI, as CCP asks every application to say.',
       '  if (options.esi === undefined) {',
-      "    defaults.esi = createEsi({ userAgent: process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)' });",
+      "    defaults.esi = createEsi({ userAgent: process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.2 (+https://github.com/lgriffin/eve-fabric)' });",
       '  }',
     );
   }

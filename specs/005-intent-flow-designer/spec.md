@@ -2,7 +2,7 @@
 
 **Feature Branch**: `005-intent-flow-designer`
 **Created**: 2026-08-20
-**Status**: Draft
+**Status**: Superseded by 007 and 008
 **Input**: User description: "Transform Fabric Studio from standalone visual components into an intent-driven, interactive flow-building experience where users describe goals, discover capabilities, drag-configure-connect components, and progressively build executable Fabric Flows."
 
 ## User Scenarios & Testing _(mandatory)_

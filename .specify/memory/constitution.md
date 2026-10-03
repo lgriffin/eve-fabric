@@ -1,6 +1,32 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 2.1.0 -> 2.2.0 (MINOR)
+  Modified principles:
+    - XXVII. Runtime Baseline: Node.js 22.13 or later, tested at that
+      exact version. `node:sqlite` (the store) does not load on 22.12
+      without a flag, so the 22.12 floor was never true; FAB-RUN-01
+      follows.
+  Restated to match what the code already does:
+    - Title and I. Purpose: EVE Fabric, a library, CLI and gateway.
+    - IV. Clean Architecture: the boundaries are the package layers that
+      `pnpm run lint:layers` enforces, not a directory convention.
+    - X. Schema Compiler: where parsing and dependency resolution happen
+      on the compile path.
+    - XV, XVI: weaves and drafts replace schema packages and the
+      serialized pipeline model (retired in 007).
+    - XVIII. Testing: Playwright and the question bank; Testcontainers
+      dropped (nothing needs it).
+  Modified requirements: FAB-ARCH-02 lists the packages the linter
+    checks (weave added to the engine layer; codegen is a composition
+    root and emits imports of sources by design).
+  Added requirements, all Enforced: FAB-SEC-01, FAB-DOC-01, FAB-DOC-02,
+    FAB-PKG-01, FAB-IDX-01, FAB-UI-01, FAB-EX-01.
+  Templates requiring updates: none (they read principles by number,
+    and no number changes).
+
+  Previous amendment
+  ------------------
   Version change: 2.0.0 -> 2.1.0 (MINOR)
   Modified principles:
     - VI. Semantic Type System: values, references and records; every
@@ -33,14 +59,15 @@
   principles by number; numbers I to XXVI are unchanged).
 -->
 
-# EVE Schema Gateway Constitution
+# EVE Fabric Constitution
 
 ## Core Principles
 
 ### I. Purpose
 
-This repository provides a TypeScript-first gateway for composing
-EVE Online data capabilities from multiple sources, principally:
+This repository provides EVE Fabric: a TypeScript-first library, with a
+command line and an HTTP gateway over it, for composing EVE Online data
+capabilities from multiple sources, principally:
 
 - Real-time ESI/OpenAPI data exposed through `ESI.ts`
 - Static Data Export (SDE) data exposed through the SDE capabilities
@@ -127,42 +154,26 @@ The core domain MUST NOT depend on:
 
 Dependencies MUST point inward.
 
-Recommended boundaries:
+The boundaries are package layers, and `pnpm run lint:layers` holds
+them (FAB-ARCH-01 to 03):
 
 ```text
-domain/
-application/
-infrastructure/
-interfaces/
+core      packages/core: capability, semantic type, pipeline, plan,
+          provenance and error models, and the ports (Clock, Store);
+          imports zod and nothing else
+engine    compiler, planner, executor, cache, persistence, weave:
+          compile, plan, execute, store and package; never a source
+kit       kit and the packs (pack-core): capabilities, contract and
+          run in one module; ESI.ts types only
+sources   source-esi, source-sde: the adapters over ESI.ts
+driving   fabric (the one composition root), codegen, fixture, the
+          gateway and the CLI: wire the layers together
+designer  apps/designer: an adapter over the gateway; never a source
 ```
 
-The domain contains:
-
-- Capability definitions
-- Semantic types
-- Schema composition rules
-- Pipeline definitions
-- Execution plan models
-- Provenance models
-
-The application layer contains:
-
-- Compile schema
-- Validate pipeline
-- Build execution plan
-- Execute plan
-- Register capability
-- Export schema
-- Import schema
-
-Infrastructure contains adapters for:
-
-- ESI.ts
-- SDE
-- GraphQL
-- Persistence
-- Cache
-- Telemetry
+Dependencies point inward: the core imports none of the others, the
+engine, the kit, the packs and the designer never reach a source, and
+only the driving layer wires sources in.
 
 ### V. Capability-First Design
 
@@ -366,6 +377,12 @@ detectable errors.
 
 Compiler diagnostics MUST be human-readable and machine-readable.
 
+The steps belong to the compile path, not all to one function: a
+pipeline is parsed where it enters (a GraphQL document against the
+derived schema, a weave against its schema and digest), and the fabric
+expands composites into the steps they depend on before the compiler
+checks the rest.
+
 ### XI. Execution Planner
 
 Execution plans MUST support:
@@ -462,8 +479,8 @@ execution.
 A schema MUST NOT gain access to an ESI scope merely because another
 schema or capability possesses that scope.
 
-User credentials MUST never be embedded into exported schema
-packages.
+User credentials MUST never be embedded into a weave, and the weaves
+and examples this repository shares are scanned for them (FAB-SEC-01).
 
 ## Interfaces and AI
 
@@ -474,11 +491,13 @@ compiler used by non-visual clients.
 
 The designer MUST NOT implement a second set of composition rules.
 
-Anything valid in the designer MUST be representable in the
-serialized pipeline model.
+The designer builds a draft through the moves and fills the fabric
+offers, the same ones the library and the CLI see; a gesture on its
+canvas is one of those changes, never a wire drawn by hand.
 
-Anything representable in the serialized pipeline model SHOULD be
-renderable in the designer.
+Anything the designer builds MUST have a saved form (a `.graphql`
+question, or a weave), and any saved question SHOULD open in the
+designer.
 
 The UI is an adapter over the domain model.
 
@@ -511,8 +530,10 @@ BDD MUST be used for externally observable capability behavior.
 Preferred stack:
 
 - Vitest
-- Cucumber.js
-- Testcontainers where integration infrastructure is required
+- Cucumber.js, and the question bank: the questions the fabric must
+  answer, which never regress (FAB-BANK-01)
+- fast-check for properties of the draft engine
+- Playwright for the designer's journeys in a browser
 - Stryker for mutation testing of critical compiler and planner
   behavior
 
@@ -655,8 +676,10 @@ A feature is complete only when:
 
 ### XXVII. Runtime Baseline
 
-The fabric MUST run on Node.js 22.12 or later, the baseline of
-`@lgriffin/esi.ts` 11. CI MUST test the baseline and the current LTS.
+The fabric MUST run on Node.js 22.13 or later: `@lgriffin/esi.ts` 11
+needs 22.12, and the store needs `node:sqlite`, which 22.13 is the first
+to load without a flag. CI MUST test that exact floor, the latest 22 and
+the current LTS.
 Node 18 and 20 are end of life and are not supported.
 
 ### XXVIII. Valid by Construction
@@ -690,10 +713,10 @@ CI. Statuses move forward as the overhaul phases land.
 | Id          | Requirement                                                                                                                                    | Enforced by                                             | Status   |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
 | FAB-ARCH-01 | The core (`packages/core`) imports `zod` and nothing else.                                                                                     | `pnpm run lint:layers`                                  | Enforced |
-| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, weave, codegen, cache, persistence) and the kit and packs never import a source adapter.     | `pnpm run lint:layers`                                  | Enforced |
+| FAB-ARCH-02 | The engine (compiler, planner, executor, cache, persistence, weave), the kit, the packs and the designer never import a source adapter.        | `pnpm run lint:layers`                                  | Enforced |
 | FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts` values; the kit and packs import its types only.                          | `pnpm run lint:layers`                                  | Enforced |
 | FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                                      | `pnpm run lint:determinism` (shrink-only baseline)      | Enforced |
-| FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                                     | `engines`, CI matrix 22 and 24                          | Enforced |
+| FAB-RUN-01  | The fabric runs on Node.js 22.13 or later.                                                                                                     | `engines`, CI matrix 22.13, 22 and 24                   | Enforced |
 | FAB-SRC-01  | A configured source that fails to load is an error, never an empty substitute.                                                                 | gateway runtime tests                                   | Enforced |
 | FAB-BANK-01 | The question bank runs in CI; a question that passed never regresses.                                                                          | `pnpm run test:bank`                                    | Enforced |
 | FAB-VAL-01  | When a capability is registered without a `run` function, the catalog shall reject it and name the capability.                                 | `CapabilityCatalog({ executable: true })`, fabric tests | Enforced |
@@ -706,6 +729,13 @@ CI. Statuses move forward as the overhaul phases land.
 | FAB-VAL-06  | When a document is valid against the derived schema, the compiler shall produce a plan for it.                                                 | GraphQL round-trip tests                                | Enforced |
 | FAB-VAL-07  | While the caller's identity lacks a scope a move requires, the engine shall mark the move unavailable and name the scope.                      | bank Q6, identity tests                                 | Enforced |
 | FAB-VAL-08  | If an imported weave does not compile against the local catalog, then the fabric shall refuse it and add nothing.                              | bank Q8, `packages/fabric/tests/weaves.test.ts`         | Enforced |
+| FAB-SEC-01  | If a committed weave or example carries something that looks like a credential, then the commit and the build shall fail, naming the field.    | `pnpm run scan:secrets` (pre-commit and CI)             | Enforced |
+| FAB-DOC-01  | The CLI reference shall be the CLI's own help: when `docs/cli.md` differs from a fresh render, the build shall fail.                           | `pnpm run docs:check`                                   | Enforced |
+| FAB-DOC-02  | Every draft and weave route shall be documented in `docs/gateway-api.md`, every documented route served, and every documented draft accepted.  | `apps/gateway/tests/routes/documented.test.ts`          | Enforced |
+| FAB-PKG-01  | The published packages shall install and answer a question in an empty project, through the library, the bin and a generated package.          | `pnpm run packages:check`                               | Enforced |
+| FAB-IDX-01  | When the weaves in `weaves/` differ by a byte from a fresh export, the build shall fail.                                                       | `pnpm run weaves:check`                                 | Enforced |
+| FAB-UI-01   | The designer shall build and run a question, open a saved one, and compose one on the canvas, in a browser.                                    | `pnpm run test:e2e` (Designer Journeys)                 | Enforced |
+| FAB-EX-01   | The quickstart, the demo and the saved questions shall run offline and give the answers their READMEs show.                                    | CI Examples job, `examples/**/*.test.ts`                | Enforced |
 
 ## Governance
 
@@ -740,4 +770,4 @@ All pull requests and code reviews MUST verify compliance with
 this constitution. Complexity MUST be justified against these
 principles.
 
-**Version**: 2.1.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-01
+**Version**: 2.2.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-03

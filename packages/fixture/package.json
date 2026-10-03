@@ -1,6 +1,6 @@
 {
   "name": "@eve-fabric/fixture",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The Tranquility fixture: a small, hand-built slice of New Eden served through ESI.ts's mock transport and in-memory SDE, for tests, examples and the CLI's --offline.",
   "license": "ISC",
   "type": "module",
@@ -26,7 +26,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "tsc",
