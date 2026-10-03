@@ -22,6 +22,8 @@
     "demo": "tsx examples/e2e-demo/demo.ts",
     "demo:esi": "tsx examples/esi-live.ts",
     "quickstart": "tsx examples/quickstart/main.ts",
+    "fabric": "tsx apps/cli/src/main.ts",
+    "workbench": "tsx scripts/workbench.ts",
     "validate": "pnpm run lint && pnpm run lint:layers && pnpm run lint:determinism && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
     "prepare": "husky",
     "lint:layers": "tsx scripts/lint-layers.ts",
@@ -63,7 +65,8 @@
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.0.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "zod": "^3.23.0"
   },
   "lint-staged": {
     "*.{ts,tsx}": [

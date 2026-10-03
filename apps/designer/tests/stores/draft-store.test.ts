@@ -189,6 +189,30 @@ describe('building a question in the designer', () => {
     expect(store().view!.graphql).toBe(graphql);
   });
 
+  it('asks again after the fabric changed, and offers a weave added meanwhile', async () => {
+    const fabric = tranquilityFabric();
+    vi.stubGlobal('fetch', vi.fn(serve(fabric)));
+    const store = useDraftStore.getState;
+    await store().start({ kind: 'type', value: 'Pyerite' });
+    expect(store().view!.moves.map((m) => m.name)).not.toContain('forge prices');
+    const prices = fabric
+      .draft({ type: 'Tritanium' })
+      .apply('orders')
+      .fill('region', 'The Forge')
+      .apply('prices');
+    await fabric.add(
+      fabric.export(
+        fabric.weave(prices, { id: 'me.forge.prices', version: '1.0.0', as: 'forge prices' }),
+      ),
+    );
+    expect(await store().refresh()).toBe(true);
+    expect(store().view!.moves.map((m) => m.name)).toContain('forge prices');
+  });
+
+  it('has nothing to refresh before a question starts', async () => {
+    expect(await useDraftStore.getState().refresh()).toBe(false);
+  });
+
   it('shows a scoped move as unavailable without a token', async () => {
     const store = useDraftStore.getState;
     store().setToken('');

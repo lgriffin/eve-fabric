@@ -225,9 +225,10 @@ export function Toolbar({
       </button>
       <button
         onClick={onImport}
+        title="Open a saved question (.graphql), add a weave (.weave.yaml), or import a pipeline (.yaml). You can also drop a file anywhere."
         style={{ ...buttonStyle, background: colors.surface.border, color: colors.text.primary }}
       >
-        Import
+        Open…
       </button>
       {onRelayout && (
         <button

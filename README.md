@@ -19,6 +19,22 @@ Add `--live` to ask Tranquility's ESI. The code is
 start a pack of your own. `pnpm demo` does the same through the gateway's HTTP
 API.
 
+### From the terminal
+
+`pnpm fabric` is the `eve-fabric` CLI. It asks saved questions, explores
+moves, and moves weaves in and out of a fabric. `--offline` uses the fixture,
+`--pack <module>` installs a pack you wrote, and `--db <file>` keeps added
+weaves across runs:
+
+```bash
+pnpm fabric moves type=Tritanium orders --offline              # what can come next
+pnpm fabric moves type=Tritanium orders "region=The Forge" prices --offline
+pnpm fabric ask question.graphql --offline                     # run a saved question
+pnpm fabric weave export question.graphql --id me.prices --version 1.0.0 --as "forge prices" --out prices.weave.yaml --offline
+pnpm fabric weave add prices.weave.yaml --db fabric.db --offline
+pnpm fabric weave list --db fabric.db --offline
+```
+
 ## What It Does
 
 EVE Fabric treats every EVE Online data operation as a **capability** — a typed, versioned unit with semantic inputs and outputs. You compose capabilities into **pipelines** (directed acyclic graphs), and the gateway compiles them into optimized execution plans that respect dependencies, parallelize where possible, and track data provenance.
@@ -416,10 +432,25 @@ imports them; pushing a `v*` tag publishes them (the Release workflow needs an
 ### Start the Designer
 
 ```bash
-pnpm --filter @eve-fabric/designer run dev
+pnpm workbench          # the gateway over the offline fixture, and the designer against it
 ```
 
-The designer runs at `http://localhost:5173`. Start from a subject, apply the moves it offers and fill the holes it names; paste an EVE SSO token to ask about your own character. The gateway checks the token's signature against EVE SSO's published keys, along with its issuer, audience and expiry, before believing the character and scopes it names, and answers 401 for one that fails.
+The designer runs at `http://localhost:5173` and the gateway at
+`http://localhost:3456`. `pnpm workbench` needs no ESI access or SDE export.
+Use `--live` for Tranquility's ESI and `--no-designer` for the gateway alone.
+To run the designer against a gateway of your own, use
+`pnpm --filter @eve-fabric/designer run dev`.
+
+Start from a subject, apply the moves it offers, and fill the holes it names.
+Once a question is complete you can **Save as GraphQL**, or **Share as weave**
+to download a `.weave.yaml` another fabric can add. **Open…** (or dropping a
+file anywhere) opens a saved `.graphql` question, adds a `.weave.yaml` to the
+gateway's fabric so it is offered as a move, or imports pipeline YAML.
+
+To ask about your own character, paste an EVE SSO token. Before trusting the
+character and scopes a token names, the gateway checks its signature against
+EVE SSO's published keys, along with its issuer, audience and expiry. A token
+that fails any check gets a 401.
 
 ## Examples
 

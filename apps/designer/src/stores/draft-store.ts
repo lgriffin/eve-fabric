@@ -36,6 +36,8 @@ interface DraftActions {
   undo: () => Promise<boolean>;
   load: (graphql: string) => Promise<boolean>;
   run: () => Promise<boolean>;
+  /** Asks the fabric again, after it changed (a weave was added). */
+  refresh: () => Promise<boolean>;
   setToken: (token: string) => void;
   clear: () => void;
   /** Drops the question without touching the canvas, for a pipeline loaded in its place. */
@@ -128,6 +130,7 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
     fill: (hole, value) => change([...get().steps, { kind: 'fill', hole, value }]),
     undo: () => change(get().steps.slice(0, -1)),
     load: (graphql) => send({ graphql }, null),
+    refresh: () => (get().subject === null ? Promise.resolve(false) : change(get().steps)),
     run: async () => {
       const { subject, steps, token } = get();
       if (subject === null) return false;
