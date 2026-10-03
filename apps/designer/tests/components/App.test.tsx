@@ -3,48 +3,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { App } from '../../src/App.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
-import { useCatalogStore } from '../../src/stores/catalog-store.js';
-import { usePipelineStore } from '../../src/stores/pipeline-store.js';
 import type { DraftRequest } from '../../src/services/draft-client.js';
-import { answer } from './fixtures.js';
-
-vi.mock('../../src/services/gateway-client.js', () => ({
-  getCapabilities: vi.fn(async () => ({
-    ok: true,
-    data: {
-      capabilities: [
-        {
-          id: 'x.type',
-          version: '1.0.0',
-          name: 'Type',
-          description: '',
-          source: 'SDE',
-          inputs: [],
-          outputs: [{ name: 'type', semanticType: 'eve.type.reference' }],
-          isComposite: false,
-        },
-        {
-          id: 'x.orders',
-          version: '1.0.0',
-          name: 'Orders',
-          description: '',
-          source: 'ESI',
-          inputs: [
-            { name: 'item', semanticType: 'eve.type.reference', required: true },
-            { name: 'region', semanticType: 'eve.region.reference', required: true },
-          ],
-          outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
-          isComposite: false,
-        },
-      ],
-    },
-  })),
-}));
+import { answer, catalog } from './fixtures.js';
 
 vi.mock('../../src/services/draft-client.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../src/services/draft-client.js')>();
   return {
     ...real,
+    getCatalog: vi.fn(async () => ({ ok: true, data: { capabilities: catalog } })),
     getSubjects: vi.fn(async () => ({ ok: true, data: { kinds: [], starts: [] } })),
     postDraft: vi.fn(async (request: DraftRequest) => ({ ok: true, data: answer(request) })),
     getChoices: vi.fn(async () => ({ ok: true, data: { choices: [] } })),
@@ -75,9 +41,14 @@ function pickFile(file: File) {
   return made[0]!;
 }
 
+const pressed = (name: string) =>
+  screen.getByRole('button', { name }).getAttribute('aria-pressed') === 'true';
+
 describe('App', () => {
   beforeEach(() => {
+    window.location.hash = '';
     useDraftStore.getState().clear();
+    useDraftStore.setState({ catalog: [] });
     vi.mocked(client.postDraft).mockClear();
   });
 
@@ -85,17 +56,17 @@ describe('App', () => {
     cleanup();
   });
 
-  it('renders with the catalog loaded and no question yet', async () => {
+  it('opens in Explore with the catalog loaded and no question yet', async () => {
     render(<App />);
-    await waitFor(() => expect(useCatalogStore.getState().capabilities).toHaveLength(2));
+    await waitFor(() => expect(useDraftStore.getState().catalog).toHaveLength(2));
     expect(screen.getByText('No question yet')).toBeTruthy();
     expect(screen.getByText('Ask about')).toBeTruthy();
-    expect(screen.getByText('0 nodes, 0 edges')).toBeTruthy();
-    expect(screen.queryByText('Execute')).toBeNull();
-    expect(screen.queryByText('Publish as Capability')).toBeNull();
+    expect(pressed('Explore')).toBe(true);
+    expect(screen.queryByTestId('canvas')).toBeNull();
+    expect(window.location.hash).toBe('#explore');
   });
 
-  it('opens a .graphql file as the question and names it in the title', async () => {
+  it('opens a .graphql file as the question, in Review, and names it in the title', async () => {
     render(<App />);
     const input = pickFile(new File(['{ type { name } }'], 'q.graphql'));
     expect(input.accept).toContain('.graphql');
@@ -104,9 +75,27 @@ describe('App', () => {
     );
     await screen.findAllByText('type Tritanium');
     await screen.findByText('The question in q.graphql');
-    await waitFor(() => expect(usePipelineStore.getState().nodes).toHaveLength(2));
+    expect(pressed('Review')).toBe(true);
+    expect(screen.getByTestId('canvas')).toBeTruthy();
+    // Read-only: no moves or holes to change it by, but Run is there.
+    expect(screen.queryByText('Next')).toBeNull();
+    expect(screen.getByText('Run')).toBeTruthy();
+    await waitFor(() => expect(useDraftStore.getState().nodes).toHaveLength(2));
     // The catalog names the scaffold's steps.
-    expect(usePipelineStore.getState().nodes.map((n) => n.data.label)).toEqual(['Type', 'Orders']);
+    expect(useDraftStore.getState().nodes.map((n) => n.data.label)).toEqual(['Type', 'Orders']);
+  });
+
+  it('switches modes from the toolbar and follows the URL hash', async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Build' }));
+    expect(pressed('Build')).toBe(true);
+    expect(screen.getByTestId('canvas')).toBeTruthy();
+    expect(screen.getByText('0 nodes, 0 edges')).toBeTruthy();
+    expect(window.location.hash).toBe('#build');
+
+    window.location.hash = '#review';
+    fireEvent(window, new HashChangeEvent('hashchange'));
+    await waitFor(() => expect(pressed('Review')).toBe(true));
   });
 
   it('adds a dropped weave to the fabric', async () => {
@@ -131,7 +120,7 @@ describe('App', () => {
     pickFile(new File(['{ type { name } }'], 'q.graphql'));
     await screen.findAllByText('type Tritanium');
     expect(screen.getByText(/orders\(region: "The Forge"\)/)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Plan' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Plan' }));
     expect(screen.getByText('waits for: type')).toBeTruthy();
   });
 
@@ -141,5 +130,15 @@ describe('App', () => {
     expect(screen.getByText('Keyboard Shortcuts')).toBeTruthy();
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByText('Keyboard Shortcuts')).toBeNull();
+  });
+
+  it('does not undo a question under review', async () => {
+    render(<App />);
+    pickFile(new File(['{ type { name } }'], 'q.graphql'));
+    await screen.findAllByText('type Tritanium');
+    vi.mocked(client.postDraft).mockClear();
+    fireEvent.keyDown(window, { key: 'z', ctrlKey: true });
+    expect(client.postDraft).not.toHaveBeenCalled();
+    expect((screen.getByRole('button', { name: 'Undo' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 import type { PipelineDefinition } from '@eve-fabric/core';
 import type { Edge } from '@xyflow/react';
-import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
+import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/types.js';
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 120;

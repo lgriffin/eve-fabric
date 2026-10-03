@@ -1,7 +1,4 @@
-import type { Node, Edge, OnNodesChange } from '@xyflow/react';
-import type { PipelineDefinition } from '@eve-fabric/core';
-
-export type PaletteMode = 'discover' | 'recommended' | 'all';
+import type { Node } from '@xyflow/react';
 
 export type ToastSeverity = 'error' | 'warning' | 'success' | 'info';
 
@@ -27,42 +24,27 @@ export interface CapabilityNodeData {
 
 export type CapabilityFlowNode = Node<CapabilityNodeData, 'capability'>;
 
-export interface DrilldownEntry {
-  capabilityId: string;
-  version: string;
-  pipelineDef: PipelineDefinition | null;
-}
-
 /**
- * The canvas shows the open question's scaffold. Nothing here changes the
- * question: nodes move, a node is selected, a composite is opened to look
- * inside, and the whole scaffold is replaced when the question changes.
+ * The designer's three layouts over the one question. Explore shows the
+ * subjects and moves alone; Build adds the canvas; Review opens a saved
+ * question read-only, with Run. The mode is in the URL's hash too.
  */
-export interface CanvasState {
-  nodes: CapabilityFlowNode[];
-  edges: Edge[];
-  selectedNodeId: string | null;
-  drilldownStack: DrilldownEntry[];
+export type Mode = 'explore' | 'build' | 'review';
+
+export const MODES: readonly Mode[] = ['explore', 'build', 'review'];
+
+function isMode(value: string): value is Mode {
+  return (MODES as readonly string[]).includes(value);
 }
 
-export interface CanvasActions {
-  onNodesChange: OnNodesChange<CapabilityFlowNode>;
-  setSelectedNode: (nodeId: string | null) => void;
-  /** Shows a scaffold in place of the one on the canvas. */
-  loadPipeline: (nodes: CapabilityFlowNode[], edges: Edge[]) => void;
-  openComposite: (entry: DrilldownEntry) => void;
-  closeComposite: () => void;
-  reset: () => void;
+/** The mode a URL hash names, if it names one. */
+export function modeFromHash(hash: string): Mode | null {
+  const name = hash.replace(/^#/, '');
+  return isMode(name) ? name : null;
 }
 
-export type PipelineState = CanvasState & CanvasActions;
-
-export type PipelineSet = (partial: PipelineState | Partial<PipelineState>) => void;
-export type PipelineGet = () => PipelineState;
-
-export const canvasInitial: CanvasState = {
-  nodes: [],
-  edges: [],
-  selectedNodeId: null,
-  drilldownStack: [],
-};
+/** The mode the designer opens in: the one its URL names, else Explore. */
+export function startingMode(): Mode {
+  if (typeof window === 'undefined') return 'explore';
+  return modeFromHash(window.location.hash) ?? 'explore';
+}

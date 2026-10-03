@@ -4,3 +4,5 @@ build/
 coverage/
 pnpm-lock.yaml
 weaves/
+apps/designer/test-results/
+apps/designer/playwright-report/

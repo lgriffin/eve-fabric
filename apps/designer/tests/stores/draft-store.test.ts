@@ -22,7 +22,6 @@ import {
 } from '@eve-fabric/fixture';
 import { incursionsPack } from '../../../../examples/incursions-pack/pack.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
-import { usePipelineStore } from '../../src/stores/pipeline-store.js';
 
 const TOKEN = 'ava-token';
 
@@ -152,7 +151,7 @@ describe('building a question in the designer', () => {
     expect(view.complete).toBe(true);
     expect(view.plan!.steps.length).toBeGreaterThan(0);
     // The canvas shows the scaffold the fabric built.
-    expect(usePipelineStore.getState().nodes.map((n) => n.id)).toEqual(
+    expect(useDraftStore.getState().nodes.map((n) => n.id)).toEqual(
       view.pipeline.nodes.map((n) => n.id),
     );
     expect(await store().run()).toBe(true);
@@ -253,9 +252,9 @@ describe('building a question in the designer', () => {
     const store = useDraftStore.getState;
     await store().start({ kind: 'type', value: 'Tritanium' });
     await store().apply('orders');
-    expect(usePipelineStore.getState().nodes.length).toBeGreaterThan(0);
+    expect(useDraftStore.getState().nodes.length).toBeGreaterThan(0);
     store().clear();
     expect(store().subject).toBeNull();
-    expect(usePipelineStore.getState().nodes).toHaveLength(0);
+    expect(useDraftStore.getState().nodes).toHaveLength(0);
   });
 });

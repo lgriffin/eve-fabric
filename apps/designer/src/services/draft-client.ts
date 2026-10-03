@@ -120,3 +120,20 @@ export async function exportWeave(
 export function addWeave(document: string): Promise<DraftResult<WeaveRef>> {
   return call('/api/weaves', post({ document }), undefined);
 }
+
+/** A capability as the fabric describes it: what the canvas names a step and its ports by. */
+export interface CatalogCapability {
+  readonly id: string;
+  readonly version: string;
+  readonly name: string;
+  readonly description: string;
+  readonly source: string;
+  readonly inputs: readonly { name: string; semanticType: string; required: boolean }[];
+  readonly outputs: readonly { name: string; semanticType: string }[];
+  readonly isComposite: boolean;
+}
+
+/** The fabric's capabilities, for the canvas's node labels and ports. */
+export function getCatalog(): Promise<DraftResult<{ capabilities: CatalogCapability[] }>> {
+  return call('/api/registry', undefined, undefined);
+}

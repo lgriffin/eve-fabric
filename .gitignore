@@ -16,3 +16,7 @@ reports/
 
 # Written by `pnpm quickstart`
 examples/quickstart/out/
+
+# Playwright
+apps/designer/test-results/
+apps/designer/playwright-report/

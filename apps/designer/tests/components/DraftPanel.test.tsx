@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { DraftPanel } from '../../src/components/draft/DraftPanel.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
-import { usePipelineStore } from '../../src/stores/pipeline-store.js';
 import type { DraftRequest } from '../../src/services/draft-client.js';
 import { answer, complete } from './fixtures.js';
 
@@ -59,7 +58,7 @@ describe('DraftPanel', () => {
     expect(
       (screen.getByRole('button', { name: /wallet journal/ }) as HTMLButtonElement).disabled,
     ).toBe(true);
-    expect(usePipelineStore.getState().nodes.map((n) => n.id)).toEqual(['type']);
+    expect(useDraftStore.getState().nodes.map((n) => n.id)).toEqual(['type']);
   });
 
   it('applies a move, names the hole it opens, and fills it', async () => {
@@ -92,7 +91,7 @@ describe('DraftPanel', () => {
     expect(
       (screen.getByRole('button', { name: 'Save as GraphQL' }) as HTMLButtonElement).disabled,
     ).toBe(false);
-    expect(usePipelineStore.getState().nodes.map((n) => n.id)).toEqual(['type', 'orders']);
+    expect(useDraftStore.getState().nodes.map((n) => n.id)).toEqual(['type', 'orders']);
   });
 
   it("shows the fabric's refusal and keeps the question as it was", async () => {

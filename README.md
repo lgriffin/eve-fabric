@@ -433,12 +433,19 @@ Use `--live` for Tranquility's ESI and `--no-designer` for the gateway alone.
 To run the designer against a gateway of your own, use
 `pnpm --filter @eve-fabric/designer run dev`.
 
-Start from a subject, apply the moves it offers, and fill the holes it names.
-Once a question is complete you can **Save as GraphQL**, or **Share as weave**
-to download a `.weave.yaml` another fabric can add. **Open…** (or dropping a
-file anywhere) opens a saved `.graphql` question, or adds a `.weave.yaml` to
-the gateway's fabric so it is offered as a move. The canvas draws the question's
-steps; it is not edited by hand.
+The designer has three modes, three layouts over the same question, each a
+URL: **Explore** (`#explore`) shows the subjects and the moves they offer with
+no canvas; **Build** (`#build`) puts the question beside the scaffold it
+becomes; **Review** (`#review`) is where a saved question opens, read-only,
+with Run. Start from a subject, apply the moves it offers, and fill the holes
+it names. Once a question is complete you can **Save as GraphQL**, or **Share
+as weave** to download a `.weave.yaml` another fabric can add. **Open…** (or
+dropping a file anywhere) opens a saved `.graphql` question in Review, or adds
+a `.weave.yaml` to the gateway's fabric so it is offered as a move. The canvas
+draws the question's steps; it is not edited by hand.
+
+`pnpm run test:e2e` drives both journeys (build and run a question; open a
+saved one) in a browser over `pnpm workbench`.
 
 To ask about your own character, paste an EVE SSO token. Before trusting the
 character and scopes a token names, the gateway checks its signature against
@@ -463,6 +470,7 @@ The quickstart and the demo run offline by default; both take `--live`.
 | ----------- | --------------------------------------------- | ------------------------------------- |
 | Vitest      | `pnpm -r run test`                            | Unit and integration tests            |
 | Cucumber.js | `pnpm --filter @eve-fabric/core run test:bdd` | Behavior-driven scenarios             |
+| Playwright  | `pnpm run test:e2e`                           | The designer's journeys in a browser  |
 | Stryker     | `pnpm run mutate`                             | Mutation testing (compiler + planner) |
 | TypeDoc     | `pnpm run docs`                               | API documentation generation          |
 | ESLint      | `pnpm run lint`                               | Linting with TypeScript rules         |

@@ -1,6 +1,6 @@
 import { memo, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
-import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline-store.js';
+import type { CapabilityFlowNode } from '../../stores/types.js';
 import { useDraftStore } from '../../stores/draft-store.js';
 import { SemanticHandle } from './SemanticHandle.js';
 import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
@@ -31,9 +31,6 @@ export const CapabilityNode = memo(function CapabilityNode({
   selected,
 }: NodeProps<CapabilityFlowNode>) {
   injectPulseStyle();
-
-  const openComposite = usePipelineStore((s) => s.openComposite);
-  const isComposite = data.source === 'COMPOSITE';
 
   // The question says which of this step's inputs are still holes; a filled
   // one has no edge on the canvas either, so edges cannot tell them apart.
@@ -234,33 +231,6 @@ export const CapabilityNode = memo(function CapabilityNode({
         >
           {data.capabilityId}@{data.capabilityVersion}
         </span>
-        {isComposite && (
-          <button
-            className="nopan nodrag"
-            onClick={(e) => {
-              e.stopPropagation();
-              openComposite({
-                capabilityId: data.capabilityId,
-                version: data.capabilityVersion,
-                pipelineDef: null,
-              });
-            }}
-            style={{
-              background: colors.source.COMPOSITE,
-              color: colors.surface.raised,
-              border: 'none',
-              borderRadius: borderRadius.sm,
-              padding: '1px 6px',
-              fontSize: '9px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              marginLeft: 4,
-              flexShrink: 0,
-            }}
-          >
-            Open
-          </button>
-        )}
       </div>
     </div>
   );

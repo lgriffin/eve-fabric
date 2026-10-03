@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { ReactFlow, Background, Controls, MiniMap } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { usePipelineStore } from '../../stores/pipeline-store.js';
+import { useDraftStore } from '../../stores/draft-store.js';
 import { CapabilityNode } from './CapabilityNode.js';
 import { colors } from '../../tokens.js';
 
@@ -13,10 +13,10 @@ const nodeTypes = { capability: CapabilityNode };
  * changes only through the moves and holes the draft panel offers.
  */
 export function PipelineCanvas() {
-  const nodes = usePipelineStore((s) => s.nodes);
-  const edges = usePipelineStore((s) => s.edges);
-  const onNodesChange = usePipelineStore((s) => s.onNodesChange);
-  const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
+  const nodes = useDraftStore((s) => s.nodes);
+  const edges = useDraftStore((s) => s.edges);
+  const onNodesChange = useDraftStore((s) => s.onNodesChange);
+  const setSelectedNode = useDraftStore((s) => s.selectNode);
 
   // A port read by more than one step is drawn heavier, so the fan-out shows.
   const styledEdges = useMemo(() => {
@@ -35,7 +35,7 @@ export function PipelineCanvas() {
   }, [edges]);
 
   return (
-    <div style={{ flex: 1, height: '100%' }}>
+    <div style={{ flex: 1, height: '100%' }} data-testid="canvas">
       <ReactFlow
         nodes={nodes}
         edges={styledEdges}
