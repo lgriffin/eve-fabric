@@ -1,4 +1,5 @@
 import { defineWorkspace } from 'vitest/config';
+import { fabricSources } from './vitest.sources.js';
 
 export default defineWorkspace([
   'packages/*/vitest.config.ts',
@@ -8,5 +9,6 @@ export default defineWorkspace([
       name: 'unit',
       include: ['packages/*/tests/**/*.test.ts', 'examples/**/*.test.ts'],
     },
+    resolve: { alias: fabricSources },
   },
 ]);

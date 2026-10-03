@@ -8,6 +8,11 @@
  * baseline is regenerated with --update, so each gain is recorded in review.
  *
  * Run: pnpm run test:bank [--update]
+ *
+ * --live asks Tranquility's ESI instead of the fixture (names still come from
+ * the fixture's SDE). The questions asked as a character (Q6, Q7) need a token
+ * the fixture records and ESI will not take, so they are skipped; the rest
+ * must pass, and the baseline is not touched. The nightly workflow runs it.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -24,6 +29,10 @@ const ROOT = join(import.meta.dirname, '..');
 const MESSAGES = join(ROOT, 'reports', 'bank', 'messages.ndjson');
 const BASELINE = join(ROOT, 'bank', 'baseline.json');
 const QUESTIONS = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8'];
+const LIVE = process.argv.includes('--live');
+/** Asked as a character: the fixture's token means nothing to live ESI. */
+const CHARACTER_QUESTIONS = ['Q6', 'Q7'];
+const ASKED = LIVE ? QUESTIONS.filter((q) => !CHARACTER_QUESTIONS.includes(q)) : QUESTIONS;
 
 interface Envelope {
   pickle?: { id: string; name: string; tags: { name: string }[] };
@@ -39,9 +48,12 @@ function runCucumber(): void {
   const bin = join(ROOT, 'node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js');
   // Scenarios fail until every question passes, so exit 1 is expected; stderr
   // still reaches the log so a load error shows why.
-  const result = spawnSync(process.execPath, [bin, '-c', 'cucumber.cjs', '-p', 'bank'], {
+  const skipped = CHARACTER_QUESTIONS.map((q) => '@' + q).join(' or ');
+  const tags = LIVE ? ['--tags', `not (${skipped})`] : [];
+  const result = spawnSync(process.execPath, [bin, '-c', 'cucumber.cjs', '-p', 'bank', ...tags], {
     cwd: ROOT,
     stdio: ['ignore', 'ignore', 'inherit'],
+    env: LIVE ? { ...process.env, BANK_LIVE: '1' } : process.env,
   });
   if (result.error !== undefined || result.signal !== null || (result.status ?? 2) > 1) {
     console.error(
@@ -95,21 +107,27 @@ function passingQuestions(): { passing: string[]; scenarios: Map<string, string[
     scenarios.set(question, [...(scenarios.get(question) ?? []), name]);
     if (failedPickles.has(id) || !ranPickles.has(id)) failing.add(question);
   }
-  const passing = QUESTIONS.filter((q) => scenarios.has(q) && !failing.has(q));
+  const passing = ASKED.filter((q) => scenarios.has(q) && !failing.has(q));
   return { passing, scenarios };
 }
 
 function main(): void {
   runCucumber();
   const { passing, scenarios } = passingQuestions();
-  const missing = QUESTIONS.filter((q) => !scenarios.has(q));
+  const missing = ASKED.filter((q) => !scenarios.has(q));
   if (missing.length > 0) {
     console.error(`question bank: no scenarios for ${missing.join(', ')}`);
     process.exit(1);
   }
 
-  const line = `bank: ${passing.length} of ${QUESTIONS.length}`;
-  const table = QUESTIONS.map((q) => `| ${q} | ${passing.includes(q) ? 'passes' : 'not yet'} |`);
+  const state = (q: string): string => {
+    if (!ASKED.includes(q)) return 'skipped (asked as a character)';
+    if (passing.includes(q)) return 'passes';
+    return LIVE ? 'fails' : 'not yet';
+  };
+  const title = LIVE ? 'bank (live ESI)' : 'bank';
+  const line = `${title}: ${passing.length} of ${ASKED.length}`;
+  const table = QUESTIONS.map((q) => `| ${q} | ${state(q)} |`);
   console.log(line);
   for (const row of table) console.log(row);
   const summaryPath = process.env['GITHUB_STEP_SUMMARY'];
@@ -117,7 +135,7 @@ function main(): void {
     appendFileSync(
       summaryPath,
       [
-        `## Question bank: ${passing.length} of ${QUESTIONS.length}`,
+        `## Question ${title}: ${passing.length} of ${ASKED.length}`,
         '',
         '| Question | State |',
         '|---|---|',
@@ -125,6 +143,14 @@ function main(): void {
         '',
       ].join('\n'),
     );
+  }
+
+  if (LIVE) {
+    // Live answers are checked for shape, not recorded: every question asked must pass.
+    const failed = ASKED.filter((q) => !passing.includes(q));
+    for (const q of failed) console.error(`question bank: ${q} fails against live ESI`);
+    if (failed.length > 0) process.exit(1);
+    return;
   }
 
   if (process.argv.includes('--update')) {

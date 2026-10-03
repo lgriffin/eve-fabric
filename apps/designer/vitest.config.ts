@@ -1,5 +1,6 @@
 import { defineConfig, mergeConfig } from 'vitest/config';
 import viteConfig from './vite.config';
+import { fabricSources } from '../../vitest.sources.js';
 
 export default mergeConfig(
   viteConfig,
@@ -15,5 +16,6 @@ export default mergeConfig(
         thresholds: { lines: 90, statements: 90, functions: 75, branches: 80 },
       },
     },
+    resolve: { alias: fabricSources },
   }),
 );

@@ -27,6 +27,7 @@ jobs:
       - run: pnpm run lint:layers
       - run: pnpm run lint:determinism
       - run: pnpm run format:check
+      - run: pnpm run docs:check
 
   typecheck:
     name: Type Check

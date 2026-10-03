@@ -41,3 +41,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
       - run: pnpm run demo:esi
+
+  # The question bank against Tranquility's ESI: every question that is not
+  # asked as a character must still answer in shape, prices and routes live.
+  question-bank-live:
+    name: Question bank (live ESI)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run test:bank --live

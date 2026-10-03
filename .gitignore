@@ -23,3 +23,4 @@ apps/designer/playwright-report/
 
 # Written by the codegen end-to-end test
 packages/codegen/tests/generated/
+docs/api/

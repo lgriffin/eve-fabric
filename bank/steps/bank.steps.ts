@@ -6,7 +6,7 @@
  */
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { Given, When, Then, World, setWorldConstructor } from '@cucumber/cucumber';
+import { AfterAll, Given, When, Then, World, setWorldConstructor } from '@cucumber/cucumber';
 import {
   createFabric,
   type Draft,
@@ -23,7 +23,33 @@ import {
   tranquilitySde,
 } from '@eve-fabric/fixture';
 import { directoryIndex, type WeaveFile } from '@eve-fabric/weave';
+import { createEsi, type Esi } from '@lgriffin/esi.ts/client';
 import { incursionsPack } from '../../examples/incursions-pack/pack.js';
+
+const COMPATIBILITY_DATE = '2026-08-18';
+
+/**
+ * BANK_LIVE=1 (set by `pnpm run test:bank --live`) asks Tranquility's ESI
+ * instead of the recorded fixture. Names still come from the fixture's SDE,
+ * as the live smoke does, so no SDE export is needed; the answers are checked
+ * for shape, never for the figures a recording has.
+ */
+const LIVE = process.env['BANK_LIVE'] === '1';
+let liveEsi: Esi | undefined;
+
+function esiFor(): Esi {
+  if (!LIVE) return tranquilityEsi().esi;
+  liveEsi ??= createEsi({
+    userAgent:
+      process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)',
+    compatibilityDate: COMPATIBILITY_DATE,
+  });
+  return liveEsi;
+}
+
+AfterAll(() => {
+  liveEsi?.shutdown();
+});
 
 /**
  * Where Q8's weave comes from: the index committed under weaves/, exported by
@@ -56,13 +82,13 @@ class BankWorld extends World {
 setWorldConstructor(BankWorld);
 
 Given('a fabric over the recorded Tranquility fixture', function (this: BankWorld) {
-  const { esi } = tranquilityEsi();
   this.fabric = createFabric({
-    esi,
-    esiCompatibilityDate: '2026-08-18',
+    esi: esiFor(),
+    esiCompatibilityDate: COMPATIBILITY_DATE,
     sde: tranquilitySde(),
     packs: [corePack],
-    clock: fixedClock(Date.UTC(2026, 9, 1)),
+    // A recording is read at the moment it was made; live ESI is read now.
+    ...(LIVE ? {} : { clock: fixedClock(Date.UTC(2026, 9, 1)) }),
   });
 });
 Given('the example incursions pack is installed', function (this: BankWorld) {
