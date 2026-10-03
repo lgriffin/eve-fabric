@@ -8,6 +8,17 @@ import { ReviewMode } from '../../src/components/modes/ReviewMode.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
 import type { DraftRequest } from '../../src/services/draft-client.js';
 import { answer, catalog, complete } from './fixtures.js';
+import { MOVE_MIME, SUBJECT_MIME } from '../../src/components/canvas/composition.js';
+
+/** A drag's payload, as jsdom has no DataTransfer. */
+const carrying = (format: string, data: string) => ({
+  dataTransfer: {
+    types: [format],
+    getData: (f: string) => (f === format ? data : ''),
+    setData: () => {},
+    files: [],
+  },
+});
 
 vi.mock('../../src/services/draft-client.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../src/services/draft-client.js')>();
@@ -60,6 +71,42 @@ describe('the three modes over one store', () => {
     useDraftStore.getState().selectNode('orders');
     await screen.findByLabelText('Step');
     expect(screen.getByLabelText('Step').textContent).toContain('x.orders@1.0.0');
+  });
+
+  it('Build takes a subject dropped on the empty canvas, then a move dropped on the scaffold', async () => {
+    inFlow(<BuildMode />);
+    expect(screen.getByText(/Drop a subject here/)).toBeTruthy();
+    fireEvent.drop(
+      screen.getByTestId('canvas'),
+      carrying(SUBJECT_MIME, JSON.stringify({ kind: 'type', value: 'Tritanium' })),
+    );
+    await screen.findByText('Next');
+    expect(useDraftStore.getState().subject).toEqual({ kind: 'type', value: 'Tritanium' });
+    expect(screen.queryByText(/Drop a subject here/)).toBeNull();
+
+    fireEvent.drop(screen.getByTestId('canvas'), carrying(MOVE_MIME, 'orders'));
+    await screen.findByText('Still needed');
+    expect(useDraftStore.getState().steps).toEqual([{ kind: 'move', move: 'orders' }]);
+
+    // A second subject does not replace the question under way.
+    fireEvent.drop(
+      screen.getByTestId('canvas'),
+      carrying(SUBJECT_MIME, JSON.stringify({ kind: 'type', value: 'Pyerite' })),
+    );
+    expect(useDraftStore.getState().subject).toEqual({ kind: 'type', value: 'Tritanium' });
+    // And a drop that carries nothing of the canvas's is left alone.
+    fireEvent.drop(screen.getByTestId('canvas'), carrying('text/plain', 'orders'));
+    expect(useDraftStore.getState().steps).toHaveLength(1);
+  });
+
+  it('Review takes no drops: the canvas is a picture of the saved question', async () => {
+    useDraftStore.setState({ mode: 'review' });
+    inFlow(<ReviewMode />);
+    expect(await useDraftStore.getState().load('{ type { name } }')).toBe(true);
+    const before = useDraftStore.getState().steps.length;
+    fireEvent.drop(screen.getByTestId('canvas'), carrying(MOVE_MIME, 'orders'));
+    expect(useDraftStore.getState().steps).toHaveLength(before);
+    expect(screen.queryByText(/Drop a subject here/)).toBeNull();
   });
 
   it('Review opens a saved question read-only and runs it', async () => {

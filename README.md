@@ -461,11 +461,19 @@ with Run. Start from a subject, apply the moves it offers, and fill the holes
 it names. Once a question is complete you can **Save as GraphQL**, or **Share
 as weave** to download a `.weave.yaml` another fabric can add. **Open…** (or
 dropping a file anywhere) opens a saved `.graphql` question in Review, or adds
-a `.weave.yaml` to the gateway's fabric so it is offered as a move. The canvas
-draws the question's steps; it is not edited by hand.
+a `.weave.yaml` to the gateway's fabric so it is offered as a move.
 
-`pnpm run test:e2e` drives both journeys (build and run a question; open a
-saved one) in a browser over `pnpm workbench`.
+The canvas draws the question's steps, and in Build it also takes gestures:
+drop a subject on the empty canvas to start, drop a move from the panel on the
+scaffold to apply it, drag a connection out of the cursor step to pick from
+the moves offered there, or drag one onto an open hole to pick from its
+choices. Every gesture is a change the fabric is asked for, the same change
+the panel's buttons send, so nothing is wired by hand and Undo, Save as
+GraphQL and Share as weave work unchanged. In Review the canvas is a picture.
+
+`pnpm run test:e2e` drives three journeys (build and run a question; open a
+saved one; compose one on the canvas by drag and drop) in a browser over
+`pnpm workbench`.
 
 To ask about your own character, paste an EVE SSO token. Before trusting the
 character and scopes a token names, the gateway checks its signature against

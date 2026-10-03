@@ -27,12 +27,25 @@ interface SemanticHandleProps {
   semanticType: string;
   label: string;
   required?: boolean;
+  /** Whether a connection can be drawn from (a source) or to (a target) this port. */
+  connectable?: boolean;
 }
 
-export function SemanticHandle({ type, id, semanticType, label, required }: SemanticHandleProps) {
+export function SemanticHandle({
+  type,
+  id,
+  semanticType,
+  label,
+  required,
+  connectable = false,
+}: SemanticHandleProps) {
   const color = colorForType(semanticType);
   const position = type === 'source' ? Position.Right : Position.Left;
   const isSource = type === 'source';
+  let hint = '';
+  if (connectable) {
+    hint = isSource ? '. Drag out to continue the question' : '. Drag a connection here to fill it';
+  }
 
   return (
     <div
@@ -49,14 +62,16 @@ export function SemanticHandle({ type, id, semanticType, label, required }: Sema
         type={type}
         position={position}
         id={id}
+        isConnectable={connectable}
         style={{
-          width: 10,
-          height: 10,
+          width: connectable ? 12 : 10,
+          height: connectable ? 12 : 10,
           background: color,
-          border: `2px solid ${color}`,
+          border: `2px solid ${connectable ? '#fff' : color}`,
           borderRadius: '50%',
+          cursor: connectable ? 'crosshair' : 'default',
         }}
-        title={`${label} (${semanticType})${required ? ' *' : ''}`}
+        title={`${label} (${semanticType})${required ? ' *' : ''}${hint}`}
       />
       <span
         style={{

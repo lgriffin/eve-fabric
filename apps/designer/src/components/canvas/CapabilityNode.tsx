@@ -3,6 +3,7 @@ import type { NodeProps } from '@xyflow/react';
 import type { CapabilityFlowNode } from '../../stores/types.js';
 import { useDraftStore } from '../../stores/draft-store.js';
 import { SemanticHandle } from './SemanticHandle.js';
+import { cursorNode } from './composition.js';
 import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
 
 const pulseKeyframes = `
@@ -39,6 +40,10 @@ export const CapabilityNode = memo(function CapabilityNode({
     () => new Set((holes ?? []).filter((h) => h.node === id).map((h) => h.port)),
     [holes, id],
   );
+  // The question continues from the cursor: only that step's outputs start a
+  // connection, and only an open hole takes one. (ReactFlow's nodesConnectable
+  // still decides whether any connection is drawn at all.)
+  const atCursor = useDraftStore((s) => s.view !== null && cursorNode(s.view) === id);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -132,6 +137,7 @@ export const CapabilityNode = memo(function CapabilityNode({
                     semanticType={input.semanticType}
                     label={input.name}
                     required={input.required}
+                    connectable={isHole}
                   />
                 </div>
               );
@@ -153,6 +159,7 @@ export const CapabilityNode = memo(function CapabilityNode({
                 id={output.name}
                 semanticType={output.semanticType}
                 label={output.name}
+                connectable={atCursor}
               />
             ))}
           </div>
