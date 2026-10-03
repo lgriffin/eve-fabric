@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
-import type { CapabilityDefinition } from '@eve-fabric/core';
+import { isGatewayError, type CapabilityDefinition } from '@eve-fabric/core';
 import {
   Draft,
   draftFrom,
@@ -85,7 +85,27 @@ function refuse(reply: FastifyReply, error: unknown): FastifyReply {
   if (error instanceof Error && REFUSALS.has(error.name)) {
     return reply.status(422).send({ error: { code: error.name, message: error.message } });
   }
+  const failed = failedStep(error);
+  if (failed !== undefined) return reply.status(failed.status).send({ error: failed });
   throw error;
+}
+
+/**
+ * A step that failed with a plain error, such as a name the SDE does not
+ * know: 422 with its message, which says what was probably meant. A source
+ * that answered with an HTTP error is 502. Typed gateway errors (a rate
+ * limit, a missing scope) are left to the gateway's error handler.
+ */
+function failedStep(
+  error: unknown,
+): { readonly status: number; readonly code: string; readonly message: string } | undefined {
+  if (!(error instanceof Error) || error.name !== 'StepExecutionError') return undefined;
+  if (isGatewayError(error.cause)) return undefined;
+  const http =
+    typeof (error.cause as { statusCode?: unknown } | undefined)?.statusCode === 'number';
+  return http
+    ? { status: 502, code: 'SOURCE_FAILED', message: error.message }
+    : { status: 422, code: 'STEP_FAILED', message: error.message };
 }
 
 /** A capability a draft can start from: every input optional. */

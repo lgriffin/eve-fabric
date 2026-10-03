@@ -177,6 +177,28 @@ describe('a draft', () => {
       expect(draft.pipeline()).toEqual(before);
     });
 
+    it('a mistyped move, naming the move that was meant', () => {
+      const draft = tranquilityFabric().draft({ type: 'Tritanium' });
+      expect(() => draft.apply('ordrs')).toThrow(
+        '"ordrs" is not a move this draft offers. Did you mean "orders"? It offers orders,',
+      );
+    });
+
+    it('a mistyped hole, naming the hole that was meant', () => {
+      const draft = tranquilityFabric().draft({ type: 'Tritanium' }).apply('orders');
+      expect(() => draft.fill('regoin', 'The Forge')).toThrow(
+        'Cannot fill "regoin": it is not a hole of this draft. Did you mean "region"? The holes are region.',
+      );
+    });
+
+    it('a mistyped subject or start, naming what was meant', () => {
+      const fabric = tranquilityFabric();
+      expect(() => fabric.draft({ tyep: 'Tritanium' })).toThrow(
+        /Did you mean "type"\? A draft starts from a .*type/,
+      );
+      expect(() => fabric.draft('wallt journal')).toThrow(UnknownSubjectError);
+    });
+
     it('a fill that is not a hole', () => {
       const draft = tranquilityFabric().draft({ type: 'Tritanium' }).apply('orders');
       expect(() => draft.fill('type', 35)).toThrow(FillRejectedError);

@@ -1,5 +1,6 @@
 import { defineCapability } from '@eve-fabric/kit';
 import type { IStaticDataProvider } from '@lgriffin/esi.ts/sde';
+import { didYouMean } from '@eve-fabric/core';
 import { requireId } from '../support.js';
 import {
   EveChoices,
@@ -13,6 +14,27 @@ import {
   EveText,
   EveTypeRef,
 } from '../types.js';
+
+/** `No type matching "Tritanum" found in SDE. Did you mean "Tritanium"?` */
+function notFound(what: string, query: string, names: readonly string[]): string {
+  const hint = didYouMean(query, names);
+  const message = `No ${what} matching "${query}" found in SDE`;
+  return hint === '' ? message : `${message}. ${hint}`;
+}
+
+/**
+ * Names that might be what was meant: the SDE searches by fragment, so ask
+ * for the names sharing the typed text's opening letters.
+ */
+function nearNames(query: string, search: (text: string) => readonly { name: string }[]): string[] {
+  const text = query.trim();
+  const fragments = [text.slice(0, 4), text.slice(0, 2)].filter((f) => f.length >= 2);
+  for (const fragment of fragments) {
+    const names = search(fragment).map((r) => r.name);
+    if (names.length > 0) return names;
+  }
+  return [];
+}
 
 const SDE_CACHE = { cacheable: true, defaultTtlSeconds: 86400, stalePermitted: true } as const;
 const SDE_COST = { estimatedLatencyMs: 10 } as const;
@@ -50,7 +72,10 @@ export const resolveType = defineCapability({
     }
     if (typeof query === 'string') {
       const [found] = sde.searchTypesByName(query, 1);
-      if (found === undefined) throw new Error(`No type matching "${query}" found in SDE`);
+      if (found === undefined) {
+        const near = nearNames(query, (text) => sde.searchTypesByName(text, 50));
+        throw new Error(notFound('type', query, near));
+      }
       return { type: found.typeId };
     }
     throw new Error('universe.resolve.type requires a numeric ID or string name as "query"');
@@ -81,7 +106,15 @@ export const resolveRegion = defineCapability({
     if (typeof query === 'string') {
       const wanted = query.toLowerCase();
       const found = sde.getAllRegions().find((r) => r.name.toLowerCase() === wanted);
-      if (found === undefined) throw new Error(`No region matching "${query}" found in SDE`);
+      if (found === undefined) {
+        throw new Error(
+          notFound(
+            'region',
+            query,
+            sde.getAllRegions().map((r) => r.name),
+          ),
+        );
+      }
       return { region: found.regionId };
     }
     throw new Error('universe.resolve.region requires a numeric ID or string name as "query"');
@@ -111,7 +144,10 @@ export const resolveSolarSystem = defineCapability({
     }
     if (typeof query === 'string') {
       const [found] = sde.searchSolarSystemsByName(query, 1);
-      if (found === undefined) throw new Error(`No solar system matching "${query}" found in SDE`);
+      if (found === undefined) {
+        const near = nearNames(query, (text) => sde.searchSolarSystemsByName(text, 50));
+        throw new Error(notFound('solar system', query, near));
+      }
       return { system: found.systemId };
     }
     throw new Error(

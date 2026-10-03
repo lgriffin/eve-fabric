@@ -23,7 +23,7 @@ import type {
   SemanticTypeId,
   SemanticTypeRegistry,
 } from '@eve-fabric/core';
-import { capabilityId, semanticTypeId } from '@eve-fabric/core';
+import { capabilityId, didYouMean, semanticTypeId } from '@eve-fabric/core';
 import type { CompileResult, CompilerDiagnostic } from '@eve-fabric/compiler';
 import { z } from 'zod';
 import type { Identity } from '@lgriffin/esi.ts/client';
@@ -148,6 +148,14 @@ export interface DraftPlan {
   readonly plan: ExecutionPlan;
 }
 
+/** Sentences joined into one message, skipping any that are empty. */
+function sentences(...parts: readonly string[]): string {
+  return parts
+    .filter((p) => p.length > 0)
+    .map((p) => (/[.?]$/.test(p) ? p : `${p}.`))
+    .join(' ');
+}
+
 /** A move was applied that the engine did not offer for that draft (FAB-VAL-03). */
 export class MoveNotOfferedError extends Error {
   readonly move: string;
@@ -155,7 +163,11 @@ export class MoveNotOfferedError extends Error {
 
   constructor(move: string, offered: readonly string[]) {
     super(
-      `"${move}" is not a move this draft offers; it offers ${offered.length > 0 ? offered.join(', ') : 'none'}`,
+      sentences(
+        `"${move}" is not a move this draft offers`,
+        didYouMean(move, offered),
+        `It offers ${offered.length > 0 ? offered.join(', ') : 'none'}`,
+      ),
     );
     this.name = 'MoveNotOfferedError';
     this.move = move;
@@ -381,9 +393,14 @@ export class Draft {
       .filter((t): t is ReferenceTypeDefinition => t.kind === 'reference')
       .filter((t) => lastSegment(t.entity) === kind);
     if (references.length !== 1) {
+      const kinds = references.length === 0 ? Draft.subjects(host).map((k) => k.kind) : [];
       throw new UnknownSubjectError(
         references.length === 0
-          ? `Nothing in this fabric is a "${kind}"`
+          ? sentences(
+              `Nothing in this fabric is a "${kind}"`,
+              didYouMean(kind, kinds),
+              `A draft starts from a ${kinds.join(', a ')}`,
+            )
           : `"${kind}" names more than one type: ${references.map((r) => r.id).join(', ')}`,
       );
     }
@@ -436,7 +453,15 @@ export class Draft {
     if (roots.length !== 1) {
       throw new UnknownSubjectError(
         roots.length === 0
-          ? `Nothing in this fabric starts from "${name}"`
+          ? sentences(
+              `Nothing in this fabric starts from "${name}"`,
+              didYouMean(
+                name,
+                latest(host.catalog)
+                  .filter((c) => [...c.inputs.values()].every((port) => !port.required))
+                  .map((c) => c.name),
+              ),
+            )
           : `"${name}" names more than one capability: ${roots.map((r) => r.id).join(', ')}`,
       );
     }
@@ -683,9 +708,14 @@ export class Draft {
   fill(name: string, value: unknown): Draft {
     const hole = this.holes.find((h) => h.name === name || `${h.node}.${h.port}` === name);
     if (hole === undefined) {
+      const holes = this.holes.map((h) => h.name);
       throw new FillRejectedError(
         name,
-        `it is not a hole of this draft; the holes are ${this.holes.map((h) => h.name).join(', ') || 'none'}`,
+        sentences(
+          'it is not a hole of this draft',
+          didYouMean(name, holes),
+          `The holes are ${holes.join(', ') || 'none'}`,
+        ),
       );
     }
     const target = `${hole.node}.${hole.port}`;

@@ -301,6 +301,32 @@ describe('Executor', () => {
       await expect(run).rejects.toThrow('Step "step" (test.broken) failed: boom');
     });
 
+    it('names the request when a source answers with an HTTP error', async () => {
+      const refused = defineCapability({
+        id: 'test.refused',
+        version: '1.0.0',
+        name: 'Refused',
+        description: 'ESI says no',
+        inputs: { value: { type: 'eve.quantity' } },
+        outputs: { value: { type: 'eve.quantity' } },
+        run: () => {
+          throw Object.assign(new Error('Forbidden'), {
+            statusCode: 403,
+            url: 'https://esi.evetech.net/markets/10000002/orders',
+          });
+        },
+      });
+      const catalog = catalogWith(refused);
+      const executor = new Executor({ catalog });
+      const run = executor.execute(
+        planFor(single(refused, 'n', 'eve.quantity'), catalog),
+        new Map([['n', 1]]),
+      );
+      await expect(run).rejects.toThrow(
+        'failed: Forbidden (HTTP 403 from https://esi.evetech.net/markets/10000002/orders)',
+      );
+    });
+
     it('rejects a run that does not return an object of port values', async () => {
       const bad = defineCapability({
         id: 'test.bad',

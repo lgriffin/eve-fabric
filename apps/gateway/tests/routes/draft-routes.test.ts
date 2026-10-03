@@ -134,6 +134,16 @@ describe('Draft routes', () => {
     expect(body['answer']).toMatchObject({ name: 'Perimeter' });
   });
 
+  it('answers 422 naming what was meant when a name does not resolve', async () => {
+    const typo = { ...Q1, subject: { kind: 'type', value: 'Tritanum' } };
+    const { status, body } = await post('/api/drafts/run', typo);
+    expect(status).toBe(422);
+    expect(body['error']).toMatchObject({
+      code: 'STEP_FAILED',
+      message: expect.stringContaining('Did you mean "Tritanium"?') as unknown,
+    });
+  });
+
   it('answers 400 for a body that is not a draft request', async () => {
     for (const payload of [{}, { subject: {} }, { subject: Q1.subject, steps: [{ kind: 'x' }] }]) {
       const { status, body } = await post('/api/drafts', payload);
