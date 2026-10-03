@@ -15,7 +15,7 @@ import { corePack } from '@eve-fabric/pack-core';
 import { sqliteStore } from '@eve-fabric/persistence';
 import { DEFAULT_COMPATIBILITY_DATE } from '@eve-fabric/source-esi';
 import { createStaticSource, lazySdeDirectory, memoryStaticSource } from '@eve-fabric/source-sde';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createEsi } from '@lgriffin/esi.ts/client';
 
 export interface FabricSettings {

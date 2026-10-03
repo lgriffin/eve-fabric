@@ -4,7 +4,7 @@ import { parse } from 'yaml';
 import { createFabric, type Fabric } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/core';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createWeaveRoutes } from '../../src/routes/weave-routes.js';
 
 const Q3 = {

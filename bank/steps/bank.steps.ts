@@ -21,7 +21,7 @@ import {
   tranquilityCharacter,
   tranquilityEsi,
   tranquilitySde,
-} from '@eve-fabric/test-support';
+} from '@eve-fabric/fixture';
 import { directoryIndex, type WeaveFile } from '@eve-fabric/weave';
 import { incursionsPack } from '../../examples/incursions-pack/pack.js';
 

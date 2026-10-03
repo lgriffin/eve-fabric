@@ -6,7 +6,7 @@ import {
   tranquilityCharacter,
   tranquilityEsi,
   tranquilitySde,
-} from '@eve-fabric/test-support';
+} from '@eve-fabric/fixture';
 import {
   CharacterMismatchError,
   createFabric,

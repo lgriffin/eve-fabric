@@ -44,7 +44,7 @@
     "@eve-fabric/kit": "workspace:*",
     "@eve-fabric/pack-core": "workspace:*",
     "@eve-fabric/source-sde": "workspace:*",
-    "@eve-fabric/test-support": "workspace:*",
+    "@eve-fabric/fixture": "workspace:*",
     "@eve-fabric/weave": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
     "@stryker-mutator/core": "^10.0.0",

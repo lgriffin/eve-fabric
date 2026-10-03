@@ -15,7 +15,7 @@ import { join, relative } from 'node:path';
 import { createFabric } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/core';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { publishWeave } from '@eve-fabric/weave';
 
 const ROOT = join(import.meta.dirname, '..');

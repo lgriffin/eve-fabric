@@ -17,7 +17,7 @@ import {
 } from '@eve-fabric/core';
 import { createFabric } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
-import { tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilitySde } from '@eve-fabric/fixture';
 import { createEsi } from '@lgriffin/esi.ts/client';
 
 const COMPATIBILITY_DATE = '2026-08-18';

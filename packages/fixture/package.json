@@ -1,7 +1,7 @@
 {
-  "name": "@eve-fabric/weave",
+  "name": "@eve-fabric/fixture",
   "version": "0.1.0",
-  "description": "Package format v2: a weave as data, its digest, and an index to find it in.",
+  "description": "The Tranquility fixture: a small, hand-built slice of New Eden served through ESI.ts's mock transport and in-memory SDE, for tests, examples and the CLI's --offline.",
   "license": "ISC",
   "type": "module",
   "main": "./dist/index.js",
@@ -20,7 +20,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lgriffin/eve-fabric.git",
-    "directory": "packages/weave"
+    "directory": "packages/fixture"
   },
   "publishConfig": {
     "access": "public"
@@ -35,12 +35,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/core": "workspace:*",
-    "yaml": "^2.5.0",
-    "zod": "^3.23.0"
+    "@lgriffin/esi.ts": "11.1.1"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

@@ -14,7 +14,7 @@ import {
   TYPE,
   tranquilityEsi,
   tranquilitySde,
-} from '@eve-fabric/test-support';
+} from '@eve-fabric/fixture';
 import * as core from '../src/index.js';
 
 const sde = tranquilitySde();

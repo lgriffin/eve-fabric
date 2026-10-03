@@ -14,7 +14,7 @@ import { createFabric, type Fabric } from '@eve-fabric/fabric';
 import type { Pack } from '@eve-fabric/kit';
 import { corePack } from '@eve-fabric/pack-core';
 import { weaveToYaml } from '@eve-fabric/weave';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createEsi } from '@lgriffin/esi.ts/client';
 import { quickstartPack } from './pack.js';
 

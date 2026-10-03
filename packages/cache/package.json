@@ -1,10 +1,33 @@
 {
   "name": "@eve-fabric/cache",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "The cache port of EVE Fabric, in memory.",
+  "license": "ISC",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lgriffin/eve-fabric.git",
+    "directory": "packages/cache"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

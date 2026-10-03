@@ -1,7 +1,7 @@
 name: Release
 
-# Publishes core, kit and pack-core to npm when a version tag is pushed, and
-# only then: the tag must match every package's version.
+# Publishes the packages in scripts/published.json to npm when a version tag
+# is pushed, and only then: the tag must match every package's version.
 # Needs an NPM_TOKEN secret with publish rights to the @eve-fabric scope.
 on:
   push:
@@ -29,10 +29,10 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          for pkg in core kit pack-core; do
-            version=$(node -p "require('./packages/$pkg/package.json').version")
+          for dir in $(node -p "require('./scripts/published.json').join(' ')"); do
+            version=$(node -p "require('./$dir/package.json').version")
             if [ "v$version" != "$TAG" ]; then
-              echo "packages/$pkg is $version, but the tag is $TAG"
+              echo "$dir is $version, but the tag is $TAG"
               exit 1
             fi
           done
@@ -40,8 +40,9 @@ jobs:
       - run: pnpm test
       - run: pnpm run test:bank
       - run: pnpm run packages:check
-      - run: >-
-          pnpm --filter @eve-fabric/core --filter @eve-fabric/kit --filter @eve-fabric/pack-core
+      - name: Publish every package in scripts/published.json
+        run: >-
+          pnpm $(node -p "require('./scripts/published.json').map((d) => '--filter ./' + d).join(' ')")
           publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
