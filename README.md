@@ -2,6 +2,23 @@
 
 A TypeScript-first gateway for composing EVE Online data capabilities into reusable GraphQL schemas. Define what data you need, wire it together as a pipeline, and let the gateway handle compilation, optimization, and execution.
 
+## Quickstart
+
+```bash
+git clone https://github.com/lgriffin/eve-fabric.git && cd eve-fabric
+pnpm install && pnpm run build
+pnpm quickstart
+```
+
+`pnpm quickstart` runs offline over a small recorded slice of Tranquility, so
+it needs no ESI access or SDE download. In nine printed steps it creates a
+fabric, installs a capability you wrote, asks a question, saves it as GraphQL
+and reopens it, then shares it as a weave and asks it from a second fabric.
+Add `--live` to ask Tranquility's ESI. The code is
+[`examples/quickstart`](examples/quickstart/README.md), and it is the place to
+start a pack of your own. `pnpm demo` does the same through the gateway's HTTP
+API.
+
 ## What It Does
 
 EVE Fabric treats every EVE Online data operation as a **capability** — a typed, versioned unit with semantic inputs and outputs. You compose capabilities into **pipelines** (directed acyclic graphs), and the gateway compiles them into optimized execution plans that respect dependencies, parallelize where possible, and track data provenance.
@@ -358,7 +375,7 @@ GraphQL consumers can opt into provenance via the `_provenance` field — it add
 
 ### Prerequisites
 
-- Node.js 20 LTS
+- Node.js 22.12+
 - pnpm 9+
 
 ### Setup
@@ -373,14 +390,10 @@ pnpm -r run build
 ### Run Tests
 
 ```bash
-# All tests (461 unit + 21 BDD scenarios)
-pnpm -r run test
-
-# Specific package
-pnpm --filter @eve-fabric/compiler run test
-
-# BDD scenarios only
-pnpm --filter @eve-fabric/core run test:bdd
+pnpm test               # unit tests, the quickstart included
+pnpm run test:bdd       # BDD scenarios
+pnpm run test:bank      # the question bank
+pnpm run validate       # the full gate CI runs
 ```
 
 ### Start the Gateway
@@ -389,7 +402,7 @@ pnpm --filter @eve-fabric/core run test:bdd
 pnpm --filter @eve-fabric/gateway run dev
 ```
 
-The gateway serves GraphQL at `http://localhost:3000/graphql` with a health check at `/health`.
+The gateway serves GraphQL at `http://localhost:3456/graphql` with a health check at `/health`. It is the workbench the designer and HTTP clients build questions through; a saved question or a pack runs without it.
 Set `FABRIC_DB` to a file to keep added weaves across restarts.
 
 ### Published Packages
@@ -410,13 +423,15 @@ The designer runs at `http://localhost:5173`. Start from a subject, apply the mo
 
 ## Examples
 
-Three example pipelines are included in `examples/`:
+| Example                                                               | Run                 | What it shows                                                    |
+| --------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------- |
+| [`quickstart`](examples/quickstart/README.md)                         | `pnpm quickstart`   | Your own capability, a question, its GraphQL form and a weave    |
+| [`e2e-demo`](examples/e2e-demo/README.md)                             | `pnpm demo`         | The same flow over the gateway's HTTP API, with curl equivalents |
+| [`incursions-pack`](examples/incursions-pack)                         | (question bank Q5)  | A third-party pack with its own types                            |
+| [`esi-live.ts`](examples/esi-live.ts)                                 | `pnpm run demo:esi` | A pipeline against live ESI (the nightly smoke test)             |
+| `market-lookup`, `market-schema`, `route-schema`, `trade-opportunity` | (pipeline YAML)     | Pipelines written by hand against the core pack                  |
 
-| Example             | Description                                               |
-| ------------------- | --------------------------------------------------------- |
-| `trade-opportunity` | Multi-region trade profit calculation with route distance |
-| `market-schema`     | Simple market price lookup for an item in a region        |
-| `route-schema`      | Jump distance calculation between solar systems           |
+The quickstart and the demo run offline by default; both take `--live`.
 
 ## Tooling
 
@@ -447,11 +462,11 @@ This project follows a [constitution](.specify/memory/constitution.md) with 26 p
 | Layer         | Technology                                     |
 | ------------- | ---------------------------------------------- |
 | Language      | TypeScript 5.x (strict mode)                   |
-| Runtime       | Node.js 20 LTS                                 |
+| Runtime       | Node.js 22.12+                                 |
 | Server        | Fastify + GraphQL Yoga                         |
 | Schema        | graphql-js type construction                   |
 | Validation    | Zod                                            |
-| EVE Data      | @lgriffin/esi.ts 9.4.0                         |
+| EVE Data      | @lgriffin/esi.ts 11.1.1                        |
 | Frontend      | React 18 + React Flow + Zustand                |
 | Persistence   | Drizzle ORM + SQLite                           |
 | Testing       | Vitest + Cucumber.js + Stryker                 |

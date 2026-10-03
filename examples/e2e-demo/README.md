@@ -1,302 +1,97 @@
-# EVE Fabric — End-to-End Walkthrough
+# The gateway, end to end
 
-This guide demonstrates the full EVE Fabric lifecycle: browsing capabilities,
-building pipelines, executing them, and publishing composites — both
-programmatically and via curl.
-
-## Prerequisites
+The gateway is the workbench: the designer and any HTTP client build questions
+through it, save them as GraphQL and share them as weaves. A saved question or
+a pack runs without it.
 
 ```bash
-node --version   # v20+
-pnpm --version   # v9+
-pnpm install
-pnpm run build
+pnpm install && pnpm run build
+pnpm demo              # offline, over the Tranquility fixture
+pnpm demo -- --live    # Tranquility's ESI
 ```
 
-## Quick Start (automated demo)
-
-Run the full lifecycle in one command:
+`pnpm demo` starts a gateway on a free port, makes the calls below and stops
+it. For the same calls by hand, start a gateway first. With no `SDE_DATA_PATH`
+it has an empty SDE, so names such as "Tritanium" only resolve when it points
+at an SDE export:
 
 ```bash
-pnpm run demo
+SDE_DATA_PATH=/path/to/sde pnpm --filter @eve-fabric/gateway run dev   # port 3456
 ```
 
-This starts a gateway server, walks through every API endpoint, and prints
-annotated output. No external dependencies required — all data is in-memory.
-
-## Manual Walkthrough (curl)
-
-### 1. Start the gateway
+## 1. What a question can start from
 
 ```bash
-pnpm --filter @eve-fabric/gateway dev
+curl -s localhost:3456/api/drafts/subjects
 ```
 
-The server starts on `http://localhost:3456`.
+## 2. Start a draft
 
-### 2. Health check
+A draft is a subject and the changes made to it. The gateway keeps nothing, so
+the client sends the whole draft each time, and undo means dropping the last
+change.
 
 ```bash
-curl http://localhost:3456/health
+curl -s localhost:3456/api/drafts -H 'content-type: application/json' -d '{
+  "subject": { "kind": "type", "value": "Tritanium" },
+  "steps": [{ "kind": "move", "move": "orders" }]
+}'
 ```
 
-```json
-{ "status": "ok" }
-```
+The reply lists the `moves` on offer and the `holes` to fill (here `region`).
 
-### 3. Browse the capability registry
-
-List all capabilities:
+## 3. A hole's choices
 
 ```bash
-curl http://localhost:3456/api/registry | jq '.capabilities[] | {id, version, source, name}'
+curl -s localhost:3456/api/drafts/choices -H 'content-type: application/json' -d '{
+  "subject": { "kind": "type", "value": "Tritanium" },
+  "steps": [{ "kind": "move", "move": "orders" }],
+  "hole": "region", "text": "Forge"
+}'
 ```
 
-Filter by data source:
+## 4. Run it
 
 ```bash
-# ESI capabilities (live EVE API)
-curl "http://localhost:3456/api/registry?source=ESI"
-
-# SDE capabilities (static data)
-curl "http://localhost:3456/api/registry?source=SDE"
-
-# Derived capabilities (computed)
-curl "http://localhost:3456/api/registry?source=DERIVED"
-
-# Composite capabilities (user-created pipelines)
-curl "http://localhost:3456/api/registry?source=COMPOSITE"
+curl -s localhost:3456/api/drafts/run -H 'content-type: application/json' -d '{
+  "subject": { "kind": "type", "value": "Tritanium" },
+  "steps": [
+    { "kind": "move", "move": "orders" },
+    { "kind": "fill", "hole": "region", "value": "The Forge" },
+    { "kind": "move", "move": "prices" }
+  ]
+}'
 ```
 
-Search by keyword:
+The reply has the `answer`, and in `view.graphql` the question's saved form.
+
+## 5. Run the saved form
 
 ```bash
-curl "http://localhost:3456/api/registry?search=market"
+curl -s localhost:3456/api/drafts/run -H 'content-type: application/json' -d '{
+  "graphql": "{ type(name: \"Tritanium\") { orders(region: \"The Forge\") { prices { lowestSell } } } }"
+}'
 ```
 
-### 4. Inspect a capability
+## 6. Share it as a weave and add it
 
 ```bash
-curl http://localhost:3456/api/registry/market.orders | jq
+curl -s localhost:3456/api/drafts/weave -H 'content-type: application/json' -d '{
+  "graphql": "{ type(name: \"Tritanium\") { orders(region: \"The Forge\") { prices { lowestSell } } } }",
+  "weave": { "id": "demo.forge.prices", "version": "1.0.0", "as": "forge prices" }
+}' > forge-prices.weave.yaml
+
+jq -Rs '{document: .}' forge-prices.weave.yaml |
+  curl -s localhost:3456/api/weaves -H 'content-type: application/json' -d @-
+curl -s localhost:3456/api/weaves
 ```
 
-Response includes inputs, outputs, auth requirements, cache policy, and
-available versions.
+`forge prices` is now a move on any item. `GET /api/weaves/demo.forge.prices`
+exports it again, and `DELETE /api/weaves/demo.forge.prices?version=1.0.0`
+removes it. Set `FABRIC_DB` to keep added weaves across restarts.
 
-### 5. Check version history and upgrades
+## 7. Mistakes
 
-```bash
-# All versions of a capability
-curl http://localhost:3456/api/registry/market.orders/versions
-
-# Available upgrades from a specific version
-curl "http://localhost:3456/api/registry/market.orders/upgrades?from=1.0.0"
-```
-
-### 6. View dependency trees
-
-```bash
-curl http://localhost:3456/api/registry/composite.trade.opportunity/dependencies | jq
-```
-
-Shows the full tree of capabilities a composite depends on — useful for
-understanding blast radius of upgrades.
-
-### 7. Save a pipeline
-
-```bash
-curl -X POST http://localhost:3456/api/pipelines \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "market.snapshot",
-    "version": 1,
-    "name": "Market Snapshot",
-    "description": "Fetches and aggregates market data for an item in a region",
-    "inputs": [
-      {"name": "typeId", "semanticType": "eve.type.reference", "required": true},
-      {"name": "regionId", "semanticType": "eve.region.reference", "required": true}
-    ],
-    "nodes": [
-      {"id": "fetchOrders", "capability": {"id": "market.orders", "version": "1.0.0"}},
-      {"id": "aggregate", "capability": {"id": "market.aggregate", "version": "1.0.0"}}
-    ],
-    "edges": [
-      {"from": "input.typeId", "to": "fetchOrders.typeId"},
-      {"from": "input.regionId", "to": "fetchOrders.regionId"},
-      {"from": "fetchOrders.orders", "to": "aggregate.orders"}
-    ],
-    "outputs": [
-      {"name": "orders", "source": "fetchOrders.orders"},
-      {"name": "summary", "source": "aggregate.summary"}
-    ]
-  }'
-```
-
-Response:
-
-```json
-{ "id": "pipeline-1724025600000", "version": 1, "savedAt": "2026-08-19T..." }
-```
-
-Save the returned `id` — you'll need it for publishing.
-
-### 8. List and retrieve saved pipelines
-
-```bash
-# List all
-curl http://localhost:3456/api/pipelines
-
-# Get a specific pipeline
-curl http://localhost:3456/api/pipelines/<pipeline-id>
-```
-
-### 9. Execute a pipeline
-
-```bash
-curl -X POST http://localhost:3456/api/pipelines/execute \
-  -H "Content-Type: application/json" \
-  -d '{
-    "pipeline": {
-      "nodes": [
-        {"id": "fetchOrders"},
-        {"id": "aggregate"}
-      ]
-    },
-    "inputs": {
-      "typeId": 34,
-      "regionId": 10000002
-    }
-  }'
-```
-
-Response includes outputs, per-step status, and execution metrics:
-
-```json
-{
-  "outputs": { "typeId": 34, "regionId": 10000002 },
-  "metrics": {
-    "totalDurationMs": 200,
-    "stepDurations": { "fetchOrders": 100, "aggregate": 100 },
-    "cacheHits": 0,
-    "cacheMisses": 2
-  },
-  "stepStatuses": { "fetchOrders": "completed", "aggregate": "completed" },
-  "errors": []
-}
-```
-
-> **Note:** The gateway currently uses a mock executor that echoes inputs.
-> Real ESI integration returns live EVE Online market data.
-
-### 10. Publish a pipeline as a composite capability
-
-This is the key feature — turning a pipeline into a reusable building block:
-
-```bash
-curl -X POST http://localhost:3456/api/registry/publish \
-  -H "Content-Type: application/json" \
-  -d '{
-    "capabilityId": "custom.market.snapshot",
-    "version": "1.0.0",
-    "name": "Custom Market Snapshot",
-    "description": "Custom market data aggregation",
-    "pipelineId": "<pipeline-id>",
-    "pipelineVersion": 1,
-    "selectedInputs": ["typeId", "regionId"],
-    "selectedOutputs": ["orders", "summary"]
-  }'
-```
-
-Replace `<pipeline-id>` with the id from step 7.
-
-### 11. Verify the composite exists
-
-```bash
-curl http://localhost:3456/api/registry/custom.market.snapshot | jq
-```
-
-Your published composite now appears alongside built-in capabilities. Other
-pipelines can reference it by id, enabling layered composition.
-
-### 12. GraphQL
-
-The gateway also exposes a GraphQL endpoint:
-
-```bash
-curl -X POST http://localhost:3456/graphql \
-  -H "Content-Type: application/json" \
-  -d '{"query": "{ health }"}'
-```
-
-### 13. Clean up
-
-```bash
-curl -X DELETE http://localhost:3456/api/pipelines/<pipeline-id>
-```
-
-## Visual Designer
-
-For a GUI experience, run both the gateway and designer:
-
-```bash
-# Terminal 1: Gateway API
-pnpm --filter @eve-fabric/gateway dev
-
-# Terminal 2: React designer
-pnpm --filter @eve-fabric/designer dev
-```
-
-Open http://localhost:5173. The designer provides:
-
-- **Capability palette** — drag capabilities onto the canvas
-- **Visual wiring** — connect outputs to inputs with semantic type checking
-- **Live diagnostics** — cycle detection, type mismatches, version conflicts
-- **Execution** — run pipelines and see results
-- **YAML import/export** — load the example pipelines from `examples/`
-- **Publish** — promote a pipeline to a composite capability in the registry
-- **Composite drilldown** — click into composites to see their internal wiring
-
-### Designer demo flow
-
-1. Drag `market.orders` and `market.aggregate` onto the canvas
-2. Wire `fetchOrders.orders` → `aggregate.orders`
-3. Click **Validate** — diagnostics panel shows green
-4. Click **Execute** with inputs `typeId: 34`, `regionId: 10000002`
-5. View results in the **Results** tab
-6. Click **Export YAML** to save the pipeline definition
-7. Click **Publish** to register it as a composite capability
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                  Designer (React)                │
-│  Canvas → Compiler → Planner → Executor → UI    │
-└──────────────────────┬──────────────────────────┘
-                       │ REST API
-┌──────────────────────▼──────────────────────────┐
-│                 Gateway (Fastify)                 │
-│  /api/registry   /api/pipelines   /graphql       │
-│     │                │                │          │
-│  Registry      Pipeline CRUD      GraphQL Yoga   │
-│  (in-memory)   (in-memory)        (schema gen)   │
-└──────────────────────┬──────────────────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-   ┌────▼────┐  ┌──────▼─────┐ ┌─────▼─────┐
-   │   ESI   │  │    SDE     │ │  DERIVED   │
-   │ Adapter │  │  Adapter   │ │ Functions  │
-   └─────────┘  └────────────┘ └───────────┘
-```
-
-## Example Pipelines
-
-| Example              | Nodes | Description               |
-| -------------------- | ----- | ------------------------- |
-| `market-schema/`     | 2     | Market orders → aggregate |
-| `route-schema/`      | 3     | Route distance calculator |
-| `trade-opportunity/` | 3     | Market + route trade view |
-
-Import any of these via the designer's **Import YAML** button or load them
-programmatically through the pipeline API.
+A move the draft does not offer, a hole that does not exist, or a document that
+is not a question is refused with `422`. The error's `code` names what went
+wrong and its `message` says what is offered instead.

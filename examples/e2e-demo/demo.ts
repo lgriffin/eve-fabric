@@ -1,335 +1,192 @@
 /**
- * EVE Fabric — End-to-End Demo
+ * EVE Fabric: the gateway end to end, over HTTP.
  *
- * Starts the gateway server and walks through the full lifecycle:
- *   1. Browse the capability registry
- *   2. Create a pipeline (Market Snapshot)
- *   3. Save it via the API
- *   4. Execute it
- *   5. Publish it as a reusable composite capability
- *   6. Verify the composite appears in the registry
- *   7. Build a higher-order pipeline that depends on it
+ * The gateway is the workbench: the designer and any HTTP client build
+ * questions through it, save them as GraphQL, and share them as weaves. What
+ * you ship is the question (or a pack); the gateway is not needed to run it.
  *
- * Run: pnpm run demo
+ * Offline by default, over the Tranquility fixture, so it runs anywhere.
+ * `--live` asks Tranquility's ESI instead.
+ *
+ *   1. List what a question can start from
+ *   2. Start a draft and see its moves and holes
+ *   3. Look up a hole's choices
+ *   4. Fill it and run the question
+ *   5. Run the saved GraphQL form of the same question
+ *   6. Export it as a weave and add the weave back as a move
+ *   7. Ask the new move about another item
+ *   8. See how a mistake is refused
+ *
+ * Run: pnpm run demo   (or: pnpm run demo -- --live)
  */
-
+import { createEsi } from '@lgriffin/esi.ts/client';
+import { createStaticSource } from '@eve-fabric/source-sde';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 import { createServer } from '../../apps/gateway/src/server.js';
 
-const PORT = 3457;
-const BASE = `http://localhost:${PORT}`;
+const live = process.argv.includes('--live');
 
-// ── Helpers ──────────────────────────────────────────────────────────
-
-async function api<T = unknown>(
-  method: string,
-  path: string,
-  body?: unknown,
-): Promise<{ status: number; data: T }> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : {},
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const text = await res.text();
-  let data: T;
-  try {
-    data = JSON.parse(text) as T;
-  } catch {
-    data = text as T;
-  }
-  return { status: res.status, data };
+interface Response<T> {
+  readonly status: number;
+  readonly data: T;
 }
 
-function section(title: string): void {
-  console.log(`\n${'═'.repeat(60)}`);
-  console.log(`  ${title}`);
-  console.log(`${'═'.repeat(60)}\n`);
+interface DraftView {
+  readonly moves: readonly { readonly name: string }[];
+  readonly holes: readonly { readonly name: string; readonly type: string }[];
+  readonly graphql?: string;
+  readonly plan?: { readonly steps: readonly unknown[]; readonly esiCalls: number };
 }
 
-function json(label: string, obj: unknown): void {
-  console.log(`${label}:`);
-  console.log(JSON.stringify(obj, null, 2));
-  console.log();
+type Step = { kind: 'move'; move: string } | { kind: 'fill'; hole: string; value: unknown };
+
+function section(n: number, title: string): void {
+  console.log(`\n${String(n)}. ${title}`);
 }
 
-// ── Pipeline Definitions ────────────────────────────────────────────
-
-const marketSnapshotPipeline = {
-  id: 'market.snapshot',
-  version: 1,
-  name: 'Market Snapshot',
-  description: 'Fetches market orders for an item in a region and aggregates price statistics',
-  inputs: [
-    {
-      name: 'typeId',
-      semanticType: 'eve.type.reference',
-      description: 'Item type to query',
-      required: true,
-    },
-    {
-      name: 'regionId',
-      semanticType: 'eve.region.reference',
-      description: 'Market region',
-      required: true,
-    },
-  ],
-  nodes: [
-    { id: 'fetchOrders', capability: { id: 'market.orders', version: '2.0.0' } },
-    {
-      id: 'aggregate',
-      capability: { id: 'market.aggregate', version: '2.0.0' },
-    },
-  ],
-  edges: [
-    { from: 'input.typeId', to: 'fetchOrders.typeId' },
-    { from: 'input.regionId', to: 'fetchOrders.regionId' },
-    { from: 'fetchOrders.orders', to: 'aggregate.orders' },
-  ],
-  outputs: [
-    { name: 'orders', source: 'fetchOrders.orders' },
-    { name: 'summary', source: 'aggregate.summary' },
-  ],
-};
-
-const tradeOpportunityPipeline = {
-  id: 'trade.opportunity',
-  version: 1,
-  name: 'Trade Opportunity Finder',
-  description:
-    'Finds profitable trades by comparing market data across regions and factoring in route distance',
-  inputs: [
-    {
-      name: 'sourceRegion',
-      semanticType: 'eve.region.reference',
-      description: 'Region to buy from',
-      required: true,
-    },
-    {
-      name: 'destinationRegion',
-      semanticType: 'eve.region.reference',
-      description: 'Region to sell in',
-      required: true,
-    },
-    {
-      name: 'typeId',
-      semanticType: 'eve.type.reference',
-      description: 'Item type to evaluate',
-      required: true,
-    },
-  ],
-  nodes: [
-    {
-      id: 'sourceSellOrders',
-      capability: { id: 'market.orders', version: '2.0.0' },
-      config: { orderType: 'sell' },
-    },
-    {
-      id: 'destBuyOrders',
-      capability: { id: 'market.orders', version: '2.0.0' },
-      config: { orderType: 'buy' },
-    },
-    {
-      id: 'routeCalc',
-      capability: { id: 'route.distance', version: '2.0.0' },
-    },
-    {
-      id: 'profitCalc',
-      capability: { id: 'trade.profit.calculator', version: '2.0.0' },
-    },
-  ],
-  edges: [
-    { from: 'input.sourceRegion', to: 'sourceSellOrders.regionId' },
-    { from: 'input.typeId', to: 'sourceSellOrders.typeId' },
-    { from: 'input.destinationRegion', to: 'destBuyOrders.regionId' },
-    { from: 'input.typeId', to: 'destBuyOrders.typeId' },
-    { from: 'input.sourceRegion', to: 'routeCalc.fromRegion' },
-    { from: 'input.destinationRegion', to: 'routeCalc.toRegion' },
-    { from: 'sourceSellOrders.orders', to: 'profitCalc.sellOrders' },
-    { from: 'destBuyOrders.orders', to: 'profitCalc.buyOrders' },
-    { from: 'routeCalc.distance', to: 'profitCalc.routeDistance' },
-  ],
-  outputs: [
-    { name: 'bestPrice', source: 'profitCalc.bestPrice' },
-    { name: 'profit', source: 'profitCalc.profit' },
-    { name: 'profitMargin', source: 'profitCalc.profitMargin' },
-    { name: 'volume', source: 'profitCalc.volume' },
-    { name: 'routeDistance', source: 'routeCalc.distance' },
-  ],
-};
-
-// ── Main ────────────────────────────────────────────────────────────
+function show(line: string): void {
+  console.log(`   ${line}`);
+}
 
 async function main(): Promise<void> {
-  console.log('EVE Fabric — End-to-End Demo');
-  console.log(`Starting gateway on port ${PORT}...`);
+  const app = createServer({
+    logger: false,
+    esi: live
+      ? createEsi({ userAgent: 'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)' })
+      : tranquilityEsi().esi,
+    sde: createStaticSource(tranquilitySde()),
+  });
+  const base = await app.listen({ port: 0, host: '127.0.0.1' });
+  console.log(`Gateway on ${base} (${live ? 'live ESI' : 'offline Tranquility fixture'})`);
 
-  const server = createServer();
-  server.log.level = 'error';
-  await server.listen({ port: PORT, host: '127.0.0.1' });
-  console.log(`Gateway running at ${BASE}`);
+  async function api<T>(method: string, path: string, body?: unknown): Promise<Response<T>> {
+    const res = await fetch(
+      `${base}${path}`,
+      body === undefined
+        ? { method }
+        : { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) },
+    );
+    const text = await res.text();
+    const json = res.headers.get('content-type')?.includes('json') === true;
+    return { status: res.status, data: (json ? JSON.parse(text) : text) as T };
+  }
+
+  function expectOk<T>(what: string, res: Response<T>): T {
+    if (res.status >= 300) {
+      throw new Error(`${what} answered ${String(res.status)}: ${JSON.stringify(res.data)}`);
+    }
+    return res.data;
+  }
+
+  const subject = { kind: 'type', value: 'Tritanium' };
+  const orders: Step[] = [{ kind: 'move', move: 'orders' }];
 
   try {
-    // ── Step 1: Health check ──
-    section('Step 1: Health Check');
-    const health = await api('GET', '/health');
-    json('GET /health', health.data);
-
-    // ── Step 2: Browse the capability registry ──
-    section('Step 2: Browse Capability Registry');
-
-    const allCaps = await api<{
-      capabilities: Array<{ id: string; version: string; name: string; source: string }>;
-    }>('GET', '/api/registry');
-    console.log(`Found ${allCaps.data.capabilities.length} capabilities:\n`);
-    for (const cap of allCaps.data.capabilities) {
-      console.log(`  [${cap.source.padEnd(9)}] ${cap.id}@${cap.version}  — ${cap.name}`);
-    }
-
-    // ── Step 3: Inspect a specific capability ──
-    section('Step 3: Inspect a Capability');
-    const detail = await api('GET', '/api/registry/market.orders');
-    json('GET /api/registry/market.orders', detail.data);
-
-    // ── Step 4: Check dependency tree of a composite ──
-    section('Step 4: Dependency Tree (composite.trade.opportunity)');
-    const deps = await api('GET', '/api/registry/composite.trade.opportunity/dependencies');
-    json('GET /api/registry/composite.trade.opportunity/dependencies', deps.data);
-
-    // ── Step 5: Filter capabilities by source ──
-    section('Step 5: Filter by Source');
-    const esiCaps = await api<{
-      capabilities: Array<{ id: string; version: string }>;
-    }>('GET', '/api/registry?source=ESI');
-    console.log('ESI capabilities:');
-    for (const cap of esiCaps.data.capabilities) {
-      console.log(`  ${cap.id}@${cap.version}`);
-    }
-
-    const derivedCaps = await api<{
-      capabilities: Array<{ id: string; version: string }>;
-    }>('GET', '/api/registry?source=DERIVED');
-    console.log('\nDERIVED capabilities:');
-    for (const cap of derivedCaps.data.capabilities) {
-      console.log(`  ${cap.id}@${cap.version}`);
-    }
-
-    // ── Step 6: Save a pipeline ──
-    section('Step 6: Save a Pipeline');
-    const saved = await api<{ id: string; version: number; savedAt: string }>(
-      'POST',
-      '/api/pipelines',
-      marketSnapshotPipeline,
+    section(1, 'GET /api/drafts/subjects');
+    const subjects = expectOk(
+      'subjects',
+      await api<{ kinds: { kind: string }[] }>('GET', '/api/drafts/subjects'),
     );
-    json('POST /api/pipelines (Market Snapshot)', saved.data);
-    const pipelineId = saved.data.id;
+    show(`a question starts from a ${subjects.kinds.map((k) => k.kind).join(', a ')}`);
 
-    // ── Step 7: List saved pipelines ──
-    section('Step 7: List Saved Pipelines');
-    const pipelines = await api('GET', '/api/pipelines');
-    json('GET /api/pipelines', pipelines.data);
+    section(2, 'POST /api/drafts  { subject: Tritanium, steps: [orders] }');
+    const draft = expectOk(
+      'draft',
+      await api<DraftView>('POST', '/api/drafts', { subject, steps: orders }),
+    );
+    show(`moves: ${draft.moves.map((m) => m.name).join(', ')}`);
+    show(`holes: ${draft.holes.map((h) => h.name + ' (' + h.type + ')').join(', ')}`);
 
-    // ── Step 8: Execute the pipeline ──
-    section('Step 8: Execute Pipeline');
-    const execResult = await api('POST', '/api/pipelines/execute', {
-      pipeline: marketSnapshotPipeline,
-      inputs: {
-        typeId: 34,
-        regionId: 10000002,
-      },
-    });
-    json('POST /api/pipelines/execute', execResult.data);
+    section(3, 'POST /api/drafts/choices  { hole: region, text: "Forge" }');
+    const { choices } = expectOk(
+      'choices',
+      await api<{ choices: { id: number; name: string }[] }>('POST', '/api/drafts/choices', {
+        subject,
+        steps: orders,
+        hole: 'region',
+        text: 'Forge',
+      }),
+    );
+    show(choices.map((c) => `${c.name} (${String(c.id)})`).join(', '));
 
-    console.log('Execution metrics:');
-    const metrics = (execResult.data as Record<string, unknown>)['metrics'] as Record<
-      string,
-      unknown
-    >;
-    console.log(`  Total duration: ${metrics['totalDurationMs']}ms`);
-    console.log(`  Cache hits:     ${metrics['cacheHits']}`);
-    console.log(`  Cache misses:   ${metrics['cacheMisses']}`);
+    section(4, 'POST /api/drafts/run  { …, fill region, apply prices }');
+    const steps: Step[] = [
+      ...orders,
+      { kind: 'fill', hole: 'region', value: 'The Forge' },
+      { kind: 'move', move: 'prices' },
+    ];
+    const run = expectOk(
+      'run',
+      await api<{ answer: unknown; view: DraftView }>('POST', '/api/drafts/run', {
+        subject,
+        steps,
+      }),
+    );
+    show(`answer: ${JSON.stringify(run.answer)}`);
+    show(
+      `plan: ${String(run.view.plan?.steps.length)} steps, ${String(run.view.plan?.esiCalls)} ESI call(s)`,
+    );
+    const graphql = run.view.graphql ?? '';
+
+    section(5, 'POST /api/drafts/run  { graphql }  (the saved form)');
     console.log(
-      `  Steps completed: ${Object.keys(metrics['stepDurations'] as Record<string, unknown>).join(', ')}`,
+      graphql
+        .trimEnd()
+        .split('\n')
+        .map((l) => `     ${l}`)
+        .join('\n'),
+    );
+    const again = expectOk(
+      'run graphql',
+      await api<{ answer: unknown }>('POST', '/api/drafts/run', { graphql }),
+    );
+    show(`same answer: ${JSON.stringify(again.answer)}`);
+
+    section(6, 'POST /api/drafts/weave, then POST /api/weaves');
+    const weave = expectOk(
+      'weave',
+      await api<string>('POST', '/api/drafts/weave', {
+        graphql,
+        weave: { id: 'demo.forge.prices', version: '1.0.0', as: 'forge prices' },
+      }),
+    );
+    show(`exported ${String(weave.split('\n').length)} lines of weave YAML`);
+    const added = expectOk(
+      'add',
+      await api<{ id: string }>('POST', '/api/weaves', { document: weave }),
+    );
+    show(
+      `added ${added.id}; GET /api/weaves lists ${JSON.stringify((await api<unknown>('GET', '/api/weaves')).data)}`,
     );
 
-    // ── Step 9: Publish as a composite capability ──
-    section('Step 9: Publish as Composite Capability');
-    const publishResult = await api('POST', '/api/registry/publish', {
-      capabilityId: 'custom.market.snapshot',
-      version: '1.0.0',
-      name: 'Custom Market Snapshot',
-      description: 'A user-created composite that fetches and aggregates market data',
-      pipelineId,
-      pipelineVersion: 1,
-      selectedInputs: ['typeId', 'regionId'],
-      selectedOutputs: ['orders', 'summary'],
-    });
-    json('POST /api/registry/publish', publishResult.data);
-
-    // ── Step 10: Verify the new composite is in the registry ──
-    section('Step 10: Verify New Composite in Registry');
-    const newCap = await api('GET', '/api/registry/custom.market.snapshot');
-    json('GET /api/registry/custom.market.snapshot', newCap.data);
-
-    // ── Step 11: Execute the trade opportunity pipeline ──
-    section('Step 11: Execute Trade Opportunity Pipeline');
-    const tradeResult = await api('POST', '/api/pipelines/execute', {
-      pipeline: tradeOpportunityPipeline,
-      inputs: {
-        sourceRegion: 10000002,
-        destinationRegion: 10000043,
-        typeId: 34,
-      },
-    });
-    json('POST /api/pipelines/execute (Trade Opportunity)', tradeResult.data);
-
-    const tradeMetrics = (tradeResult.data as Record<string, unknown>)['metrics'] as Record<
-      string,
-      unknown
-    >;
-    console.log('Trade pipeline execution:');
-    console.log(`  Total duration: ${tradeMetrics['totalDurationMs']}ms`);
-    console.log(
-      `  Parallel steps: ${Object.keys(tradeMetrics['stepDurations'] as Record<string, unknown>).join(', ')}`,
+    section(7, "POST /api/drafts/run  { Pyerite, 'forge prices' }");
+    const shared = expectOk(
+      'shared',
+      await api<{ answer: unknown }>('POST', '/api/drafts/run', {
+        subject: { kind: 'type', value: 'Pyerite' },
+        steps: [
+          { kind: 'move', move: 'forge prices' },
+          { kind: 'fill', hole: 'region', value: 'The Forge' },
+        ],
+      }),
     );
+    show(`answer: ${JSON.stringify(shared.answer)}`);
 
-    // ── Step 12: GraphQL ──
-    section('Step 12: GraphQL Health Check');
-    const gqlResult = await api('POST', '/graphql', {
-      query: '{ health }',
+    section(8, 'POST /api/drafts  { steps: [ordrs] }  (a typo)');
+    const refused = await api<{ error: { code: string; message: string } }>('POST', '/api/drafts', {
+      subject,
+      steps: [{ kind: 'move', move: 'ordrs' }],
     });
-    json('POST /graphql', gqlResult.data);
+    show(`${String(refused.status)} ${refused.data.error.code}: ${refused.data.error.message}`);
 
-    // ── Step 13: Clean up — delete pipeline ──
-    section('Step 13: Clean Up');
-    const deleteResult = await api('DELETE', `/api/pipelines/${pipelineId}`);
-    console.log(`DELETE /api/pipelines/${pipelineId} → ${deleteResult.status}`);
-
-    const afterDelete = await api('GET', '/api/pipelines');
-    json('Pipelines after cleanup', afterDelete.data);
-
-    // ── Done ──
-    section('Demo Complete');
-    console.log('The demo walked through the full EVE Fabric lifecycle:');
-    console.log();
-    console.log('  1. Browsed the capability registry (ESI, SDE, DERIVED, COMPOSITE)');
-    console.log('  2. Inspected capability details and dependency trees');
-    console.log('  3. Created and saved a Market Snapshot pipeline');
-    console.log('  4. Executed pipelines with mock data');
-    console.log('  5. Published a pipeline as a reusable composite capability');
-    console.log('  6. Verified the composite appears in the registry');
-    console.log('  7. Ran a multi-step Trade Opportunity pipeline');
-    console.log('  8. Cleaned up (deleted saved pipeline)');
-    console.log();
-    console.log('For the visual designer, run: pnpm --filter @eve-fabric/gateway dev');
-    console.log('Then in another terminal:    pnpm --filter @eve-fabric/designer dev');
-    console.log('Open http://localhost:5173 to build pipelines visually.');
+    console.log('\nThe same calls by hand are in examples/e2e-demo/README.md.');
   } finally {
-    await server.close();
-    console.log('\nGateway stopped.');
+    await app.close();
   }
 }
 
-main().catch((err) => {
-  console.error('Demo failed:', err);
-  process.exit(1);
+main().catch((error: unknown) => {
+  console.error(`\nThe demo stopped: ${error instanceof Error ? error.message : String(error)}`);
+  if (live) console.error('Run without --live to use the offline fixture.');
+  process.exitCode = 1;
 });

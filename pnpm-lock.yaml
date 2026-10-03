@@ -38,6 +38,9 @@ importers:
       '@eve-fabric/pack-core':
         specifier: workspace:*
         version: link:packages/pack-core
+      '@eve-fabric/source-sde':
+        specifier: workspace:*
+        version: link:packages/source-sde
       '@eve-fabric/test-support':
         specifier: workspace:*
         version: link:packages/test-support
