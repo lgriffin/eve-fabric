@@ -7,12 +7,20 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createFabric, type Fabric } from '@eve-fabric/fabric';
+import ts from 'typescript';
+import { memoryStore, type Store } from '@eve-fabric/core';
+import {
+  createFabric,
+  PublishRefusedError,
+  WeaveMismatchError,
+  WeaveRefusedError,
+  type Fabric,
+} from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { createStaticSource } from '@eve-fabric/source-sde';
 import { REGION, SYSTEM, TYPE, tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
-import { sealWeave, weaveFromYaml, type WeaveFile } from '@eve-fabric/weave';
-import { CodegenRefusedError, generate } from '../src/index.js';
+import { sealWeave, weaveFromYaml, type WeaveBody, type WeaveFile } from '@eve-fabric/weave';
+import { generate } from '../src/index.js';
 import { identifierOf } from '../src/emit-index-ts.js';
 
 const JUMPS = '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }';
@@ -36,6 +44,19 @@ function exported(fabric: Fabric, graphql: string, id: string, as: string): Weav
 
 const files = (bundle: ReturnType<typeof generate>, path: string): string =>
   bundle.files.find((f) => f.path === path)?.content ?? '';
+
+/** The body of a file, changed, and sealed again: a well-formed weave that says something else. */
+function resealed(file: WeaveFile, change: Partial<WeaveBody>): WeaveFile {
+  return sealWeave({ ...file, ...change });
+}
+
+/** The syntax errors TypeScript finds in a generated module; a sound one has none. */
+function syntaxErrors(source: string): string[] {
+  const parsed = ts.createSourceFile('index.ts', source, ts.ScriptTarget.ES2022, true);
+  return (parsed as unknown as { parseDiagnostics: ts.Diagnostic[] }).parseDiagnostics.map((d) =>
+    ts.flattenDiagnosticMessageText(d.messageText, ' '),
+  );
+}
 
 describe('generate', () => {
   const fabric = tranquility();
@@ -105,26 +126,70 @@ describe('generate', () => {
     expect(JSON.parse(pkg)).toMatchObject({ name: '@me/jumps' });
   });
 
-  it('refuses a weave this fabric cannot add', () => {
-    const body = Object.fromEntries(
-      Object.entries(jumps).filter(([key]) => key !== 'digest'),
-    ) as Omit<WeaveFile, 'digest'>;
+  it('refuses a weave this fabric cannot add, as weave add would', () => {
     expect(() => generate({ ...jumps, description: 'changed after export' }, fabric)).toThrow(
       /digest/,
     );
-    const requiring = sealWeave({
-      ...body,
-      requires: { ...body.requires, 'nobody.has': '^1.0.0' },
-    });
+    const requiring = resealed(jumps, { requires: { ...jumps.requires, 'nobody.has': '^1.0.0' } });
     expect(() => generate(requiring, fabric)).toThrow(/requires nobody\.has/);
-    const miswired = sealWeave({
-      ...body,
+    const miswired = resealed(jumps, {
       pipeline: {
-        ...body.pipeline,
-        edges: body.pipeline.edges.map((e) => ({ ...e, to: e.to.replace('origin', 'nowhere') })),
+        ...jumps.pipeline,
+        edges: jumps.pipeline.edges.map((e) => ({ ...e, to: e.to.replace('origin', 'nowhere') })),
       },
     });
-    expect(() => generate(miswired, fabric)).toThrow(CodegenRefusedError);
+    expect(() => generate(miswired, fabric)).toThrow(PublishRefusedError);
+    expect(() => generate(resealed(jumps, { id: 'eve.route.jumps' }), fabric)).toThrow(
+      WeaveRefusedError,
+    );
+    const lying = resealed(jumps, { scopes: ['esi-location.read_location.v1'] });
+    expect(() => generate(lying, fabric)).toThrow(WeaveMismatchError);
+  });
+
+  it('keeps what the weave says inside strings and comments, so it cannot add code', () => {
+    const crafted = resealed(jumps, {
+      name: 'jumps */ throw new Error("owned"); /*',
+      description: 'line one\n*/ process.exit(1); /*',
+    });
+    const index = files(generate(crafted, fabric), 'index.ts');
+    expect(syntaxErrors(index)).toEqual([]);
+    // The only lines that still read `*/ throw` are the weave itself, inside a string literal.
+    for (const needle of ['*/ throw', '*/ process']) {
+      expect(index.split('\n').filter((line) => line.includes(needle))).toEqual([
+        expect.stringMatching(/^export const WEAVE: string = "/),
+      ]);
+    }
+    expect(index).toContain('*\\/ throw new Error("owned"); /*');
+    expect(index).toContain('export async function jumpsThrowNewErrorOwned(');
+  });
+
+  it('quotes a port that is not an identifier, and marks an optional input', () => {
+    const output = jumps.pipeline.outputs[0]!;
+    const odd = resealed(jumps, {
+      provides: { ...jumps.provides, out: { 'jump-count': 'eve.route.distance' } },
+      pipeline: {
+        ...jumps.pipeline,
+        inputs: jumps.pipeline.inputs.map((i) =>
+          i.name === 'destination' ? { ...i, required: false } : i,
+        ),
+        outputs: [{ ...output, name: 'jump-count' }],
+      },
+    });
+    const index = files(generate(odd, fabric), 'index.ts');
+    expect(syntaxErrors(index)).toEqual([]);
+    expect(index).toContain('"jump-count": number;');
+    expect(index).toContain('destination?: number;');
+    expect(index).toContain('system: number;');
+  });
+
+  it('names the function after the weave, around reserved words and its own bindings', () => {
+    for (const name of ['class', 'default', 'build', 'ready', 'process']) {
+      const index = files(generate(resealed(jumps, { name }), fabric), 'index.ts');
+      expect(syntaxErrors(index)).toEqual([]);
+      expect(index).toContain(
+        `export async function ask${name.charAt(0).toUpperCase()}${name.slice(1)}(`,
+      );
+    }
   });
 
   it('names the function after the weave', () => {
@@ -132,6 +197,8 @@ describe('generate', () => {
     expect(identifierOf('jumps')).toBe('jumps');
     expect(identifierOf('3 day average')).toBe('ask3DayAverage');
     expect(identifierOf('me.forge.prices')).toBe('meForgePrices');
+    expect(identifierOf('class')).toBe('askClass');
+    expect(identifierOf('Ready')).toBe('askReady');
   });
 });
 
@@ -172,6 +239,25 @@ describe('the generated module, run offline (#28)', () => {
     expect(await jumps({ system: SYSTEM.jita, destination: SYSTEM.amarr }, options)).toEqual({
       distance: 4,
     });
+  });
+
+  it('tries again after a build that failed, once the store recovers', async () => {
+    const { jumps } = await generated<{
+      jumps: (
+        input: { system: number; destination: number },
+        options: unknown,
+      ) => Promise<{ distance: number }>;
+    }>(JUMPS, 'bank.route.jumps', 'jumps');
+    let failures = 1;
+    const store: Store = {
+      ...memoryStore(),
+      putWeave: (weave) =>
+        failures-- > 0 ? Promise.reject(new Error('disk full')) : memoryStore().putWeave(weave),
+    };
+    const options = { ...offline(), store };
+    const ask = () => jumps({ system: SYSTEM.jita, destination: SYSTEM.amarr }, options);
+    await expect(ask()).rejects.toThrow('disk full');
+    expect(await ask()).toEqual({ distance: 4 });
   });
 
   it('answers Q1 as the bank does: the lowest Tritanium sell in The Forge', async () => {

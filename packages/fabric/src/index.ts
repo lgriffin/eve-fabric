@@ -41,7 +41,6 @@ export {
   type HoleView,
 } from './draft-view.js';
 export {
-  localWeave,
   WeaveMismatchError,
   WeaveRefusedError,
   WeaveRequirementError,

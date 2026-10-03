@@ -192,10 +192,14 @@ async function weaveCommand(
   }
 }
 
+/** The one positional `codegen` takes: a weave file. */
+const codegenArgsSchema = z.tuple([z.string().min(1)]);
+
 /** `codegen <weave>`: the weave is checked as `weave add` checks it, then the package is written. */
 function codegenCommand(fabric: Fabric, args: readonly string[], options: Options, io: Io): void {
-  const [file] = exactly(args, 1, 'codegen takes one weave file');
-  if (file === undefined) throw new UsageError('codegen needs a weave file');
+  const parsed = codegenArgsSchema.safeParse(args);
+  if (!parsed.success) throw new UsageError('codegen takes one weave file');
+  const [file] = parsed.data;
   const weave = weaveFromYaml(readFileSync(file, 'utf8'));
   const bundle = generate(weave, fabric, { packageName: options.name });
   const dir = resolve(options.cwd ?? '.', options.out ?? weave.id.replaceAll('.', '-'));

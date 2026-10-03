@@ -1,6 +1,5 @@
 export {
   generate,
-  CodegenRefusedError,
   type GenerateOptions,
   type GeneratedBundle,
   type GeneratedFile,

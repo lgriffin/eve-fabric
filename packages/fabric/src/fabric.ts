@@ -561,27 +561,26 @@ export class Fabric implements DraftHost {
     return index.resolve(source);
   }
 
-  /** Every check first, then the publish: a refusal adds nothing. */
-  private take(file: WeaveFile): CapabilityDefinition {
+  /**
+   * Checks a weave as `add` does, adding nothing: its id is not reserved,
+   * every capability it requires is here in a version it accepts, it
+   * compiles, and the scopes and ports it declares are the ones it compiles
+   * to. Gives the weave as it will run here, and its plan.
+   */
+  check(file: WeaveFile): { readonly weave: Weave; readonly plan: ExecutionPlan } {
     if (file.id.startsWith('eve.')) {
       throw new WeaveRefusedError(`"${file.id}": eve.* is reserved for ${CORE_PACK_ID}`);
-    }
-    const key = `${file.id}@${file.version}`;
-    if (
-      this.added.has(key) ||
-      this.catalog.has(capabilityId(file.id), capabilityVersion(file.version))
-    ) {
-      throw new WeaveRefusedError(`"${key}" is already here; a changed weave needs a new version`);
     }
     const weave = localWeave(file, this.catalog);
     const compiled = this.compile(weave.pipeline);
     if (!compiled.success || compiled.plan === undefined) {
       throw new PublishRefusedError(weave.pipeline.id, compiled.diagnostics);
     }
+    const plan = compiled.plan as unknown as ExecutionPlan;
     const computed = describeWeave(
       weave,
       this.catalog,
-      compiled.plan.authRequirements.scopes,
+      plan.authRequirements.scopes,
       file.verifiedAgainst,
     );
     for (const field of ['scopes', 'provides'] as const) {
@@ -589,8 +588,21 @@ export class Fabric implements DraftHost {
         throw new WeaveMismatchError(field, file[field], computed[field]);
       }
     }
+    return { weave, plan };
+  }
+
+  /** Every check first, then the publish: a refusal adds nothing. */
+  private take(file: WeaveFile): CapabilityDefinition {
+    const key = `${file.id}@${file.version}`;
+    if (
+      this.added.has(key) ||
+      this.catalog.has(capabilityId(file.id), capabilityVersion(file.version))
+    ) {
+      throw new WeaveRefusedError(`"${key}" is already here; a changed weave needs a new version`);
+    }
+    const { weave } = this.check(file);
     const capability = this.publishComposite(weave.pipeline, weave.capability);
-    this.added.set(`${file.id}@${file.version}`, file.digest);
+    this.added.set(key, file.digest);
     return capability;
   }
 

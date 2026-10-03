@@ -1,16 +1,7 @@
-import type { ExecutionPlan } from '@eve-fabric/core';
-import { localWeave, type Fabric } from '@eve-fabric/fabric';
+import type { Fabric } from '@eve-fabric/fabric';
 import { readWeave, weaveToYaml, type WeaveFile } from '@eve-fabric/weave';
 import { emitIndexTs } from './emit-index-ts.js';
 import { emitPackageJson } from './emit-package-json.js';
-
-/** The weave does not compile on the fabric it was generated against. */
-export class CodegenRefusedError extends Error {
-  constructor(weave: string, reasons: readonly string[]) {
-    super(`${weave} does not compile here: ${reasons.join('; ')}`);
-    this.name = 'CodegenRefusedError';
-  }
-}
 
 export interface GenerateOptions {
   /** The generated package's name; the weave's id with hyphens by default. */
@@ -36,9 +27,11 @@ export interface ResolvedWeave {
 
 /**
  * A weave in, a runnable package out. The fabric checks the weave as `add`
- * would: its digest, that every capability it requires is here in a version
- * it accepts, and that it compiles. The module emitted carries the weave and
- * no capability code; at run time it builds a fabric, adds the weave, and asks.
+ * would: its digest, that its id is not reserved, that every capability it
+ * requires is here in a version it accepts, that it compiles, and that what
+ * it declares is what it compiles to. The module emitted carries the weave
+ * and no capability code; at run time it builds a fabric, adds the weave,
+ * and asks.
  */
 export function generate(
   weave: WeaveFile,
@@ -46,15 +39,7 @@ export function generate(
   options: GenerateOptions = {},
 ): GeneratedBundle {
   const file = readWeave(weave);
-  const local = localWeave(file, fabric.catalog);
-  const compiled = fabric.compile(local.pipeline);
-  if (!compiled.success || compiled.plan === undefined) {
-    throw new CodegenRefusedError(
-      `${file.id}@${file.version}`,
-      compiled.diagnostics.filter((d) => d.severity === 'error').map((d) => d.message),
-    );
-  }
-  const plan = compiled.plan as unknown as ExecutionPlan;
+  const { plan } = fabric.check(file);
   const resolved: ResolvedWeave = {
     file,
     yaml: weaveToYaml(file),
