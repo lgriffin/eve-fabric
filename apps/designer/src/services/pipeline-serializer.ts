@@ -1,20 +1,13 @@
-import type {
-  PipelineDefinition,
-  PipelineNode,
-  PipelineEdge,
-  PipelineInput,
-  PipelineOutput,
-} from '@eve-fabric/core';
+import type { PipelineDefinition } from '@eve-fabric/core';
 import type { Edge } from '@xyflow/react';
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { CapabilityFlowNode, CapabilityNodeData } from '../stores/pipeline-store.js';
-import type { ConfiguredValue } from '../stores/types.js';
 
 const NODE_WIDTH = 240;
 const NODE_HEIGHT = 120;
 const HORIZONTAL_GAP = 80;
 const VERTICAL_GAP = 60;
 
+/** The scaffold the fabric built, as React Flow nodes and edges, before the catalog names them. */
 export function pipelineToFlow(definition: PipelineDefinition): {
   nodes: CapabilityFlowNode[];
   edges: Edge[];
@@ -61,38 +54,6 @@ export function pipelineToFlow(definition: PipelineDefinition): {
   return { nodes, edges };
 }
 
-export function flowToPipeline(
-  nodes: CapabilityFlowNode[],
-  edges: Edge[],
-  meta: { id: string; name: string; version: number; description?: string },
-  pipelineInputs: PipelineInput[],
-  pipelineOutputs: PipelineOutput[],
-): PipelineDefinition {
-  const pipelineNodes: PipelineNode[] = nodes.map((node) => ({
-    id: node.id,
-    capability: {
-      id: node.data.capabilityId as PipelineNode['capability']['id'],
-      version: node.data.capabilityVersion as PipelineNode['capability']['version'],
-    },
-  }));
-
-  const pipelineEdges: PipelineEdge[] = edges.map((edge) => ({
-    from: edge.sourceHandle ? `${edge.source}.${edge.sourceHandle}` : edge.source,
-    to: edge.targetHandle ? `${edge.target}.${edge.targetHandle}` : edge.target,
-  }));
-
-  return {
-    id: meta.id,
-    version: meta.version,
-    name: meta.name,
-    description: meta.description,
-    inputs: pipelineInputs,
-    outputs: pipelineOutputs,
-    nodes: pipelineNodes,
-    edges: pipelineEdges,
-  };
-}
-
 export function enrichNodesWithCatalog(
   nodes: CapabilityFlowNode[],
   catalog: Map<
@@ -128,123 +89,4 @@ function parsePortRef(ref: string): { nodeId: string; portName: string } {
     nodeId: ref.substring(0, dotIndex),
     portName: ref.substring(dotIndex + 1),
   };
-}
-
-function str(value: unknown, fallback = ''): string {
-  if (typeof value === 'string') return value;
-  if (typeof value === 'number') return value.toString();
-  return fallback;
-}
-
-export function yamlToPipeline(yaml: string): PipelineDefinition {
-  const doc = parseYaml(yaml) as Record<string, unknown>;
-
-  const id = str(doc.id);
-  const version = Number(doc.version) || 1;
-  const name = str(doc.name);
-  const description = typeof doc.description === 'string' ? doc.description.trim() : undefined;
-
-  const rawInputs = Array.isArray(doc.inputs) ? (doc.inputs as Record<string, unknown>[]) : [];
-  const inputs: PipelineInput[] = rawInputs.map((inp) => ({
-    name: str(inp.name),
-    semanticType: str(inp.semanticType) as PipelineInput['semanticType'],
-    description: typeof inp.description === 'string' ? inp.description : undefined,
-    required: inp.required !== false,
-  }));
-
-  const rawNodes = Array.isArray(doc.nodes) ? (doc.nodes as Record<string, unknown>[]) : [];
-  const nodes: PipelineNode[] = rawNodes.map((n) => {
-    const cap = n.capability as Record<string, unknown> | string | undefined;
-    let capId = '';
-    let capVersion = '1.0.0';
-    if (typeof cap === 'string') {
-      capId = cap;
-    } else if (cap && typeof cap === 'object') {
-      capId = str(cap.id);
-      capVersion = str(cap.version, '1.0.0');
-    }
-    return {
-      id: str(n.id),
-      capability: {
-        id: capId as PipelineNode['capability']['id'],
-        version: capVersion as PipelineNode['capability']['version'],
-      },
-    };
-  });
-
-  const rawEdges = Array.isArray(doc.edges) ? (doc.edges as Record<string, unknown>[]) : [];
-  const edges: PipelineEdge[] = rawEdges.map((e) => ({
-    from: str(e.from),
-    to: str(e.to),
-  }));
-
-  const rawOutputs = Array.isArray(doc.outputs) ? (doc.outputs as Record<string, unknown>[]) : [];
-  const outputs: PipelineOutput[] = rawOutputs.map((o) => ({
-    name: str(o.name),
-    source: str(o.source),
-  }));
-
-  return { id, version, name, description, inputs, nodes, edges, outputs };
-}
-
-export function pipelineToYaml(definition: PipelineDefinition): string {
-  const doc: Record<string, unknown> = {
-    id: definition.id,
-    version: definition.version,
-    name: definition.name,
-  };
-  if (definition.description) {
-    doc.description = definition.description;
-  }
-  doc.inputs = definition.inputs.map((inp) => {
-    const entry: Record<string, unknown> = {
-      name: inp.name,
-      semanticType: inp.semanticType,
-    };
-    if (inp.description) entry.description = inp.description;
-    entry.required = inp.required;
-    return entry;
-  });
-  doc.nodes = definition.nodes.map((node) => ({
-    id: node.id,
-    capability: { id: node.capability.id, version: node.capability.version },
-  }));
-  doc.edges = definition.edges.map((edge) => ({
-    from: edge.from,
-    to: edge.to,
-  }));
-  doc.outputs = definition.outputs.map((output) => ({
-    name: output.name,
-    source: output.source,
-  }));
-  return stringifyYaml(doc);
-}
-
-export function extractDefaultsFromYaml(
-  yaml: string,
-): Record<string, Record<string, ConfiguredValue>> {
-  const doc = parseYaml(yaml) as Record<string, unknown>;
-  const rawNodes = Array.isArray(doc.nodes) ? (doc.nodes as Record<string, unknown>[]) : [];
-  const result: Record<string, Record<string, ConfiguredValue>> = {};
-
-  for (const node of rawNodes) {
-    const nodeId = str(node.id);
-    const defaults = node.defaults as Record<string, Record<string, unknown>> | undefined;
-    if (!nodeId || !defaults || typeof defaults !== 'object') continue;
-
-    const portValues: Record<string, ConfiguredValue> = {};
-    for (const [portName, def] of Object.entries(defaults)) {
-      if (def && typeof def === 'object' && 'value' in def) {
-        portValues[portName] = {
-          value: def.value,
-          displayLabel: typeof def.label === 'string' ? def.label : String(def.value),
-        };
-      }
-    }
-    if (Object.keys(portValues).length > 0) {
-      result[nodeId] = portValues;
-    }
-  }
-
-  return result;
 }

@@ -8,7 +8,7 @@ Auto-generated from all feature plans. Last updated: 2026-08-20
 - N/A (gateway provides persistence; localStorage for execution input history) (006-designer-dx-overhaul)
 
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod (005-intent-flow-designer)
-- Semantic type to editor type mapping in domain package, reference data endpoints in gateway (005-intent-flow-designer)
+- Semantic type to editor type mapping in the core package, reference data endpoints in gateway (005-intent-flow-designer)
 
 - TypeScript 5.x (strict mode), Node.js 20 LTS + React 18, @xyflow/react (React Flow), Vite, Zustand, Fastify, Zod, Drizzle ORM (003-composite-flow-registry)
 - SQLite via Drizzle ORM (persistence package, with in-memory implementations for testing) (003-composite-flow-registry)
@@ -36,8 +36,7 @@ packages/
   source-esi/       # ESI source: ESI.ts's public view for capabilities
   source-sde/       # SDE source: ESI.ts's static data provider, fails loudly
   codegen/          # Generates a runnable module from a pipeline
-  weave/            # Package format v2: weaves, digest, git index
-  schema-package/   # Schema import/export (format v1)
+  weave/            # Package format v2: weaves, digest, secret scanning, git index
   graphql/          # GraphQL schema generation
   persistence/      # Data persistence
   test-support/     # Shared test utilities
@@ -65,6 +64,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 007-retire-legacy-pipeline-model: hand-authored pipelines are no longer a way in. The gateway serves drafts, weaves and the derived schema at `/graphql`; the designer's canvas is a read-only view of the open draft; `schema-package` (format v1) is folded into `weave`; examples are saved `.graphql` questions.
 
 - 006-designer-dx-overhaul: Added TypeScript 5.x (strict mode) + React 18, @xyflow/react (React Flow), Vite, Zustand, yaml 2.x, @dagrejs/dagre (new)
 

@@ -1,0 +1,5 @@
+{
+  type(name: "Tritanium") {
+    tradeProfitAfterTax(from: "The Forge", to: "Domain")
+  }
+}

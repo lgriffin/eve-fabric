@@ -21,79 +21,48 @@ function makeNode(overrides: Partial<CapabilityFlowNode> = {}): CapabilityFlowNo
   };
 }
 
+const edge = { id: 'e-0', source: 'a', sourceHandle: 'orders', target: 'b', targetHandle: 'item' };
+
 describe('PipelineStore', () => {
   beforeEach(() => {
     usePipelineStore.getState().reset();
   });
 
-  it('starts with empty state', () => {
+  it('starts empty', () => {
     const state = usePipelineStore.getState();
     expect(state.nodes).toHaveLength(0);
     expect(state.edges).toHaveLength(0);
-    expect(state.isDirty).toBe(false);
+    expect(state.selectedNodeId).toBeNull();
+    expect(state.drilldownStack).toHaveLength(0);
   });
 
-  it('adds a node', () => {
-    usePipelineStore.getState().addNode(makeNode());
-    const state = usePipelineStore.getState();
-    expect(state.nodes).toHaveLength(1);
-    expect(state.nodes[0]!.id).toBe('test-node-1');
-    expect(state.isDirty).toBe(true);
-  });
-
-  it('removes a node and its edges', () => {
+  it('shows a scaffold in place of the one before, and forgets the selection', () => {
     const store = usePipelineStore.getState();
-    store.addNode(makeNode({ id: 'a' }));
-    store.addNode(makeNode({ id: 'b' }));
-    store.onConnect({
-      source: 'a',
-      target: 'b',
-      sourceHandle: 'orders',
-      targetHandle: 'item',
-    });
-
-    expect(usePipelineStore.getState().edges).toHaveLength(1);
-
-    usePipelineStore.getState().removeNode('a');
+    store.loadPipeline([makeNode({ id: 'a' }), makeNode({ id: 'b' })], [edge]);
+    store.setSelectedNode('a');
+    store.loadPipeline([makeNode({ id: 'c' })], []);
     const state = usePipelineStore.getState();
-    expect(state.nodes).toHaveLength(1);
+    expect(state.nodes.map((n) => n.id)).toEqual(['c']);
     expect(state.edges).toHaveLength(0);
+    expect(state.selectedNodeId).toBeNull();
   });
 
-  it('creates an edge on connect', () => {
+  it('moves a node where it is dragged', () => {
     const store = usePipelineStore.getState();
-    store.addNode(makeNode({ id: 'source-node' }));
-    store.addNode(makeNode({ id: 'target-node' }));
-
-    store.onConnect({
-      source: 'source-node',
-      target: 'target-node',
-      sourceHandle: 'orders',
-      targetHandle: 'item',
-    });
-
-    const state = usePipelineStore.getState();
-    expect(state.edges).toHaveLength(1);
-    expect(state.edges[0]!.source).toBe('source-node');
-    expect(state.edges[0]!.target).toBe('target-node');
+    store.loadPipeline([makeNode({ id: 'a' })], []);
+    store.onNodesChange([{ type: 'position', id: 'a', position: { x: 5, y: 7 } }]);
+    expect(usePipelineStore.getState().nodes[0]!.position).toEqual({ x: 5, y: 7 });
   });
 
-  it('sets diagnostics', () => {
-    usePipelineStore.getState().setDiagnostics([
-      {
-        code: 'SEMANTIC_TYPE_MISMATCH',
-        severity: 'error',
-        message: 'Type mismatch on edge',
-      },
-    ]);
-
-    const state = usePipelineStore.getState();
-    expect(state.diagnostics).toHaveLength(1);
-    expect(state.diagnostics[0]!.severity).toBe('error');
+  it('has no way to add, remove or connect nodes', () => {
+    const store = usePipelineStore.getState() as unknown as Record<string, unknown>;
+    expect(store['addNode']).toBeUndefined();
+    expect(store['removeNode']).toBeUndefined();
+    expect(store['onConnect']).toBeUndefined();
   });
 
-  it('tracks selected node', () => {
-    usePipelineStore.getState().addNode(makeNode());
+  it('tracks the selected node', () => {
+    usePipelineStore.getState().loadPipeline([makeNode()], []);
     usePipelineStore.getState().setSelectedNode('test-node-1');
     expect(usePipelineStore.getState().selectedNodeId).toBe('test-node-1');
 
@@ -101,113 +70,27 @@ describe('PipelineStore', () => {
     expect(usePipelineStore.getState().selectedNodeId).toBeNull();
   });
 
-  it('updates pipeline metadata', () => {
-    usePipelineStore.getState().setPipelineMeta({
-      id: 'trade-opportunity',
-      name: 'Trade Opportunity',
-      version: 2,
-    });
-
-    const state = usePipelineStore.getState();
-    expect(state.pipelineId).toBe('trade-opportunity');
-    expect(state.pipelineName).toBe('Trade Opportunity');
-    expect(state.pipelineVersion).toBe(2);
-    expect(state.isDirty).toBe(true);
+  it('opens and closes composites in a stack', () => {
+    const store = usePipelineStore.getState();
+    store.openComposite({ capabilityId: 'x.one', version: '1.0.0', pipelineDef: null });
+    store.openComposite({ capabilityId: 'x.two', version: '1.0.0', pipelineDef: null });
+    expect(usePipelineStore.getState().drilldownStack.map((e) => e.capabilityId)).toEqual([
+      'x.one',
+      'x.two',
+    ]);
+    store.closeComposite();
+    expect(usePipelineStore.getState().drilldownStack.map((e) => e.capabilityId)).toEqual([
+      'x.one',
+    ]);
   });
 
-  it('resets to initial state', () => {
+  it('resets to its initial state', () => {
     const store = usePipelineStore.getState();
-    store.addNode(makeNode());
-    store.setPipelineMeta({ name: 'Test' });
-
+    store.loadPipeline([makeNode()], []);
+    store.setSelectedNode('test-node-1');
     store.reset();
     const state = usePipelineStore.getState();
     expect(state.nodes).toHaveLength(0);
-    expect(state.pipelineName).toBe('Untitled Pipeline');
-    expect(state.isDirty).toBe(false);
-  });
-});
-
-describe('Connection Validation', () => {
-  beforeEach(() => {
-    usePipelineStore.getState().reset();
-  });
-
-  it('accepts compatible semantic type connections', () => {
-    const store = usePipelineStore.getState();
-    store.addNode(
-      makeNode({
-        id: 'resolver',
-        data: {
-          capabilityId: 'universe.resolveType',
-          capabilityVersion: '1.0.0',
-          label: 'Resolve Type',
-          source: 'SDE',
-          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-          outputs: [{ name: 'type', semanticType: 'eve.type.reference' }],
-        },
-      }),
-    );
-    store.addNode(
-      makeNode({
-        id: 'orders',
-        data: {
-          capabilityId: 'market.orders',
-          capabilityVersion: '1.0.0',
-          label: 'Market Orders',
-          source: 'ESI',
-          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-          outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
-        },
-      }),
-    );
-
-    const nodes = usePipelineStore.getState().nodes;
-    const sourceNode = nodes.find((n) => n.id === 'resolver')!;
-    const targetNode = nodes.find((n) => n.id === 'orders')!;
-
-    const sourcePort = sourceNode.data.outputs.find((o) => o.name === 'type');
-    const targetPort = targetNode.data.inputs.find((i) => i.name === 'item');
-
-    expect(sourcePort!.semanticType).toBe(targetPort!.semanticType);
-  });
-
-  it('rejects incompatible semantic type connections', () => {
-    const store = usePipelineStore.getState();
-    store.addNode(
-      makeNode({
-        id: 'resolver',
-        data: {
-          capabilityId: 'universe.resolveRegion',
-          capabilityVersion: '1.0.0',
-          label: 'Resolve Region',
-          source: 'SDE',
-          inputs: [{ name: 'region', semanticType: 'eve.region.reference', required: true }],
-          outputs: [{ name: 'region', semanticType: 'eve.region.reference' }],
-        },
-      }),
-    );
-    store.addNode(
-      makeNode({
-        id: 'orders',
-        data: {
-          capabilityId: 'market.orders',
-          capabilityVersion: '1.0.0',
-          label: 'Market Orders',
-          source: 'ESI',
-          inputs: [{ name: 'item', semanticType: 'eve.type.reference', required: true }],
-          outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
-        },
-      }),
-    );
-
-    const nodes = usePipelineStore.getState().nodes;
-    const sourceNode = nodes.find((n) => n.id === 'resolver')!;
-    const targetNode = nodes.find((n) => n.id === 'orders')!;
-
-    const sourcePort = sourceNode.data.outputs.find((o) => o.name === 'region');
-    const targetPort = targetNode.data.inputs.find((i) => i.name === 'item');
-
-    expect(sourcePort!.semanticType).not.toBe(targetPort!.semanticType);
+    expect(state.selectedNodeId).toBeNull();
   });
 });

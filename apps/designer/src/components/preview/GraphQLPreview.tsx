@@ -1,15 +1,11 @@
 import { useState } from 'react';
-import { usePipelineStore } from '../../stores/pipeline-store.js';
 import { useDraftStore } from '../../stores/draft-store.js';
 import { colors } from '../../tokens.js';
 
+/** The question's saved form, which it has once its holes are filled. */
 export function GraphQLPreview() {
-  // A question shows its saved form, which it has once its holes are
-  // filled; a loaded pipeline, its generated schema.
   const view = useDraftStore((s) => s.view);
-  const question = view?.graphql ?? null;
-  const generated = usePipelineStore((s) => s.graphqlSdl);
-  const sdl = view === null ? generated : question;
+  const sdl = view?.graphql ?? null;
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -31,11 +27,11 @@ export function GraphQLPreview() {
         }}
       >
         <span style={{ color: colors.text.secondary, fontSize: '11px', fontWeight: 600 }}>
-          {view !== null ? 'Question as GraphQL' : 'Generated SDL'}
+          Question as GraphQL
         </span>
         {sdl && (
           <button
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
             style={{
               padding: '2px 8px',
               fontSize: '10px',

@@ -17,65 +17,22 @@ export function PipelineCanvas() {
   const edges = usePipelineStore((s) => s.edges);
   const onNodesChange = usePipelineStore((s) => s.onNodesChange);
   const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
-  const executionSession = usePipelineStore((s) => s.executionSession);
 
-  const nodeExecutionStates = usePipelineStore((s) => s.nodeExecutionStates);
-
+  // A port read by more than one step is drawn heavier, so the fan-out shows.
   const styledEdges = useMemo(() => {
     const portCounts = new Map<string, number>();
     for (const edge of edges) {
       const key = `${edge.source}::${edge.sourceHandle ?? ''}`;
       portCounts.set(key, (portCounts.get(key) ?? 0) + 1);
     }
-
     return edges.map((edge) => {
       const key = `${edge.source}::${edge.sourceHandle ?? ''}`;
-      const isFanOut = (portCounts.get(key) ?? 0) > 1;
-
-      if (executionSession?.status === 'running') {
-        const statuses = executionSession.stepStatuses;
-        const sourceState = statuses[edge.source];
-        const targetState = statuses[edge.target];
-        const isActive =
-          sourceState === 'executing' || sourceState === 'completed' || targetState === 'executing';
-        if (isActive) {
-          return {
-            ...edge,
-            animated: true,
-            style: { stroke: colors.status.info, strokeWidth: isFanOut ? 3 : 2 },
-          };
-        }
-      }
-
-      const sourceSuccess =
-        nodeExecutionStates[edge.source]?.status === 'success' ||
-        executionSession?.stepStatuses[edge.source] === 'completed';
-      const targetSuccess =
-        nodeExecutionStates[edge.target]?.status === 'success' ||
-        executionSession?.stepStatuses[edge.target] === 'completed';
-
-      if (sourceSuccess && targetSuccess) {
-        return {
-          ...edge,
-          animated: true,
-          style: { stroke: colors.status.successLight, strokeWidth: isFanOut ? 3 : 2 },
-        };
-      }
-      if (sourceSuccess) {
-        return {
-          ...edge,
-          animated: true,
-          style: { stroke: colors.status.info, strokeWidth: isFanOut ? 2.5 : 1.5 },
-        };
-      }
-
-      if (isFanOut) {
+      if ((portCounts.get(key) ?? 0) > 1) {
         return { ...edge, style: { stroke: colors.source.DERIVED, strokeWidth: 2.5 } };
       }
-
       return edge;
     });
-  }, [edges, executionSession, nodeExecutionStates]);
+  }, [edges]);
 
   return (
     <div style={{ flex: 1, height: '100%' }}>

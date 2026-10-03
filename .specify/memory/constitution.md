@@ -326,24 +326,13 @@ Users MUST be able to:
 A saved schema MUST contain enough metadata to reproduce its
 behavior.
 
-A `.graphql` file alone is insufficient for a composed schema.
+A `.graphql` file alone is a question's saved form, enough to rebuild
+it in a fabric with the same packs installed. Shared further than that,
+a question travels as a package that carries what it was verified
+against.
 
-A schema package SHOULD support:
-
-```text
-schema-package/
-├── schema.graphql
-├── pipeline.yaml
-├── mappings.yaml
-├── policies.yaml
-├── metadata.yaml
-└── README.md
-```
-
-The exact serialization format MAY evolve, but the logical
-separation MUST remain.
-
-Package format v2 is the **weave**: a pipeline, the contract it
+The package format is the **weave** (format v2; format v1, the schema
+package, is retired): a pipeline, the contract it
 provides, the capability version ranges it requires, the scopes the
 compiler computed for it, the ESI compatibility date and SDE build it
 was verified against, and a digest over its canonical form. A weave is
@@ -567,7 +556,7 @@ where appropriate.
 
 ### XXI. Backward Compatibility
 
-Published schema packages and capabilities MUST use semantic
+Published weaves and capabilities MUST use semantic
 versioning.
 
 Breaking changes include:
@@ -701,7 +690,7 @@ CI. Statuses move forward as the overhaul phases land.
 | Id          | Requirement                                                                                                                                    | Enforced by                                             | Status   |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | -------- |
 | FAB-ARCH-01 | The core (`packages/core`) imports `zod` and nothing else.                                                                                     | `pnpm run lint:layers`                                  | Enforced |
-| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, cache, persistence, schema-package) and the kit and packs never import a source adapter.     | `pnpm run lint:layers`                                  | Enforced |
+| FAB-ARCH-02 | The engine (compiler, planner, executor, graphql, weave, codegen, cache, persistence) and the kit and packs never import a source adapter.     | `pnpm run lint:layers`                                  | Enforced |
 | FAB-ARCH-03 | Only source adapters and composition roots import `@lgriffin/esi.ts` values; the kit and packs import its types only.                          | `pnpm run lint:layers`                                  | Enforced |
 | FAB-DET-01  | Source code reads the time only through the `Clock` port.                                                                                      | `pnpm run lint:determinism` (shrink-only baseline)      | Enforced |
 | FAB-RUN-01  | The fabric runs on Node.js 22.12 or later.                                                                                                     | `engines`, CI matrix 22 and 24                          | Enforced |

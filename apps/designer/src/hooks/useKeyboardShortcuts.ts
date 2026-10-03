@@ -2,9 +2,7 @@ import { useEffect } from 'react';
 
 export interface ShortcutHandlers {
   onUndo: () => void;
-  onRedo: () => void;
   onSave: () => void;
-  onDelete: () => void;
   onSelectAll: () => void;
   onEscape: () => void;
   onToggleHelp: () => void;
@@ -29,12 +27,6 @@ export function handleKeyboardShortcut(event: KeyboardEvent, handlers: ShortcutH
     return;
   }
 
-  if (ctrl && event.shiftKey && event.key.toLowerCase() === 'z') {
-    event.preventDefault();
-    handlers.onRedo();
-    return;
-  }
-
   if (ctrl && event.key.toLowerCase() === 'z') {
     event.preventDefault();
     handlers.onUndo();
@@ -48,11 +40,6 @@ export function handleKeyboardShortcut(event: KeyboardEvent, handlers: ShortcutH
   }
 
   if (inText) return;
-
-  if (event.key === 'Delete' || event.key === 'Backspace') {
-    handlers.onDelete();
-    return;
-  }
 
   if (event.key === 'Escape') {
     handlers.onEscape();

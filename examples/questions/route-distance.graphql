@@ -1,0 +1,5 @@
+{
+  system(name: "Jita") {
+    jumpsTo(destination: "Amarr")
+  }
+}

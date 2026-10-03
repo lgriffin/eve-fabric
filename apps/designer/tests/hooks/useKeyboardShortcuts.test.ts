@@ -21,9 +21,7 @@ function makeEvent(
 function makeHandlers(): ShortcutHandlers {
   return {
     onUndo: vi.fn(),
-    onRedo: vi.fn(),
     onSave: vi.fn(),
-    onDelete: vi.fn(),
     onSelectAll: vi.fn(),
     onEscape: vi.fn(),
     onToggleHelp: vi.fn(),
@@ -37,11 +35,10 @@ describe('handleKeyboardShortcut', () => {
     expect(h.onUndo).toHaveBeenCalledOnce();
   });
 
-  it('Ctrl+Shift+Z triggers redo', () => {
+  it('Cmd+Z triggers undo too', () => {
     const h = makeHandlers();
-    handleKeyboardShortcut(makeEvent('z', { ctrlKey: true, shiftKey: true }), h);
-    expect(h.onRedo).toHaveBeenCalledOnce();
-    expect(h.onUndo).not.toHaveBeenCalled();
+    handleKeyboardShortcut(makeEvent('z', { metaKey: true }), h);
+    expect(h.onUndo).toHaveBeenCalledOnce();
   });
 
   it('Ctrl+S triggers save', () => {
@@ -52,16 +49,11 @@ describe('handleKeyboardShortcut', () => {
     expect(event.preventDefault).toHaveBeenCalled();
   });
 
-  it('Delete triggers delete', () => {
+  it('Delete and Backspace do nothing: the canvas is not edited by hand', () => {
     const h = makeHandlers();
     handleKeyboardShortcut(makeEvent('Delete'), h);
-    expect(h.onDelete).toHaveBeenCalledOnce();
-  });
-
-  it('Backspace triggers delete', () => {
-    const h = makeHandlers();
     handleKeyboardShortcut(makeEvent('Backspace'), h);
-    expect(h.onDelete).toHaveBeenCalledOnce();
+    for (const handler of Object.values(h)) expect(handler).not.toHaveBeenCalled();
   });
 
   it('Escape triggers escape', () => {
@@ -85,15 +77,17 @@ describe('handleKeyboardShortcut', () => {
   it('ignores non-modifier shortcuts when target is an input', () => {
     const h = makeHandlers();
     const inputEl = { tagName: 'INPUT', isContentEditable: false };
-    handleKeyboardShortcut(makeEvent('Delete', { target: inputEl }), h);
-    expect(h.onDelete).not.toHaveBeenCalled();
+    handleKeyboardShortcut(makeEvent('Escape', { target: inputEl }), h);
+    handleKeyboardShortcut(makeEvent('a', { ctrlKey: true, target: inputEl }), h);
+    expect(h.onEscape).not.toHaveBeenCalled();
+    expect(h.onSelectAll).not.toHaveBeenCalled();
   });
 
   it('ignores non-modifier shortcuts when target is a textarea', () => {
     const h = makeHandlers();
     const textarea = { tagName: 'TEXTAREA', isContentEditable: false };
-    handleKeyboardShortcut(makeEvent('Backspace', { target: textarea }), h);
-    expect(h.onDelete).not.toHaveBeenCalled();
+    handleKeyboardShortcut(makeEvent('?', { target: textarea }), h);
+    expect(h.onToggleHelp).not.toHaveBeenCalled();
   });
 
   it('allows Ctrl+S even in input elements', () => {

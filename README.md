@@ -1,6 +1,6 @@
 # EVE Fabric
 
-A TypeScript-first gateway for composing EVE Online data capabilities into reusable GraphQL schemas. Define what data you need, wire it together as a pipeline, and let the gateway handle compilation, optimization, and execution.
+A TypeScript-first fabric for asking questions of EVE Online data. Start from a subject, follow the moves the fabric offers, fill the holes it names, and the question compiles, plans and runs; its saved form is GraphQL, and it can be shared as a weave another fabric adds.
 
 ## Quickstart
 
@@ -37,92 +37,78 @@ pnpm fabric weave list --db fabric.db --offline
 
 ## What It Does
 
-EVE Fabric treats every EVE Online data operation as a **capability** — a typed, versioned unit with semantic inputs and outputs. You compose capabilities into **pipelines** (directed acyclic graphs), and the gateway compiles them into optimized execution plans that respect dependencies, parallelize where possible, and track data provenance.
+EVE Fabric treats every EVE Online data operation as a **capability** — a typed, versioned unit with semantic inputs and outputs. A **question** is built as a draft: a subject, then the moves the fabric offers on it, then the holes those moves open. Each move is a capability, and a move is offered only when the pipeline it produces compiles. A complete question has a saved form, GraphQL against the schema the fabric derives from what is installed:
 
-```yaml
-# Define a Trade Opportunity pipeline
-id: trade.opportunity
-version: 1
-name: Trade Opportunity
-
-inputs:
-  - name: sourceRegion
-    semanticType: eve.region.reference
-  - name: typeId
-    semanticType: eve.type.reference
-
-nodes:
-  - id: sellOrders
-    capability: { id: market.orders, version: 1 }
-  - id: aggregate
-    capability: { id: market.aggregate, version: 1 }
-
-edges:
-  - from: input.sourceRegion
-    to: sellOrders.regionId
-  - from: sellOrders.orders
-    to: aggregate.orders
-
-outputs:
-  - name: lowestSell
-    source: aggregate.lowestSell
+```graphql
+{
+  type(name: "Tritanium") {
+    orders(region: "The Forge") {
+      prices {
+        lowestSell
+      }
+    }
+  }
+}
 ```
 
-The compiler validates semantic wiring (you can't connect a `RegionReference` to a `TypeReference`), detects cycles, suggests intermediate capabilities when types don't match, and produces a fully optimized execution plan — all before a single API call is made.
+Under the question is a pipeline (a directed acyclic graph of capabilities), and the compiler is the oracle: it validates semantic wiring (a `RegionReference` cannot be wired into a `TypeReference`), detects cycles, and produces an execution plan that respects dependencies, runs steps in parallel where it can, and tracks provenance — all before a single API call is made. A pipeline is never written by hand; a pack publishes one as a composite capability, and a question's pipeline is read off its moves.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    apps/designer                        │
-│              React Flow Visual Designer                 │
-├─────────────────────────────────────────────────────────┤
-│                    apps/gateway                         │
-│                Fastify + GraphQL Yoga                   │
+┌──────────────────┬──────────────────┬───────────────────┐
+│     apps/cli     │  apps/designer   │   apps/gateway    │
+│   pnpm fabric    │ moves and holes, │ drafts, weaves,   │
+│                  │ scaffold drawn   │ derived GraphQL   │
+├──────────────────┴──────────────────┴───────────────────┤
+│              fabric (createFabric), the one             │
+│  composition root: draft · fromGraphQL · compile · run  │
+│                 · weave · add · restore                 │
 ├──────────┬──────────┬───────────┬──────────┬────────────┤
-│ graphql  │ executor │  planner  │ compiler │schema-pack │
-│          │          │           │          │            │
-│ Type     │ Parallel │ Dep order │ 12-step  │ Export/    │
-│ builder  │ executor │ Parallel  │ semantic │ Import     │
-│ Scalars  │ Proven-  │ groups    │ compiler │ Secret     │
-│ Pruning  │ ance     │ Coalesce  │ DAG      │ scanner    │
+│ compiler │ planner  │ executor  │ graphql  │   weave    │
+│ 12-step  │ Dep order│ Parallel  │ Type     │ format v2  │
+│ semantic │ Parallel │ executor  │ builder  │ digest     │
+│ compiler │ groups   │ Proven-   │ Scalars  │ git index  │
+│ DAG      │ Coalesce │ ance      │ Pruning  │ secrets    │
 ├──────────┴──────────┴───────────┴──────────┴────────────┤
-│        fabric (createFabric)  ·  kit  ·  pack-core      │
-│   composition root · defineCapability · capabilities    │
+│  kit (defineCapability, definePack)  ·  pack-core       │
 ├──────────┬──────────┬───────────┬──────────┬────────────┤
-│  domain  │source-esi│source-sde │  cache   │persistence │
-│          │          │           │          │            │
-│ Branded  │ ESI.ts   │ Static    │ In-mem   │ Drizzle    │
-│ types    │ views    │ data      │ TTL      │ ORM        │
-│ Zod      │          │           │          │            │
+│   core   │source-esi│source-sde │  cache   │persistence │
+│ Branded  │ ESI.ts   │ Static    │ In-mem   │ the Store  │
+│ types    │ views    │ data      │ TTL      │ (SQLite)   │
+│ Zod only │          │           │          │            │
 └──────────┴──────────┴───────────┴──────────┴────────────┘
 ```
 
+Every surface talks to the fabric, and only the fabric talks to the sources:
+the engine row never imports a source, and `core` imports nothing but zod
+(`pnpm run lint:layers` enforces both).
+
 ### Package Overview
 
-| Package                      | Purpose                                                                                                                      |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `@eve-fabric/core`           | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
-| `@eve-fabric/compiler`       | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
-| `@eve-fabric/planner`        | Dependency ordering, parallel group detection, request coalescing                                                            |
-| `@eve-fabric/executor`       | Concurrent execution engine with provenance tracking                                                                         |
-| `@eve-fabric/graphql`        | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
-| `@eve-fabric/kit`            | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
-| `@eve-fabric/pack-core`      | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
-| `@eve-fabric/fabric`         | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
-| `@eve-fabric/source-esi`     | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
-| `@eve-fabric/source-sde`     | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
-| `@eve-fabric/cache`          | In-memory cache with TTL and stale-while-revalidate                                                                          |
-| `@eve-fabric/weave`          | Package format v2: a weave as data, its digest, version ranges, and a git index to find weaves in                            |
-| `@eve-fabric/schema-package` | Schema export/import (format v1) with secret scanning                                                                        |
-| `@eve-fabric/persistence`    | Drizzle ORM schema, repositories, and the `Store` port over SQLite (`node:sqlite`)                                           |
-| `@eve-fabric/test-support`   | BDD world class and shared test helpers                                                                                      |
+| Package                    | Purpose                                                                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `@eve-fabric/core`         | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
+| `@eve-fabric/compiler`     | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
+| `@eve-fabric/planner`      | Dependency ordering, parallel group detection, request coalescing                                                            |
+| `@eve-fabric/executor`     | Concurrent execution engine with provenance tracking                                                                         |
+| `@eve-fabric/graphql`      | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
+| `@eve-fabric/kit`          | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
+| `@eve-fabric/pack-core`    | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
+| `@eve-fabric/fabric`       | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
+| `@eve-fabric/source-esi`   | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
+| `@eve-fabric/source-sde`   | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
+| `@eve-fabric/cache`        | In-memory cache with TTL and stale-while-revalidate                                                                          |
+| `@eve-fabric/weave`        | Package format v2: a weave as data, its digest, version ranges, secret scanning, and a git index to find weaves in           |
+| `@eve-fabric/persistence`  | The `Store` port over SQLite (`node:sqlite`), through Drizzle                                                                |
+| `@eve-fabric/test-support` | BDD world class and shared test helpers                                                                                      |
 
 ### Apps
 
 | App             | Purpose                                                                                            |
 | --------------- | -------------------------------------------------------------------------------------------------- |
-| `apps/gateway`  | Fastify server with GraphQL Yoga, serves compiled pipeline schemas                                 |
+| `apps/cli`      | `pnpm fabric`: ask saved questions, explore moves, move weaves in and out of a fabric              |
+| `apps/gateway`  | Fastify server: drafts and weaves over HTTP, the derived schema at `/graphql`                      |
 | `apps/designer` | React + React Flow question builder: offered moves and named holes, the scaffold drawn on a canvas |
 
 ## Key Concepts
@@ -444,8 +430,9 @@ To run the designer against a gateway of your own, use
 Start from a subject, apply the moves it offers, and fill the holes it names.
 Once a question is complete you can **Save as GraphQL**, or **Share as weave**
 to download a `.weave.yaml` another fabric can add. **Open…** (or dropping a
-file anywhere) opens a saved `.graphql` question, adds a `.weave.yaml` to the
-gateway's fabric so it is offered as a move, or imports pipeline YAML.
+file anywhere) opens a saved `.graphql` question, or adds a `.weave.yaml` to
+the gateway's fabric so it is offered as a move. The canvas draws the question's
+steps; it is not edited by hand.
 
 To ask about your own character, paste an EVE SSO token. Before trusting the
 character and scopes a token names, the gateway checks its signature against
@@ -454,13 +441,13 @@ that fails any check gets a 401.
 
 ## Examples
 
-| Example                                                               | Run                 | What it shows                                                    |
-| --------------------------------------------------------------------- | ------------------- | ---------------------------------------------------------------- |
-| [`quickstart`](examples/quickstart/README.md)                         | `pnpm quickstart`   | Your own capability, a question, its GraphQL form and a weave    |
-| [`e2e-demo`](examples/e2e-demo/README.md)                             | `pnpm demo`         | The same flow over the gateway's HTTP API, with curl equivalents |
-| [`incursions-pack`](examples/incursions-pack)                         | (question bank Q5)  | A third-party pack with its own types                            |
-| [`esi-live.ts`](examples/esi-live.ts)                                 | `pnpm run demo:esi` | A pipeline against live ESI (the nightly smoke test)             |
-| `market-lookup`, `market-schema`, `route-schema`, `trade-opportunity` | (pipeline YAML)     | Pipelines written by hand against the core pack                  |
+| Example                                       | Run                 | What it shows                                                    |
+| --------------------------------------------- | ------------------- | ---------------------------------------------------------------- |
+| [`quickstart`](examples/quickstart/README.md) | `pnpm quickstart`   | Your own capability, a question, its GraphQL form and a weave    |
+| [`e2e-demo`](examples/e2e-demo/README.md)     | `pnpm demo`         | The same flow over the gateway's HTTP API, with curl equivalents |
+| [`incursions-pack`](examples/incursions-pack) | (question bank Q5)  | A third-party pack with its own types                            |
+| [`esi-live.ts`](examples/esi-live.ts)         | `pnpm run demo:esi` | A pipeline against live ESI (the nightly smoke test)             |
+| [`questions`](examples/questions/README.md)   | `pnpm fabric ask`   | Saved questions against the core pack, one `.graphql` file each  |
 
 The quickstart and the demo run offline by default; both take `--live`.
 
@@ -481,12 +468,12 @@ The quickstart and the demo run offline by default; both take `--live`.
 
 This project follows a [constitution](.specify/memory/constitution.md) with 26 principles covering:
 
-- **Clean Architecture** — domain has zero infrastructure dependencies
+- **Clean Architecture** — core has zero infrastructure dependencies
 - **Branded types** — semantic safety at the type level
 - **TDD + BDD** — tests before implementation, behavior specifications
 - **Gateway boundary** — never reimplement what ESI.ts already provides
 - **Provenance** — every data point traceable to its source
-- **No secrets in packages** — exported schema packages are scanned
+- **No secrets in packages** — exported weaves are scanned
 
 ## Tech Stack
 

@@ -1,107 +1,101 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
 import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay.js';
 import { ReactFlowProvider } from '@xyflow/react';
 import { DraftPanel } from './components/draft/DraftPanel.js';
 import { PipelineCanvas } from './components/canvas/PipelineCanvas.js';
-import { DiagnosticsPanel } from './components/preview/DiagnosticsPanel.js';
 import { GraphQLPreview } from './components/preview/GraphQLPreview.js';
 import { ExecutionPlanPreview } from './components/preview/ExecutionPlanPreview.js';
-import { ResultsPanel } from './components/preview/ResultsPanel.js';
 import { Toolbar } from './components/shared/Toolbar.js';
 import { ToastContainer } from './components/shared/ToastContainer.js';
-import { ExecutionInputDialog } from './components/shared/ExecutionInputDialog.js';
 import { NodeDetailPanel } from './components/detail/NodeDetailPanel.js';
-import { PublishDialog } from './components/publish/PublishDialog.js';
 import { BreadcrumbNav } from './components/drilldown/BreadcrumbNav.js';
 import { CompositeOverlay } from './components/drilldown/CompositeOverlay.js';
 import { usePipelineStore } from './stores/pipeline-store.js';
 import { useDraftStore } from './stores/draft-store.js';
+import { useToastStore } from './stores/toast-store.js';
 import { colors, fontFamily, fontSize } from './tokens.js';
 import { useLoadCatalog } from './hooks/useGatewayApi.js';
-import { useYamlImportExport } from './hooks/useYamlImportExport.js';
-import { usePipelineActions } from './hooks/usePipelineActions.js';
+import { useOpenFile } from './hooks/useOpenFile.js';
+import { applyAutoLayout } from './services/layout-engine.js';
+import { download } from './services/download.js';
+import type { DraftSubject } from '@eve-fabric/fabric';
 
+type Tab = 'graphql' | 'plan';
+
+const TABS: Array<{ key: Tab; label: string }> = [
+  { key: 'graphql', label: 'GraphQL' },
+  { key: 'plan', label: 'Plan' },
+];
+
+function titleOf(subject: DraftSubject | null): string {
+  if (subject === null) return 'No question yet';
+  return 'start' in subject ? subject.start : `${subject.kind} ${String(subject.value)}`;
+}
+
+/**
+ * The designer: a question built from the moves and holes the fabric
+ * offers, and a canvas that shows the scaffold the question becomes.
+ */
 export function App() {
-  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>('graphql');
 
-  const pipelineName = usePipelineStore((s) => s.pipelineName);
-  const pipelineId = usePipelineStore((s) => s.pipelineId);
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
-  const executionSession = usePipelineStore((s) => s.executionSession);
   const drilldownStack = usePipelineStore((s) => s.drilldownStack);
   const openComposite = usePipelineStore((s) => s.openComposite);
   const closeComposite = usePipelineStore((s) => s.closeComposite);
-  const removeNode = usePipelineStore((s) => s.removeNode);
   const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
-  const undoCanvas = usePipelineStore((s) => s.undo);
-  const redoCanvas = usePipelineStore((s) => s.redo);
-  const drafting = useDraftStore((s) => s.subject !== null);
+  const subject = useDraftStore((s) => s.subject);
   const undoChange = useDraftStore((s) => s.undo);
-  // While a question is open the canvas only shows it, so undo takes back
-  // the question's last change and there is no canvas history to redo.
-  const undo = useMemo(
-    () => (drafting ? () => void undoChange() : undoCanvas),
-    [drafting, undoChange, undoCanvas],
-  );
-  const redo = useMemo(() => (drafting ? () => {} : redoCanvas), [drafting, redoCanvas]);
+  const addToast = useToastStore((s) => s.addToast);
+  const title = titleOf(subject);
 
   useLoadCatalog();
-  const { handleSave, handleExport, handleImport, handleDrop } = useYamlImportExport();
-  const {
-    validationErrors,
-    activeTab,
-    setActiveTab,
-    inputDialogOpen,
-    setInputDialogOpen,
-    pendingInputs,
-    handleValidate,
-    handleExecute,
-    handleInputSubmit,
-    handleRelayout,
-    handleNavigate,
-  } = usePipelineActions();
+  const { handleOpen, handleDrop } = useOpenFile();
+
+  // A question's saved form is its GraphQL, which it has once its holes are filled.
+  const handleSave = useCallback(() => {
+    const { subject: open, view } = useDraftStore.getState();
+    if (open === null) return;
+    if (view?.graphql === undefined) {
+      addToast('error', 'Not saved', 'Fill the question’s holes first');
+      return;
+    }
+    download(view.graphql, 'application/graphql', 'question.graphql');
+    addToast('success', 'Saved', 'The question, as GraphQL');
+  }, [addToast]);
+
+  const handleRelayout = useCallback(() => {
+    const { nodes, edges, loadPipeline } = usePipelineStore.getState();
+    loadPipeline(applyAutoLayout(nodes, edges), edges);
+  }, []);
+
+  const handleNavigate = useCallback(
+    (depth: number) => {
+      const target = depth < 0 ? 0 : depth + 1;
+      while (usePipelineStore.getState().drilldownStack.length > target) closeComposite();
+    },
+    [closeComposite],
+  );
 
   useKeyboardShortcuts(
     useMemo(
       () => ({
-        onUndo: undo,
-        onRedo: redo,
-        onSave: () => void handleSave(),
-        onDelete: () => {
-          if (selectedNodeId) removeNode(selectedNodeId);
-        },
+        onUndo: () => void undoChange(),
+        onSave: handleSave,
         onSelectAll: () => {
           /* handled by React Flow */
         },
         onEscape: () => {
           setSelectedNode(null);
           setShowShortcuts(false);
-          setPublishDialogOpen(false);
-          setInputDialogOpen(false);
         },
         onToggleHelp: () => setShowShortcuts((v) => !v),
       }),
-      [undo, redo, handleSave, selectedNodeId, removeNode, setSelectedNode, setInputDialogOpen],
+      [undoChange, handleSave, setSelectedNode],
     ),
   );
-
-  const executionStatusColor = useMemo(() => {
-    if (!executionSession) return undefined;
-    const statusColors: Record<string, string> = {
-      running: colors.status.info,
-      completed: colors.status.successLight,
-    };
-    return statusColors[executionSession.status] ?? colors.status.error;
-  }, [executionSession]);
-
-  const tabs: Array<{ key: typeof activeTab; label: string }> = [
-    { key: 'diagnostics', label: 'Diagnostics' },
-    { key: 'graphql', label: 'GraphQL' },
-    { key: 'execution', label: 'Execution Plan' },
-    { key: 'results', label: 'Results' },
-  ];
 
   return (
     <ReactFlowProvider>
@@ -121,23 +115,10 @@ export function App() {
           overflow: 'hidden',
         }}
       >
-        <Toolbar
-          onValidate={handleValidate}
-          onExecute={handleExecute}
-          onSave={handleSave}
-          onExport={handleExport}
-          onImport={handleImport}
-          onPublish={() => setPublishDialogOpen(true)}
-          onRelayout={handleRelayout}
-          validationErrors={validationErrors}
-        />
+        <Toolbar title={title} onOpen={handleOpen} onRelayout={handleRelayout} />
 
         {drilldownStack.length > 0 && (
-          <BreadcrumbNav
-            pipelineName={pipelineName}
-            stack={drilldownStack}
-            onNavigate={handleNavigate}
-          />
+          <BreadcrumbNav pipelineName={title} stack={drilldownStack} onNavigate={handleNavigate} />
         )}
 
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -164,7 +145,7 @@ export function App() {
                   borderBottom: `1px solid ${colors.surface.border}`,
                 }}
               >
-                {tabs.map((tab) => (
+                {TABS.map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setActiveTab(tab.key)}
@@ -183,34 +164,19 @@ export function App() {
                     }}
                   >
                     {tab.label}
-                    {tab.key === 'results' && executionSession && (
-                      <span
-                        style={{
-                          marginLeft: 4,
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          display: 'inline-block',
-                          background: executionStatusColor,
-                        }}
-                      />
-                    )}
                   </button>
                 ))}
               </div>
 
               <div style={{ flex: 1, overflow: 'hidden' }}>
-                {activeTab === 'diagnostics' && <DiagnosticsPanel />}
                 {activeTab === 'graphql' && <GraphQLPreview />}
-                {activeTab === 'execution' && <ExecutionPlanPreview />}
-                {activeTab === 'results' && <ResultsPanel />}
+                {activeTab === 'plan' && <ExecutionPlanPreview />}
               </div>
             </div>
           </div>
 
           {selectedNodeId && <NodeDetailPanel />}
         </div>
-        <PublishDialog open={publishDialogOpen} onClose={() => setPublishDialogOpen(false)} />
 
         {drilldownStack.length > 0 && (
           <CompositeOverlay
@@ -220,13 +186,6 @@ export function App() {
           />
         )}
       </div>
-      <ExecutionInputDialog
-        open={inputDialogOpen}
-        inputs={pendingInputs}
-        pipelineId={pipelineId || 'untitled'}
-        onSubmit={handleInputSubmit}
-        onCancel={() => setInputDialogOpen(false)}
-      />
       {showShortcuts && <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />}
       <ToastContainer />
     </ReactFlowProvider>
