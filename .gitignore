@@ -20,3 +20,6 @@ examples/quickstart/out/
 # Playwright
 apps/designer/test-results/
 apps/designer/playwright-report/
+
+# Written by the codegen end-to-end test
+packages/codegen/tests/generated/

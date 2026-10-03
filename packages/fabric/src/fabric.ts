@@ -650,8 +650,16 @@ export class Fabric implements DraftHost {
         source: `${node}.${port}`,
       })),
     };
+    // A composite expands to the steps that run, so its ports are read where
+    // the expanded pipeline says they are, not from a node named `one`.
+    const { pipeline: expanded } = this.expand(pipeline);
     const result = await this.run(pipeline, inputs, as);
-    return result.outputs.get(node) ?? {};
+    const outputs: Record<string, unknown> = {};
+    for (const output of expanded.outputs) {
+      const value = readAt(result, output.source);
+      if (value !== undefined) outputs[output.name] = value;
+    }
+    return outputs;
   }
 
   private expandComposites(pipeline: PipelineDefinition): {

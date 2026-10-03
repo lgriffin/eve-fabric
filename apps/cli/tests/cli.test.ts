@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -209,6 +209,59 @@ describe('eve-fabric weave', () => {
       expect(code).toBe(2);
       expect(err).toContain('unexpected: ');
     }
+  });
+});
+
+describe('eve-fabric codegen', () => {
+  async function exportJumps(): Promise<string> {
+    const weave = join(dir, 'jumps.weave.yaml');
+    const graphql = '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }';
+    const args = ['--id', 'my.route.jumps', '--version', '1.0.0', '--as', 'jumps', '--out', weave];
+    expect((await cli('weave', 'export', graphql, ...args, '--offline')).code).toBe(0);
+    return weave;
+  }
+
+  it('writes a runnable package from a weave, in a directory named after it', async () => {
+    const weave = await exportJumps();
+    const result = await cliIn(dir, 'codegen', weave, '--offline');
+    const out = join(dir, 'my-route-jumps');
+    expect(result.code).toBe(0);
+    expect(result.out.split('\n')).toEqual([
+      `wrote ${join(out, 'my.route.jumps.weave.yaml')}`,
+      `wrote ${join(out, 'index.ts')}`,
+      `wrote ${join(out, 'package.json')}`,
+      `my.route.jumps@1.0.0 as a package in ${out}: install its dependencies and import index.ts`,
+    ]);
+    expect(readFileSync(join(out, 'index.ts'), 'utf8')).toContain('export async function jumps(');
+    expect(JSON.parse(readFileSync(join(out, 'package.json'), 'utf8'))).toMatchObject({
+      name: 'my-route-jumps',
+      dependencies: { '@eve-fabric/fabric': '^0.1.0' },
+    });
+  });
+
+  it('takes --out and --name', async () => {
+    const weave = await exportJumps();
+    const out = join(dir, 'elsewhere');
+    const result = await cli('codegen', weave, '--out', out, '--name', '@me/jumps', '--offline');
+    expect(result.code).toBe(0);
+    expect(JSON.parse(readFileSync(join(out, 'package.json'), 'utf8'))).toMatchObject({
+      name: '@me/jumps',
+    });
+  });
+
+  it('refuses a weave whose capabilities are not installed, writing nothing', async () => {
+    const weave = join(dir, 'cost.weave.yaml');
+    const args = ['--id', 'my.cost', '--version', '1.0.0', '--out', weave, '--offline'];
+    await cli('weave', 'export', COST, ...args, '--pack', PACK);
+    const { code, err } = await cliIn(dir, 'codegen', weave, '--offline');
+    expect(code).toBe(1);
+    expect(err).toContain('requires quickstart.cost.to.buy ^1.0.0; this fabric has none');
+    expect(existsSync(join(dir, 'my-cost'))).toBe(false);
+  });
+
+  it('needs one weave file', async () => {
+    expect((await cli('codegen', '--offline')).code).toBe(2);
+    expect((await cli('codegen', 'a.yaml', 'b.yaml', '--offline')).code).toBe(2);
   });
 });
 

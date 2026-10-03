@@ -19,6 +19,10 @@
       "entry": ["tests/bdd/**/*.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/codegen": {
+      "project": ["src/**/*.ts"],
+      "ignoreDependencies": ["@lgriffin/esi.ts"]
+    },
     "packages/persistence": {
       "project": ["src/**/*.ts"],
       "ignoreDependencies": ["drizzle-kit"]

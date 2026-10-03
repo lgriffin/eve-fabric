@@ -1,194 +1,137 @@
-import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/core';
-import { semanticTypeToTs } from './type-mapper.js';
+import type { SemanticTypeRegistry } from '@eve-fabric/core';
+import type { ResolvedWeave } from './generator.js';
+import { tsTypeOf } from './type-mapper.js';
 
-function toCamelCase(str: string): string {
-  return str.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+/** `forge prices` as an identifier: forgePrices. A name that starts with a digit is prefixed. */
+export function identifierOf(name: string): string {
+  const words = name.split(/[^A-Za-z0-9]+/).filter((w) => w.length > 0);
+  const camel = words
+    .map((w, i) => (i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1)))
+    .join('');
+  return /^[A-Za-z_$]/.test(camel) ? camel : `ask${camel}`;
 }
 
-function toPascalCase(str: string): string {
-  const camel = toCamelCase(str);
-  return camel.charAt(0).toUpperCase() + camel.slice(1);
+function pascal(identifier: string): string {
+  return identifier.charAt(0).toUpperCase() + identifier.slice(1);
 }
 
-function serializePlanToCode(plan: ExecutionPlan): string {
-  const datePlaceholder = '__CODEGEN_DATE__';
-
-  const serializable = {
-    id: plan.id,
-    pipelineRef: plan.pipelineRef,
-    steps: plan.steps.map((s) => ({
-      id: s.id,
-      capability: {
-        id: s.capability.id,
-        ...(s.capability.version !== undefined ? { version: s.capability.version } : {}),
-      },
-      inputs: s.inputs.map((i) => ({ ...i })),
-      dependsOn: [...s.dependsOn],
-      ...(s.cacheKey !== undefined ? { cacheKey: s.cacheKey } : {}),
-      canParallelize: s.canParallelize,
-    })),
-    parallelGroups: plan.parallelGroups.map((g) => ({
-      steps: [...g.steps],
-      canParallelize: g.canParallelize,
-    })),
-    sourceRequirements: plan.sourceRequirements.map((r) => ({
-      source: r.source,
-      capabilities: r.capabilities.map((c) => ({
-        id: c.id,
-        ...(c.version !== undefined ? { version: c.version } : {}),
-      })),
-    })),
-    authRequirements: {
-      required: plan.authRequirements.required,
-      scopes: [...plan.authRequirements.scopes],
-    },
-    cacheStrategy: plan.cacheStrategy.map((c) => ({ ...c })),
-    costEstimate: { ...plan.costEstimate },
-    createdAt: datePlaceholder,
-  };
-
-  let json = JSON.stringify(serializable, null, 2);
-  json = json.replace(
-    `"${datePlaceholder}"`,
-    `new Date(${JSON.stringify(plan.createdAt.toISOString())})`,
-  );
-
-  return json;
-}
-
-function emitInputInterface(name: string, pipeline: PipelineDefinition): string {
-  const lines = [`export interface ${name} {`];
-  for (const input of pipeline.inputs) {
-    const tsType = semanticTypeToTs(input.semanticType);
-    const optional = input.required ? '' : '?';
-    lines.push(`  /** ${input.semanticType as string} */`);
-    lines.push(`  ${input.name}${optional}: ${tsType};`);
+/** `type Name = { port: type; … }`, each port with its semantic type as a comment. */
+function emitShape(
+  name: string,
+  ports: Readonly<Record<string, string>>,
+  types: SemanticTypeRegistry,
+): string {
+  const lines = [`export type ${name} = {`];
+  for (const [port, type] of Object.entries(ports)) {
+    lines.push(`  /** ${type} */`, `  ${port}: ${tsTypeOf(type, types)};`);
   }
-  lines.push('}');
+  lines.push('};');
   return lines.join('\n');
 }
 
 /**
- * The generated module runs its compiled plan on a fabric with the core pack
- * and any packs the caller passes. It carries no capability code: a pack
- * supplies each pinned capability, and a fabric missing one is refused when
- * it is built.
+ * The generated module: the weave as exported, the shape of what it takes and
+ * gives, and one function. The function builds a fabric over the core pack
+ * and the packs the caller passes, adds the weave to it (digest, requirements
+ * and scopes checked as `weave add` checks them), and runs the question with
+ * the inputs given by port. The fabric is built once per options object.
  */
-export function emitIndexTs(
-  pipeline: PipelineDefinition,
-  plan: ExecutionPlan,
-  capabilities: readonly CapabilityDefinition[],
-  _graphqlSdl?: string,
-): string {
-  const funcName = toCamelCase(pipeline.id);
-  const pascalName = toPascalCase(pipeline.id);
-  const inputTypeName = `${pascalName}Input`;
+export function emitIndexTs(weave: ResolvedWeave, types: SemanticTypeRegistry): string {
+  const { file } = weave;
+  const fn = identifierOf(file.name);
+  const Input = `${pascal(fn)}Input`;
+  const Output = `${pascal(fn)}Output`;
+  const usesEsi = weave.sources.has('ESI');
+  const usesSde = weave.sources.has('SDE');
+  const scoped = file.scopes.length > 0;
 
-  const sources = new Set(plan.sourceRequirements.map((r) => r.source));
-  const usesEsi = sources.has('ESI');
-  const usesSde = sources.has('SDE');
+  const header = [
+    '/**',
+    ` * ${file.name}: ${file.description}`,
+    ' *',
+    ` * Generated by @eve-fabric/codegen from the weave ${file.id}@${file.version}. The`,
+    ' * weave is embedded below and added to a fabric when first asked; this module',
+    ' * carries no capability code. It requires:',
+    ...Object.entries(file.requires).map(([id, range]) => ` *   ${id} ${range}`),
+  ];
+  if (scoped)
+    header.push(
+      ' *',
+      ` * Its steps need the scopes ${file.scopes.join(', ')}: pass the character as \`as\`.`,
+    );
+  header.push(' */', '');
 
-  const lines: string[] = [];
+  const imports = [
+    `import { createFabric, type Fabric, type FabricOptions${scoped ? ', type FabricIdentity' : ''} } from '@eve-fabric/fabric';`,
+    `import { corePack } from '@eve-fabric/pack-core';`,
+  ];
+  if (usesEsi) imports.push(`import { createEsi } from '@lgriffin/esi.ts/client';`);
+  if (usesSde) imports.push(`import { lazySdeDirectory } from '@eve-fabric/source-sde';`);
 
-  lines.push(`/**`);
-  lines.push(` * ${pipeline.name}`);
-  if (pipeline.description) {
-    lines.push(` *`);
-    lines.push(` * ${pipeline.description}`);
-  }
-  lines.push(` *`);
-  lines.push(` * Capabilities (from @eve-fabric/pack-core, or a pack passed in options.packs):`);
-  for (const cap of capabilities) {
-    lines.push(` *   ${cap.id as string}@${cap.version as string}`);
-  }
-  lines.push(` *`);
-  lines.push(` * Generated by eve-fabric codegen from pipeline.yaml`);
-  lines.push(` * To modify: load pipeline.yaml into the eve-fabric designer`);
-  lines.push(` */`);
-  lines.push('');
-
-  // Imports
-  lines.push(`import { createFabric, type Fabric, type FabricOptions } from '@eve-fabric/fabric';`);
-  lines.push(`import { corePack } from '@eve-fabric/pack-core';`);
-  lines.push(`import type { ExecutionResult } from '@eve-fabric/executor';`);
-  lines.push(
-    `import { capabilityId, capabilityVersion, type ExecutionPlan } from '@eve-fabric/core';`,
-  );
-  if (usesEsi) lines.push(`import { createEsi } from '@lgriffin/esi.ts/client';`);
-  if (usesSde) lines.push(`import { lazySdeDirectory } from '@eve-fabric/source-sde';`);
-  lines.push('');
-
-  // Plan
-  lines.push('// Compiled execution plan');
-  lines.push(`const plan = ${serializePlanToCode(plan)} as unknown as ExecutionPlan;`);
-  lines.push('');
-
-  // Input interface
-  lines.push(emitInputInterface(inputTypeName, pipeline));
-  lines.push('');
-
-  // The fabric, built once per options object and reused, so the SDE loads
-  // once and the caches last across calls.
-  const pinned = capabilities.map((cap) => [cap.id as string, cap.version as string]);
-  lines.push(
-    '// Every capability the plan runs. A fabric without one of them is refused',
-    '// when it is built, not halfway through a run.',
-    `const PINNED: readonly (readonly [string, string])[] = ${JSON.stringify(pinned)};`,
-    '',
-    'function buildFabric(options: FabricOptions): Fabric {',
-    '  const fabric = createFabric({',
-  );
+  const defaults: string[] = [];
   if (usesEsi) {
-    lines.push(
-      '    // Who is calling ESI, as CCP asks every application to say.',
-      '    esi: createEsi({',
-      "      userAgent: process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)',",
-      '    }),',
+    defaults.push(
+      '  // Who is calling ESI, as CCP asks every application to say.',
+      '  if (options.esi === undefined) {',
+      "    defaults.esi = createEsi({ userAgent: process.env['ESI_USER_AGENT'] ?? 'eve-fabric/0.1 (+https://github.com/lgriffin/eve-fabric)' });",
+      '  }',
     );
   }
   if (usesSde) {
-    lines.push(
-      "    ...(process.env['SDE_DATA_PATH'] ? { sde: lazySdeDirectory(process.env['SDE_DATA_PATH']) } : {}),",
+    defaults.push(
+      '  // Names resolve through the SDE export at SDE_DATA_PATH, unless a source is given.',
+      "  if (options.sde === undefined && process.env['SDE_DATA_PATH'] !== undefined) {",
+      "    defaults.sde = lazySdeDirectory(process.env['SDE_DATA_PATH']);",
+      '  }',
     );
   }
-  lines.push(
-    '    ...options,',
-    '    packs: [corePack, ...(options.packs ?? [])],',
-    '  });',
-    '  const missing = PINNED.filter(',
-    '    ([id, version]) => !fabric.catalog.has(capabilityId(id), capabilityVersion(version)),',
-    '  );',
-    '  if (missing.length > 0) {',
-    "    const names = missing.map(([id, version]) => id + '@' + version).join(', ');",
-    '    throw new Error(',
-    '      `This pipeline runs ${names}, which no installed pack provides; pass the packs that define them in options.packs`,',
-    '    );',
-    '  }',
-    '  return fabric;',
-    '}',
-    '',
-    'const DEFAULT_OPTIONS: FabricOptions = {};',
-    'const fabrics = new WeakMap<FabricOptions, Fabric>();',
-    '',
-    'function fabricFor(options: FabricOptions): Fabric {',
-    '  let fabric = fabrics.get(options);',
-    '  if (fabric === undefined) {',
-    '    fabric = buildFabric(options);',
-    '    fabrics.set(options, fabric);',
-    '  }',
-    '  return fabric;',
-    '}',
-    '',
-    `export async function ${funcName}(`,
-    `  input: ${inputTypeName},`,
-    `  options: FabricOptions = DEFAULT_OPTIONS,`,
-    `): Promise<ExecutionResult> {`,
-    '  return fabricFor(options).execute(plan, new Map<string, unknown>(Object.entries(input)));',
-    '}',
-    '',
-    `export default ${funcName};`,
-    '',
-  );
 
-  return lines.join('\n');
+  const asParam = scoped ? ',\n  as?: FabricIdentity' : '';
+  const asArg = scoped ? ', as' : '';
+
+  return [
+    ...header,
+    ...imports,
+    '',
+    '/** The weave this module runs, as it was exported; its digest is checked when it is added. */',
+    `export const WEAVE: string = ${JSON.stringify(weave.yaml)};`,
+    '',
+    emitShape(Input, file.provides.in, types),
+    '',
+    emitShape(Output, file.provides.out, types),
+    '',
+    "type Ready = { readonly fabric: Fabric; readonly capability: Awaited<ReturnType<Fabric['add']>> };",
+    '',
+    'async function build(options: FabricOptions): Promise<Ready> {',
+    "  const defaults: { esi?: FabricOptions['esi']; sde?: FabricOptions['sde'] } = {};",
+    ...defaults,
+    '  const fabric = createFabric({ ...defaults, ...options, packs: [corePack, ...(options.packs ?? [])] });',
+    '  const capability = await fabric.add(WEAVE);',
+    '  return { fabric, capability };',
+    '}',
+    '',
+    '// One fabric per options object, so the SDE loads once and the caches last across calls.',
+    'const DEFAULT_OPTIONS: FabricOptions = {};',
+    'const ready = new WeakMap<FabricOptions, Promise<Ready>>();',
+    '',
+    'function readyFor(options: FabricOptions): Promise<Ready> {',
+    '  let building = ready.get(options);',
+    '  if (building === undefined) {',
+    '    building = build(options);',
+    '    ready.set(options, building);',
+    '  }',
+    '  return building;',
+    '}',
+    '',
+    `export async function ${fn}(`,
+    `  input: ${Input},`,
+    `  options: FabricOptions = DEFAULT_OPTIONS${asParam},`,
+    `): Promise<${Output}> {`,
+    '  const { fabric, capability } = await readyFor(options);',
+    `  return (await fabric.runOne(capability, input${asArg})) as ${Output};`,
+    '}',
+    '',
+    `export default ${fn};`,
+    '',
+  ].join('\n');
 }
