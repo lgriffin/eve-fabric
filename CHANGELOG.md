@@ -14,7 +14,7 @@ designer joined the published set and the legacy pipeline model was removed
 (**breaking** for anyone who built against it), so the first release is 0.2.0.
 Nothing here is 1.0: the API may still change between minor versions.
 
-### Final polish: docs, examples and architecture checked against the code
+### [#51](https://github.com/lgriffin/eve-fabric/pull/51) final polish: docs, examples and architecture checked against the code
 
 - **Version.** Every package is 0.2.0, the published set and the private apps
   alike; the default ESI user agents say 0.2.
