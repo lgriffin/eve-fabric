@@ -28,10 +28,12 @@ export interface ServerOptions {
   readonly sde?: StaticSource | undefined;
   /** Where added weaves are kept; by default the SQLite file FABRIC_DB names, or none. */
   readonly store?: Store | undefined;
+  /** Fastify's request log; on unless set to false. */
+  readonly logger?: boolean | undefined;
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: options?.logger ?? true });
 
   app.setErrorHandler(gatewayErrorHandler);
   void app.register(tracingPlugin);

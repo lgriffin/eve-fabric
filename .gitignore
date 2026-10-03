@@ -13,3 +13,6 @@ Thumbs.db
 .vscode/
 .idea/
 reports/
+
+# Written by `pnpm quickstart`
+examples/quickstart/out/
