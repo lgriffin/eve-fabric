@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addWeave, exportWeave, isWeaveName } from '../../src/services/draft-client.js';
+import { addWeave, exportWeave, getCatalog, isWeaveName } from '../../src/services/draft-client.js';
 
 const request = { subject: { kind: 'type', value: 'Tritanium' }, steps: [] };
 
@@ -60,6 +60,40 @@ describe('addWeave', () => {
     expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
       document: 'format: 2\n',
     });
+  });
+});
+
+describe('getCatalog', () => {
+  const capability = {
+    id: 'universe.type',
+    version: '1.0.0',
+    name: 'Type',
+    description: 'A type',
+    source: 'SDE',
+    inputs: [{ name: 'name', semanticType: 'eve.type.name', required: true }],
+    outputs: [{ name: 'type', semanticType: 'eve.type' }],
+    isComposite: false,
+  };
+
+  it('gives back the capabilities the registry lists', async () => {
+    const body = JSON.stringify({ capabilities: [capability] });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+    expect(await getCatalog()).toEqual({ ok: true, data: { capabilities: [capability] } });
+  });
+
+  it('refuses an answer in a shape the canvas cannot read', async () => {
+    const body = JSON.stringify({ capabilities: [{ id: 'universe.type' }] });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 200 })));
+    expect(await getCatalog()).toEqual({
+      ok: false,
+      message: 'The registry answered in an unknown shape',
+    });
+  });
+
+  it('gives the refusal the gateway names', async () => {
+    const body = JSON.stringify({ error: { message: 'no registry' } });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(body, { status: 503 })));
+    expect(await getCatalog()).toEqual({ ok: false, message: 'no registry' });
   });
 });
 

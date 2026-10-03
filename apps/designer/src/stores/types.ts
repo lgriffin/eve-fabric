@@ -1,4 +1,5 @@
 import type { Node } from '@xyflow/react';
+import { z } from 'zod';
 
 export type ToastSeverity = 'error' | 'warning' | 'success' | 'info';
 
@@ -29,18 +30,16 @@ export type CapabilityFlowNode = Node<CapabilityNodeData, 'capability'>;
  * subjects and moves alone; Build adds the canvas; Review opens a saved
  * question read-only, with Run. The mode is in the URL's hash too.
  */
-export type Mode = 'explore' | 'build' | 'review';
+const ModeSchema = z.enum(['explore', 'build', 'review']);
 
-export const MODES: readonly Mode[] = ['explore', 'build', 'review'];
+export type Mode = z.infer<typeof ModeSchema>;
 
-function isMode(value: string): value is Mode {
-  return (MODES as readonly string[]).includes(value);
-}
+export const MODES: readonly Mode[] = ModeSchema.options;
 
 /** The mode a URL hash names, if it names one. */
 export function modeFromHash(hash: string): Mode | null {
-  const name = hash.replace(/^#/, '');
-  return isMode(name) ? name : null;
+  const named = ModeSchema.safeParse(hash.replace(/^#/, ''));
+  return named.success ? named.data : null;
 }
 
 /** The mode the designer opens in: the one its URL names, else Explore. */

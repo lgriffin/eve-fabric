@@ -9,6 +9,7 @@ describe('useMode', () => {
   beforeEach(() => {
     window.location.hash = '';
     useDraftStore.getState().clear();
+    useDraftStore.setState({ mode: 'explore' });
   });
   afterEach(() => cleanup());
 
@@ -32,6 +33,23 @@ describe('useMode', () => {
     act(() => useDraftStore.getState().setMode('review'));
     expect(result.current).toBe('review');
     expect(window.location.hash).toBe('#review');
+  });
+
+  it('pushes a switch, so Back returns to the mode before', () => {
+    window.location.hash = '#explore';
+    const before = window.history.length;
+    renderHook(() => useMode());
+    act(() => useDraftStore.getState().setMode('build'));
+    expect(window.location.hash).toBe('#build');
+    expect(window.history.length).toBe(before + 1);
+  });
+
+  it('replaces a hash that names no mode rather than keeping it behind the first', () => {
+    window.location.hash = '#elsewhere';
+    const before = window.history.length;
+    renderHook(() => useMode());
+    expect(window.location.hash).toBe('#explore');
+    expect(window.history.length).toBe(before);
   });
 
   it('follows the hash when the user changes it', () => {

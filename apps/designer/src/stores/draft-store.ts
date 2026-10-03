@@ -101,11 +101,15 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
   let latest = 0;
   let tokenTimer: ReturnType<typeof setTimeout> | undefined;
 
-  /** Sends a draft to the fabric; keeps it only if the fabric accepts it. */
+  /**
+   * Sends a draft to the fabric; keeps it only if the fabric accepts it. The
+   * mode is decided when the answer lands, from the mode the designer is in
+   * by then, so a switch made while waiting is not undone.
+   */
   const send = async (
     request: DraftRequest,
     next: { subject: DraftSubject | null; steps: DraftChange[] } | null,
-    mode: Mode,
+    mode: (current: Mode) => Mode = (current) => current,
   ): Promise<boolean> => {
     const mine = ++latest;
     // This request carries the token as it is now; a pending refresh is moot.
@@ -129,7 +133,7 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
     set({
       ...kept,
       view,
-      mode,
+      mode: mode(get().mode),
       busy: false,
       answer: undefined,
       selectedNodeId: null,
@@ -140,27 +144,32 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
 
   /** A change keeps the mode it is made in; Explore and Build both build. */
   const change = (steps: DraftChange[]): Promise<boolean> => {
-    const { subject, mode } = get();
+    const { subject } = get();
     if (subject === null) {
       set({ error: 'Start from a subject first' });
       return Promise.resolve(false);
     }
-    return send({ subject, steps }, { subject, steps }, mode);
+    return send({ subject, steps }, { subject, steps });
   };
+
+  // The catalog's own request counter and error, so a late answer never
+  // replaces a newer one and a success clears only the error it caused.
+  let latestCatalog = 0;
+  let catalogError: string | null = null;
 
   return {
     ...initial,
     mode: startingMode(),
     setMode: (mode) => set({ mode }),
     // Starting a question is building one; Explore stays Explore until the canvas is asked for.
-    start: (subject) => {
-      const mode = get().mode === 'review' ? 'build' : get().mode;
-      return send({ subject, steps: [] }, { subject, steps: [] }, mode);
-    },
+    start: (subject) =>
+      send({ subject, steps: [] }, { subject, steps: [] }, (current) =>
+        current === 'review' ? 'build' : current,
+      ),
     apply: (move) => change([...get().steps, { kind: 'move', move }]),
     fill: (hole, value) => change([...get().steps, { kind: 'fill', hole, value }]),
     undo: () => change(get().steps.slice(0, -1)),
-    load: (graphql) => send({ graphql }, null, 'review'),
+    load: (graphql) => send({ graphql }, null, () => 'review'),
     refresh: () => (get().subject === null ? Promise.resolve(false) : change(get().steps)),
     run: async () => {
       const { subject, steps, token } = get();
@@ -185,19 +194,28 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
         if (get().subject !== null) void change(get().steps);
       }, TOKEN_SETTLE_MS);
     },
+    // A new question keeps the mode, and the token and catalog, which are the designer's, not the question's.
     clear: () => {
       latest++;
-      set({ ...initial, token: get().token, catalog: get().catalog });
+      const { mode, token, catalog } = get();
+      set({ ...initial, mode, token, catalog });
     },
     loadCatalog: async () => {
+      const mine = ++latestCatalog;
       const result = await getCatalog();
+      if (mine !== latestCatalog) return false;
       if (!result.ok) {
-        set({ error: `The gateway did not answer: ${result.message}` });
+        catalogError = `The gateway did not answer: ${result.message}`;
+        set({ error: catalogError });
         return false;
       }
       const catalog = result.data.capabilities;
-      const { view } = get();
-      set({ catalog, ...(view === null ? {} : canvasOf(view, catalog)) });
+      const { view, error } = get();
+      set({
+        catalog,
+        error: error === catalogError ? null : error,
+        ...(view === null ? {} : canvasOf(view, catalog)),
+      });
       return true;
     },
     onNodesChange: (changes) => set({ nodes: applyNodeChanges(changes, get().nodes) }),

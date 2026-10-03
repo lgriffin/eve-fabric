@@ -4,8 +4,9 @@ import { modeFromHash, type Mode } from '../stores/types.js';
 
 /**
  * A mode is a URL: #explore, #build or #review. The store opens in the one
- * the URL names; editing the hash switches, and switching rewrites the hash,
- * so a mode can be linked to.
+ * the URL names; editing the hash switches, and switching writes the hash,
+ * so a mode can be linked to and Back returns to the one before. A hash
+ * that names no mode is replaced, not kept behind the first.
  */
 export function useMode(): Mode {
   const mode = useDraftStore((s) => s.mode);
@@ -22,9 +23,9 @@ export function useMode(): Mode {
   }, [setMode]);
 
   useEffect(() => {
-    if (window.location.hash !== `#${mode}`) {
-      window.history.replaceState(null, '', `#${mode}`);
-    }
+    if (window.location.hash === `#${mode}`) return;
+    const write = modeFromHash(window.location.hash) === null ? 'replaceState' : 'pushState';
+    window.history[write](null, '', `#${mode}`);
   }, [mode]);
 
   return mode;

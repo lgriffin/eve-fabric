@@ -32,6 +32,7 @@ import * as client from '../../src/services/draft-client.js';
 describe('DraftPanel', () => {
   beforeEach(() => {
     useDraftStore.getState().clear();
+    useDraftStore.setState({ mode: 'explore' });
     vi.mocked(client.postDraft).mockClear();
   });
 

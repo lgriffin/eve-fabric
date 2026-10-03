@@ -48,6 +48,7 @@ describe('App', () => {
   beforeEach(() => {
     window.location.hash = '';
     useDraftStore.getState().clear();
+    useDraftStore.setState({ mode: 'explore' });
     useDraftStore.setState({ catalog: [] });
     vi.mocked(client.postDraft).mockClear();
   });

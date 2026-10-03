@@ -12,7 +12,7 @@ export default mergeConfig(
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,tsx}'],
-        thresholds: { lines: 80, statements: 80, functions: 75, branches: 80 },
+        thresholds: { lines: 90, statements: 90, functions: 75, branches: 80 },
       },
     },
   }),

@@ -86,6 +86,17 @@ describe('the three modes over one store', () => {
     await useDraftStore.getState().load('{ type { name } }');
     await screen.findAllByText('type Tritanium');
     fireEvent.click(screen.getByText('New'));
-    expect(useDraftStore.getState().mode).toBe('explore');
+    // New alone keeps the mode; it is picking a subject that starts building.
+    expect(useDraftStore.getState().mode).toBe('review');
+    await useDraftStore.getState().start({ kind: 'type', value: 'Tritanium' });
+    expect(useDraftStore.getState().mode).toBe('build');
+  });
+
+  it('keeps the mode switched to while a change was in flight', async () => {
+    useDraftStore.setState({ mode: 'explore' });
+    const pending = useDraftStore.getState().start({ kind: 'type', value: 'Tritanium' });
+    useDraftStore.getState().setMode('build');
+    expect(await pending).toBe(true);
+    expect(useDraftStore.getState().mode).toBe('build');
   });
 });
