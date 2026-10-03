@@ -3,7 +3,7 @@ import * as fc from 'fast-check';
 import { defineCapability, definePack } from '@eve-fabric/kit';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/core';
-import { tranquilityEsi, tranquilitySde, REGION, SYSTEM, TYPE } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde, REGION, SYSTEM, TYPE } from '@eve-fabric/fixture';
 import {
   createFabric,
   DraftIncompleteError,

@@ -21,7 +21,8 @@ API.
 
 ### From the terminal
 
-`pnpm fabric` is the `eve-fabric` CLI. It asks saved questions, explores
+`pnpm fabric` is the `eve-fabric` CLI; outside this repository it is
+`npx @eve-fabric/cli` once published. It asks saved questions, explores
 moves, and moves weaves in and out of a fabric. `--offline` uses the fixture,
 `--pack <module>` installs a pack you wrote, and `--db <file>` keeps added
 weaves across runs:
@@ -86,22 +87,22 @@ the engine row never imports a source, and `core` imports nothing but zod
 
 ### Package Overview
 
-| Package                    | Purpose                                                                                                                      |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `@eve-fabric/core`         | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
-| `@eve-fabric/compiler`     | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
-| `@eve-fabric/planner`      | Dependency ordering, parallel group detection, request coalescing                                                            |
-| `@eve-fabric/executor`     | Concurrent execution engine with provenance tracking                                                                         |
-| `@eve-fabric/graphql`      | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
-| `@eve-fabric/kit`          | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
-| `@eve-fabric/pack-core`    | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
-| `@eve-fabric/fabric`       | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
-| `@eve-fabric/source-esi`   | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
-| `@eve-fabric/source-sde`   | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
-| `@eve-fabric/cache`        | In-memory cache with TTL and stale-while-revalidate                                                                          |
-| `@eve-fabric/weave`        | Package format v2: a weave as data, its digest, version ranges, secret scanning, and a git index to find weaves in           |
-| `@eve-fabric/persistence`  | The `Store` port over SQLite (`node:sqlite`), through Drizzle                                                                |
-| `@eve-fabric/test-support` | BDD world class and shared test helpers                                                                                      |
+| Package                   | Purpose                                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `@eve-fabric/core`        | Branded types, capability model, pipeline model, error hierarchy, ports                                                      |
+| `@eve-fabric/compiler`    | 12-step semantic compiler: parse, validate, resolve, build graph, detect cycles, determine sources/auth/cache, estimate cost |
+| `@eve-fabric/planner`     | Dependency ordering, parallel group detection, request coalescing                                                            |
+| `@eve-fabric/executor`    | Concurrent execution engine with provenance tracking                                                                         |
+| `@eve-fabric/graphql`     | GraphQL type/query/input generation, custom scalars, selection-set pruning                                                   |
+| `@eve-fabric/kit`         | `defineCapability` (contract and `run` in one module), `definePack`, `defineContract`, YAML manifest parser                  |
+| `@eve-fabric/pack-core`   | The built-in capabilities as a pack: universe resolvers, market, routing, analysis, logistics, industry                      |
+| `@eve-fabric/fabric`      | `createFabric`: ESI.ts runtime, SDE and packs in; compile, publish composites and run                                        |
+| `@eve-fabric/source-esi`  | Hands capabilities ESI.ts's public view and records the compatibility date                                                   |
+| `@eve-fabric/source-sde`  | Wraps ESI.ts's static data provider; a configured export that will not load is an error                                      |
+| `@eve-fabric/cache`       | In-memory cache with TTL and stale-while-revalidate                                                                          |
+| `@eve-fabric/weave`       | Package format v2: a weave as data, its digest, version ranges, secret scanning, and a git index to find weaves in           |
+| `@eve-fabric/persistence` | The `Store` port over SQLite (`node:sqlite`), through Drizzle                                                                |
+| `@eve-fabric/fixture`     | The Tranquility fixture: a slice of New Eden over ESI.ts's mock transport and in-memory SDE, for tests and `--offline`       |
 
 ### Apps
 
@@ -409,11 +410,16 @@ Set `FABRIC_DB` to a file to keep added weaves across restarts.
 
 ### Published Packages
 
-`@eve-fabric/core`, `@eve-fabric/kit` and `@eve-fabric/pack-core` are versioned
-0.1.0 and set up for npm, so a pack can be written outside this repository.
-`pnpm run packages:check` packs them, installs them into an empty project and
-imports them; pushing a `v*` tag publishes them (the Release workflow needs an
-`NPM_TOKEN` secret).
+The packages listed in `scripts/published.json` are versioned 0.1.0 and set
+up for npm: `core`, `kit` and `pack-core`, so a pack can be written outside
+this repository, and `fabric` with the sources, engine, `weave`, `persistence`
+and `fixture` it needs, so the CLI (`@eve-fabric/cli`, the `eve-fabric` bin)
+runs with `npx @eve-fabric/cli --offline ask question.graphql`.
+`pnpm run packages:check` packs them all, installs them into an empty project
+with nothing from this workspace, asks a question through the fabric and
+through the installed bin; pushing a `v*` tag publishes them (the Release
+workflow needs an `NPM_TOKEN` secret). The gateway and designer stay
+in the repository.
 
 ### Start the Designer
 

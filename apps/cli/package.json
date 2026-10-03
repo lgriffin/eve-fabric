@@ -1,10 +1,27 @@
 {
   "name": "@eve-fabric/cli",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "eve-fabric on the command line: ask saved questions about New Eden, explore moves, and move weaves in and out of a fabric. --offline needs no network.",
+  "license": "ISC",
   "type": "module",
   "bin": {
     "eve-fabric": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lgriffin/eve-fabric.git",
+    "directory": "apps/cli"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "tsc",
@@ -20,7 +37,7 @@
     "@eve-fabric/persistence": "workspace:*",
     "@eve-fabric/source-esi": "workspace:*",
     "@eve-fabric/source-sde": "workspace:*",
-    "@eve-fabric/test-support": "workspace:*",
+    "@eve-fabric/fixture": "workspace:*",
     "@eve-fabric/weave": "workspace:*",
     "@lgriffin/esi.ts": "11.1.1",
     "graphql": "^16.9.0",

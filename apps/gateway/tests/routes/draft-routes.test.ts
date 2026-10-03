@@ -6,7 +6,7 @@ import { corePack, WALLET_SCOPE } from '@eve-fabric/pack-core';
 import { fixedClock, SourceRateLimitedError } from '@eve-fabric/core';
 import { defineCapability, definePack } from '@eve-fabric/kit';
 import { gatewayErrorHandler } from '../../src/middleware/error-handler.js';
-import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createDraftRoutes, MAX_DRAFT_STEPS } from '../../src/routes/draft-routes.js';
 import { createWeaveRoutes } from '../../src/routes/weave-routes.js';
 import {

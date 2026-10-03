@@ -19,7 +19,7 @@ import {
   tranquilityCharacter,
   tranquilityEsi,
   tranquilitySde,
-} from '@eve-fabric/test-support';
+} from '@eve-fabric/fixture';
 import { incursionsPack } from '../../../../examples/incursions-pack/pack.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
 import { usePipelineStore } from '../../src/stores/pipeline-store.js';

@@ -1,24 +1,26 @@
 /**
- * The packages published to npm (core, kit, pack-core) work on their own:
+ * The packages published to npm (scripts/published.json) work on their own:
  * packed as npm would publish them, installed into an empty project with
- * nothing from this workspace, and imported.
+ * nothing from this workspace, imported, and the CLI run the way `npx` would.
  *
  * Run after a build: pnpm run packages:check
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const ROOT = join(import.meta.dirname, '..');
 // pnpm and npm come from the developer's or CI's own PATH, as when they run them.
 /* eslint-disable sonarjs/no-os-command-from-path */
-const PUBLISHED = ['core', 'kit', 'pack-core'];
+const PUBLISHED = JSON.parse(
+  readFileSync(join(ROOT, 'scripts', 'published.json'), 'utf8'),
+) as string[];
 
 const packs = mkdtempSync(join(tmpdir(), 'packs-'));
-for (const name of PUBLISHED) {
+for (const dir of PUBLISHED) {
   execFileSync('pnpm', ['pack', '--pack-destination', packs], {
-    cwd: join(ROOT, 'packages', name),
+    cwd: join(ROOT, dir),
     stdio: 'ignore',
   });
 }
@@ -38,12 +40,30 @@ writeFileSync(
   `import { corePack } from '@eve-fabric/pack-core';
 import { CapabilityCatalog } from '@eve-fabric/core';
 import { defineCapability, definePack } from '@eve-fabric/kit';
+import { createFabric } from '@eve-fabric/fabric';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 if (typeof CapabilityCatalog !== 'function' || typeof defineCapability !== 'function') {
   throw new Error('core or kit is missing its exports');
 }
 definePack({ id: '@someone/empty', capabilities: [] });
-console.log(\`\${corePack.id}: \${corePack.capabilities.length} capabilities\`);
+const fabric = createFabric({
+  esi: tranquilityEsi().esi,
+  sde: tranquilitySde(),
+  packs: [corePack],
+});
+const draft = fabric.fromGraphQL('{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }');
+const { answer } = await fabric.query(draft);
+if (answer !== 4) throw new Error(\`the fabric answered \${String(answer)}\`);
+console.log(\`\${corePack.id}: \${corePack.capabilities.length} capabilities; Jita to Amarr is 4 jumps\`);
 `,
 );
 execFileSync(process.execPath, ['check.mjs'], { cwd: consumer, stdio: 'inherit' });
-console.log(`packages:check: ${PUBLISHED.join(', ')} install and import on their own`);
+
+// The CLI, as `npx @eve-fabric/cli` runs it: the installed bin, offline.
+const cli = execFileSync(
+  join(consumer, 'node_modules', '.bin', 'eve-fabric'),
+  ['--offline', '--json', 'ask', '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }'],
+  { cwd: consumer, encoding: 'utf8' },
+);
+if (JSON.parse(cli) !== 4) throw new Error(`the CLI answered ${cli.trim()}`);
+console.log(`packages:check: ${PUBLISHED.join(', ')} install, import and run on their own`);

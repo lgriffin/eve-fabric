@@ -39,7 +39,7 @@ packages/
   weave/            # Package format v2: weaves, digest, secret scanning, git index
   graphql/          # GraphQL schema generation
   persistence/      # Data persistence
-  test-support/     # Shared test utilities
+  fixture/          # The Tranquility fixture: a slice of New Eden for tests, examples and --offline
 ```
 
 ## Commands

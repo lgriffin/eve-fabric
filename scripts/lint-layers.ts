@@ -76,7 +76,7 @@ const LAYERS: readonly Layer[] = [
       'packages/codegen',
       'apps/gateway',
       'apps/cli',
-      'packages/test-support',
+      'packages/fixture',
     ],
     check: () => undefined,
   },

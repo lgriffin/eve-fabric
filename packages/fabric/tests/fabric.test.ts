@@ -23,7 +23,7 @@ import {
   tranquilityEsi,
   tranquilitySde,
   tranquilitySdeData,
-} from '@eve-fabric/test-support';
+} from '@eve-fabric/fixture';
 import {
   createFabric,
   PipelineCompileError,

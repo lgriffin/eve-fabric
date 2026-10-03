@@ -21,7 +21,7 @@
  */
 import { createEsi } from '@lgriffin/esi.ts/client';
 import { createStaticSource } from '@eve-fabric/source-sde';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createServer } from '../../apps/gateway/src/server.js';
 
 const live = process.argv.includes('--live');

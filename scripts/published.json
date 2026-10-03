@@ -1,0 +1,16 @@
+[
+  "packages/core",
+  "packages/kit",
+  "packages/pack-core",
+  "packages/cache",
+  "packages/compiler",
+  "packages/planner",
+  "packages/executor",
+  "packages/source-esi",
+  "packages/source-sde",
+  "packages/weave",
+  "packages/persistence",
+  "packages/fixture",
+  "packages/fabric",
+  "apps/cli"
+]

@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { z } from 'zod';
 import { createStaticSource } from '@eve-fabric/source-sde';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createServer } from '../apps/gateway/src/server.js';
 
 const live = process.argv.includes('--live');

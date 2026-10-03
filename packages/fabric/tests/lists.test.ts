@@ -3,7 +3,7 @@ import { corePack } from '@eve-fabric/pack-core';
 import { PerItemCapError, StepExecutionError } from '@eve-fabric/executor';
 import { capabilityId, capabilityVersion, fixedClock } from '@eve-fabric/core';
 import type { PipelineDefinition, SemanticTypeId } from '@eve-fabric/core';
-import { tranquilityEsi, tranquilitySde, SYSTEM } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde, SYSTEM } from '@eve-fabric/fixture';
 import { incursionsPack } from '../../../examples/incursions-pack/pack.js';
 import { createFabric, type Fabric } from '../src/index.js';
 

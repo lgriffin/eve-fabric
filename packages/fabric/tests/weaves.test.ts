@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock, memoryStore, type Store } from '@eve-fabric/core';
-import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import {
   directoryIndex,
   publishWeave,

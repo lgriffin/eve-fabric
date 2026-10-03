@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { tranquilityEsi } from '@eve-fabric/test-support';
+import { tranquilityEsi } from '@eve-fabric/fixture';
 import { createServer } from '../../src/server.js';
 
 describe('Reference data routes', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { tranquilityEsi } from '@eve-fabric/test-support';
+import { tranquilityEsi } from '@eve-fabric/fixture';
 import { createEsiSource, DEFAULT_COMPATIBILITY_DATE } from '../src/index.js';
 
 describe('createEsiSource', () => {
