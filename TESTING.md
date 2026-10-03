@@ -92,8 +92,10 @@ pnpm run test:e2e         # the designer's two browser journeys over pnpm workbe
 pnpm run validate         # the full gate CI runs: lint, format, typecheck, coverage, knip
 ```
 
-`pnpm run test:bank --live` asks Tranquility's ESI instead of the fixture
-(names still come from the fixture). The nightly workflow runs it.
+`pnpm run test:bank --live` asks Tranquility's ESI instead of the fixture. The
+questions asked as a character are skipped, and so are the ones that follow a
+live id into the SDE unless `SDE_DATA_PATH` names a real export. The nightly
+workflow runs it.
 
 ## What is known not to work yet
 

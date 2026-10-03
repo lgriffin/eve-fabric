@@ -17,8 +17,10 @@ hand, one entry per pull request. Earlier history is in git.
   this changelog.
 - `pnpm test` runs from source: `@eve-fabric/*` resolves to each package's
   `src` under Vitest, so a fresh checkout needs no build to run the unit tests.
-- `pnpm run test:bank --live` asks Tranquility's ESI instead of the fixture;
-  the nightly workflow runs it beside the live smoke.
+- `pnpm run test:bank --live` asks Tranquility's ESI instead of the fixture,
+  skipping the questions asked as a character and, without an SDE export at
+  `SDE_DATA_PATH`, the ones that follow a live id into the SDE; the nightly
+  workflow runs it beside the live smoke.
 
 ### [#48](https://github.com/lgriffin/eve-fabric/pull/48) codegen: a weave in, a runnable package out
 

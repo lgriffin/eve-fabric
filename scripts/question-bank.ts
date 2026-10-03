@@ -9,10 +9,13 @@
  *
  * Run: pnpm run test:bank [--update]
  *
- * --live asks Tranquility's ESI instead of the fixture (names still come from
- * the fixture's SDE). The questions asked as a character (Q6, Q7) need a token
- * the fixture records and ESI will not take, so they are skipped; the rest
- * must pass, and the baseline is not touched. The nightly workflow runs it.
+ * --live asks Tranquility's ESI instead of the fixture. The questions asked as
+ * a character (Q6, Q7) need a token the fixture records and ESI will not take,
+ * so they are skipped. The questions that follow a live id into the SDE (Q1 a
+ * station, Q4 a route's systems, Q5 incursion systems) need a real SDE export
+ * at SDE_DATA_PATH, and are skipped without one; the fixture's SDE knows only
+ * the questions' own names. The rest must pass, and the baseline is not
+ * touched. The nightly workflow runs it.
  */
 import { spawnSync } from 'node:child_process';
 import {
@@ -32,7 +35,22 @@ const QUESTIONS = ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8'];
 const LIVE = process.argv.includes('--live');
 /** Asked as a character: the fixture's token means nothing to live ESI. */
 const CHARACTER_QUESTIONS = ['Q6', 'Q7'];
-const ASKED = LIVE ? QUESTIONS.filter((q) => !CHARACTER_QUESTIONS.includes(q)) : QUESTIONS;
+/** Follow a live id into the SDE, so live they need a real export at SDE_DATA_PATH. */
+const SDE_QUESTIONS = ['Q1', 'Q4', 'Q5'];
+const HAS_SDE = process.env['SDE_DATA_PATH'] !== undefined;
+const SKIPPED = new Map<string, string>(
+  LIVE
+    ? [
+        ...CHARACTER_QUESTIONS.map((q) => [q, 'skipped (asked as a character)'] as const),
+        ...(HAS_SDE
+          ? []
+          : SDE_QUESTIONS.map(
+              (q) => [q, 'skipped (needs an SDE export: set SDE_DATA_PATH)'] as const,
+            )),
+      ]
+    : [],
+);
+const ASKED = QUESTIONS.filter((q) => !SKIPPED.has(q));
 
 interface Envelope {
   pickle?: { id: string; name: string; tags: { name: string }[] };
@@ -48,8 +66,8 @@ function runCucumber(): void {
   const bin = join(ROOT, 'node_modules', '@cucumber', 'cucumber', 'bin', 'cucumber.js');
   // Scenarios fail until every question passes, so exit 1 is expected; stderr
   // still reaches the log so a load error shows why.
-  const skipped = CHARACTER_QUESTIONS.map((q) => '@' + q).join(' or ');
-  const tags = LIVE ? ['--tags', `not (${skipped})`] : [];
+  const skipped = [...SKIPPED.keys()].map((q) => '@' + q).join(' or ');
+  const tags = SKIPPED.size > 0 ? ['--tags', `not (${skipped})`] : [];
   const result = spawnSync(process.execPath, [bin, '-c', 'cucumber.cjs', '-p', 'bank', ...tags], {
     cwd: ROOT,
     stdio: ['ignore', 'ignore', 'inherit'],
@@ -121,7 +139,8 @@ function main(): void {
   }
 
   const state = (q: string): string => {
-    if (!ASKED.includes(q)) return 'skipped (asked as a character)';
+    const skipped = SKIPPED.get(q);
+    if (skipped !== undefined) return skipped;
     if (passing.includes(q)) return 'passes';
     return LIVE ? 'fails' : 'not yet';
   };

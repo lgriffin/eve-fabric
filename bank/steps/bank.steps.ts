@@ -22,6 +22,7 @@ import {
   tranquilityEsi,
   tranquilitySde,
 } from '@eve-fabric/fixture';
+import { lazySdeDirectory } from '@eve-fabric/source-sde';
 import { directoryIndex, type WeaveFile } from '@eve-fabric/weave';
 import { createEsi, type Esi } from '@lgriffin/esi.ts/client';
 import { incursionsPack } from '../../examples/incursions-pack/pack.js';
@@ -30,12 +31,19 @@ const COMPATIBILITY_DATE = '2026-08-18';
 
 /**
  * BANK_LIVE=1 (set by `pnpm run test:bank --live`) asks Tranquility's ESI
- * instead of the recorded fixture. Names still come from the fixture's SDE,
- * as the live smoke does, so no SDE export is needed; the answers are checked
- * for shape, never for the figures a recording has.
+ * instead of the recorded fixture; the answers are checked for shape, never
+ * for the figures a recording has. Names come from the SDE export at
+ * SDE_DATA_PATH when there is one, else from the fixture's SDE, which knows
+ * only the questions' own names: the runner then skips the questions that
+ * follow a live id (a station, a route's systems) into the SDE.
  */
 const LIVE = process.env['BANK_LIVE'] === '1';
+const SDE_DATA_PATH = process.env['SDE_DATA_PATH'];
 let liveEsi: Esi | undefined;
+
+function sdeFor() {
+  return LIVE && SDE_DATA_PATH !== undefined ? lazySdeDirectory(SDE_DATA_PATH) : tranquilitySde();
+}
 
 function esiFor(): Esi {
   if (!LIVE) return tranquilityEsi().esi;
@@ -85,7 +93,7 @@ Given('a fabric over the recorded Tranquility fixture', function (this: BankWorl
   this.fabric = createFabric({
     esi: esiFor(),
     esiCompatibilityDate: COMPATIBILITY_DATE,
-    sde: tranquilitySde(),
+    sde: sdeFor(),
     packs: [corePack],
     // A recording is read at the moment it was made; live ESI is read now.
     ...(LIVE ? {} : { clock: fixedClock(Date.UTC(2026, 9, 1)) }),

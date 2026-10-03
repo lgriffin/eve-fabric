@@ -53,7 +53,7 @@ packages/
 - `pnpm run lint:fix` — auto-fix lint issues
 - `pnpm run lint:layers` — package layering (core imports only zod; the engine never imports a source); shrink-only baseline in `scripts/baselines/layers.json`
 - `pnpm run lint:determinism` — time is read only through the `Clock` port; shrink-only baseline in `scripts/baselines/determinism.json`
-- `pnpm run test:bank` — the question bank (`bank/features`): prints "bank: N of 8"; `--update` records newly passing questions; `--live` asks Tranquility's ESI (Q6, Q7 skipped; nightly)
+- `pnpm run test:bank` — the question bank (`bank/features`): prints "bank: N of 8"; `--update` records newly passing questions; `--live` asks Tranquility's ESI (Q6, Q7 skipped; Q1, Q4, Q5 skipped without `SDE_DATA_PATH`; nightly)
 - `pnpm run docs:cli` / `pnpm run docs:check` — `docs/cli.md` from the CLI's `USAGE`; the check runs in CI and `validate`. `docs/gateway-api.md` is hand-written, kept in step by `apps/gateway/tests/routes/documented.test.ts`
 - `pnpm run format` / `pnpm run format:check` — Prettier
 - `pnpm run typecheck` — TypeScript type checking across all packages
