@@ -404,7 +404,7 @@ pnpm run validate       # the full gate CI runs
 pnpm --filter @eve-fabric/gateway run dev
 ```
 
-The gateway serves GraphQL at `http://localhost:3456/graphql` with a health check at `/health`. It is the workbench the designer and HTTP clients build questions through; a saved question or a pack runs without it.
+The gateway serves GraphQL at `http://localhost:3456/graphql` with a health check at `/health`. A saved question POSTed there runs as `pnpm fabric ask` would, and the answer comes back in the shape the document asked; the schema is the one `pnpm fabric schema` prints. It is the workbench the designer and HTTP clients build questions through; a saved question or a pack runs without it.
 Set `FABRIC_DB` to a file to keep added weaves across restarts.
 
 ### Published Packages

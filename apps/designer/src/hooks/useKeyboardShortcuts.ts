@@ -27,7 +27,8 @@ export function handleKeyboardShortcut(event: KeyboardEvent, handlers: ShortcutH
     return;
   }
 
-  if (ctrl && event.key.toLowerCase() === 'z') {
+  // Shift+Z was redo; the question has no redo, so it does nothing rather than undo.
+  if (ctrl && !event.shiftKey && event.key.toLowerCase() === 'z') {
     event.preventDefault();
     handlers.onUndo();
     return;

@@ -41,6 +41,12 @@ describe('handleKeyboardShortcut', () => {
     expect(h.onUndo).toHaveBeenCalledOnce();
   });
 
+  it('Ctrl+Shift+Z does not undo', () => {
+    const h = makeHandlers();
+    handleKeyboardShortcut(makeEvent('z', { ctrlKey: true, shiftKey: true }), h);
+    expect(h.onUndo).not.toHaveBeenCalled();
+  });
+
   it('Ctrl+S triggers save', () => {
     const h = makeHandlers();
     const event = makeEvent('s', { ctrlKey: true });

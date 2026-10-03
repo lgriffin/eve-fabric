@@ -24,7 +24,7 @@
     "quickstart": "tsx examples/quickstart/main.ts",
     "fabric": "tsx apps/cli/src/main.ts",
     "workbench": "tsx scripts/workbench.ts",
-    "validate": "pnpm run lint && pnpm run lint:layers && pnpm run lint:determinism && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm run knip",
+    "validate": "pnpm run lint && pnpm run lint:layers && pnpm run lint:determinism && pnpm run format:check && pnpm run typecheck && pnpm run coverage && pnpm --filter @eve-fabric/designer run coverage && pnpm run knip",
     "prepare": "husky",
     "lint:layers": "tsx scripts/lint-layers.ts",
     "lint:determinism": "tsx scripts/lint-determinism.ts",

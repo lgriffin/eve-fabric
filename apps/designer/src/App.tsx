@@ -82,7 +82,11 @@ export function App() {
   useKeyboardShortcuts(
     useMemo(
       () => ({
-        onUndo: () => void undoChange(),
+        // Nothing to take back before a question starts, so nothing to say either.
+        onUndo: () => {
+          const { subject: open, steps } = useDraftStore.getState();
+          if (open !== null && steps.length > 0) void undoChange();
+        },
         onSave: handleSave,
         onSelectAll: () => {
           /* handled by React Flow */

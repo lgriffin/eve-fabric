@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline-store.js';
+import { useDraftStore } from '../../stores/draft-store.js';
 import { SemanticHandle } from './SemanticHandle.js';
 import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
 
@@ -31,17 +32,16 @@ export const CapabilityNode = memo(function CapabilityNode({
 }: NodeProps<CapabilityFlowNode>) {
   injectPulseStyle();
 
-  const edges = usePipelineStore((s) => s.edges);
   const openComposite = usePipelineStore((s) => s.openComposite);
   const isComposite = data.source === 'COMPOSITE';
 
-  const connectedInputs = useMemo(() => {
-    const set = new Set<string>();
-    for (const edge of edges) {
-      if (edge.target === id && edge.targetHandle) set.add(edge.targetHandle);
-    }
-    return set;
-  }, [edges, id]);
+  // The question says which of this step's inputs are still holes; a filled
+  // one has no edge on the canvas either, so edges cannot tell them apart.
+  const holes = useDraftStore((s) => s.view?.holes);
+  const openHoles = useMemo(
+    () => new Set((holes ?? []).filter((h) => h.node === id).map((h) => h.port)),
+    [holes, id],
+  );
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -117,7 +117,7 @@ export const CapabilityNode = memo(function CapabilityNode({
         {data.inputs.length > 0 && (
           <div style={{ padding: '2px 10px 4px' }}>
             {data.inputs.map((input) => {
-              const isHole = input.required && !connectedInputs.has(input.name);
+              const isHole = openHoles.has(input.name);
               return (
                 <div
                   key={input.name}

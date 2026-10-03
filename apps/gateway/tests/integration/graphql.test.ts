@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { createServer } from '../../src/server.js';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 
 describe('Gateway GraphQL integration', () => {
   let app: FastifyInstance;
@@ -75,5 +76,58 @@ describe('Gateway GraphQL integration', () => {
 
     const body = JSON.parse(response.body);
     expect(body.errors).toBeDefined();
+  });
+});
+
+describe('Questions at /graphql', () => {
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    app = createServer({ esi: tranquilityEsi().esi, sde: tranquilitySde(), logger: false });
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const post = (payload: object) =>
+    app.inject({ method: 'POST', url: '/graphql', payload }).then((r) => ({
+      status: r.statusCode,
+      body: r.json<{ data?: unknown; errors?: { message: string }[] }>(),
+    }));
+
+  it('answers a saved question in the shape it asked', async () => {
+    const { status, body } = await post({
+      query: '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }',
+    });
+    expect(status).toBe(200);
+    expect(body.errors).toBeUndefined();
+    expect(body.data).toEqual({ system: { jumpsTo: expect.any(Number) } });
+  });
+
+  it('puts a selected field under its own name', async () => {
+    const { body } = await post({
+      query:
+        '{ type(name: "Tritanium") { orders(region: "The Forge") { prices { lowestSell } } } }',
+    });
+    expect(body.data).toEqual({
+      type: { orders: { prices: { lowestSell: expect.any(Number) } } },
+    });
+  });
+
+  it('refuses a document the fabric does not offer, as a GraphQL error', async () => {
+    const { status, body } = await post({
+      query: '{ type(name: "Tritanum") { details { name } } }',
+    });
+    expect(status).toBe(200);
+    expect(body.data).toBeNull();
+    expect(body.errors?.[0]?.message).toMatch(/Tritanum/);
+  });
+
+  it('still serves introspection', async () => {
+    const { status, body } = await post({ query: '{ __schema { queryType { name } } }' });
+    expect(status).toBe(200);
+    expect(body.data).toEqual({ __schema: { queryType: { name: 'Query' } } });
   });
 });

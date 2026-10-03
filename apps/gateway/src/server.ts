@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createYoga, createSchema } from 'graphql-yoga';
-import type { GraphQLSchema } from 'graphql';
+import { parse, type GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { StaticSource, Store } from '@eve-fabric/core';
 import { createRegistryRoutes } from './routes/registry-routes.js';
@@ -8,6 +8,17 @@ import { createDiscoveryRoutes } from './routes/discovery-routes.js';
 import { createReferenceDataRoutes } from './routes/reference-data-routes.js';
 import { createDraftRoutes } from './routes/draft-routes.js';
 import { createWeaveRoutes } from './routes/weave-routes.js';
+import {
+  answerQuestion,
+  isIntrospection,
+  type GraphQLRequest,
+} from './routes/graphql-questions.js';
+import {
+  eveSsoVerifier,
+  identityFromAuthorization,
+  InvalidTokenError,
+  type TokenVerifier,
+} from './auth/eve-identity.js';
 import { tracingPlugin } from './middleware/tracing.js';
 import { gatewayErrorHandler } from './middleware/error-handler.js';
 import { GatewayRuntime } from './runtime.js';
@@ -26,6 +37,8 @@ export interface ServerOptions {
   readonly store?: Store | undefined;
   /** Fastify's request log; on unless set to false. */
   readonly logger?: boolean | undefined;
+  /** Checks the bearer tokens questions are asked with; EVE SSO's keys by default. */
+  readonly verifier?: TokenVerifier | undefined;
 }
 
 export function createServer(options?: ServerOptions): FastifyInstance {
@@ -63,10 +76,39 @@ export function createServer(options?: ServerOptions): FastifyInstance {
     return { status: 'ok' };
   });
 
+  const verifier = options?.verifier ?? eveSsoVerifier(runtime.fabric.clock);
+
+  // A question POSTed to /graphql runs through the fabric, as the CLI's `ask`
+  // does; the derived schema has no resolvers of its own. Yoga serves the
+  // rest: GET, GraphiQL and introspection, or the custom schema tests pass.
+  const isQuestion = (body: unknown): body is GraphQLRequest & { query: string } => {
+    if (useCustomSchema || typeof body !== 'object' || body === null) return false;
+    const query = (body as GraphQLRequest).query;
+    if (typeof query !== 'string') return false;
+    try {
+      return !isIntrospection(parse(query));
+    } catch {
+      return true;
+    }
+  };
+
   app.route({
     url: '/graphql',
     method: ['GET', 'POST', 'OPTIONS'],
     handler: async (req, reply) => {
+      if (req.method === 'POST' && isQuestion(req.body)) {
+        let identity;
+        try {
+          identity = await identityFromAuthorization(req.headers.authorization, verifier);
+        } catch (error) {
+          if (!(error instanceof InvalidTokenError)) throw error;
+          return reply
+            .status(401)
+            .send({ errors: [{ message: error.message, extensions: { code: 'UNAUTHORIZED' } }] });
+        }
+        const answer = await answerQuestion(runtime.fabric, req.body, identity);
+        return reply.status(answer.status).send(answer.body);
+      }
       const host = req.hostname || 'localhost';
       const url = `http://${host}${req.url}`;
       const headers = new Headers();
@@ -98,7 +140,7 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   void app.register(createRegistryRoutes(runtime.registry));
   void app.register(createDiscoveryRoutes(runtime.catalog));
   void app.register(createReferenceDataRoutes());
-  void app.register(createDraftRoutes(runtime.fabric));
+  void app.register(createDraftRoutes(runtime.fabric, { verifier }));
   void app.register(createWeaveRoutes(runtime.fabric));
   // Weaves added before a restart come back before the first request. One
   // that no longer adds here is skipped and logged, not a reason to stay down.
