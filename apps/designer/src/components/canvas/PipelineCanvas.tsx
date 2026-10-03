@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -49,10 +49,14 @@ export function PipelineCanvas({ composable = false }: { composable?: boolean })
   const setSelectedNode = useDraftStore((s) => s.selectNode);
   const apply = useDraftStore((s) => s.apply);
   const start = useDraftStore((s) => s.start);
+  const busy = useDraftStore((s) => s.busy);
   const addToast = useToastStore((s) => s.addToast);
   const container = useRef<HTMLDivElement>(null);
   const [menu, setMenu] = useState<OpenMenu | null>(null);
   const closeMenu = useCallback(() => setMenu(null), []);
+  // A menu offers what one view of the question offered; once the question
+  // changes under it (a panel click, New, Undo), what it offers is stale.
+  useEffect(() => setMenu(null), [view]);
 
   // A port read by more than one step is drawn heavier, so the fan-out shows.
   const styledEdges = useMemo(() => {
@@ -94,6 +98,9 @@ export function PipelineCanvas({ composable = false }: { composable?: boolean })
     if (taken === null) return;
     event.preventDefault();
     event.stopPropagation();
+    // One change at a time: the store builds each from the steps the last one
+    // committed, so a drop while one is in flight would race it.
+    if (busy) return;
     if (taken.kind === 'move') {
       void apply(taken.move);
       return;
@@ -125,9 +132,9 @@ export function PipelineCanvas({ composable = false }: { composable?: boolean })
           closeMenu();
         }}
         nodesConnectable={composable}
-        isValidConnection={isValidConnection}
-        onConnectStart={closeMenu}
-        onConnectEnd={onConnectEnd}
+        isValidConnection={composable ? isValidConnection : undefined}
+        onConnectStart={composable ? closeMenu : undefined}
+        onConnectEnd={composable ? onConnectEnd : undefined}
         edgesFocusable={false}
         deleteKeyCode={null}
         nodeTypes={nodeTypes}

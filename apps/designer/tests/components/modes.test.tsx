@@ -97,6 +97,12 @@ describe('the three modes over one store', () => {
     // And a drop that carries nothing of the canvas's is left alone.
     fireEvent.drop(screen.getByTestId('canvas'), carrying('text/plain', 'orders'));
     expect(useDraftStore.getState().steps).toHaveLength(1);
+    // The open hole and the cursor step's outputs take connections here.
+    await waitFor(() =>
+      expect(document.querySelectorAll('.react-flow__handle.connectable').length).toBeGreaterThan(
+        0,
+      ),
+    );
   });
 
   it('Review takes no drops: the canvas is a picture of the saved question', async () => {
@@ -107,6 +113,16 @@ describe('the three modes over one store', () => {
     fireEvent.drop(screen.getByTestId('canvas'), carrying(MOVE_MIME, 'orders'));
     expect(useDraftStore.getState().steps).toHaveLength(before);
     expect(screen.queryByText(/Drop a subject here/)).toBeNull();
+  });
+
+  it('Review draws no connectable handle, so no connection can change the question', async () => {
+    useDraftStore.setState({ mode: 'review' });
+    inFlow(<ReviewMode />);
+    expect(await useDraftStore.getState().load('{ type { orders(region: 10000002) } }')).toBe(true);
+    await waitFor(() =>
+      expect(document.querySelectorAll('.react-flow__handle').length).toBeGreaterThan(0),
+    );
+    expect(document.querySelectorAll('.react-flow__handle.connectable')).toHaveLength(0);
   });
 
   it('Review opens a saved question read-only and runs it', async () => {

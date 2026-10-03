@@ -3,6 +3,7 @@ import { useDraftStore } from '../../stores/draft-store.js';
 import { getChoices, type Choice, type DraftView } from '../../services/draft-client.js';
 import { colors } from '../../tokens.js';
 import { input, button } from './styles.js';
+import { holeValue, CHOICES_DELAY_MS } from './hole-value.js';
 
 /** A hole: type a value, or pick one of the choices the fabric lists. */
 export function HoleInput({ view, hole }: { view: DraftView; hole: DraftView['holes'][number] }) {
@@ -20,18 +21,14 @@ export function HoleInput({ view, hole }: { view: DraftView; hole: DraftView['ho
       void getChoices({ subject, steps }, hole.name, text, token).then(
         (r) => r.ok && setChoices(r.data.choices),
       );
-    }, 200);
+    }, CHOICES_DELAY_MS);
     return () => clearTimeout(timer);
   }, [subject, steps, hole.name, text, token]);
 
-  const submit = (value: string) => {
-    const picked = choices.find((c) => c.name === value);
-    const trimmed = value.trim();
-    if (trimmed.length === 0 || busy) return;
-    void fill(
-      hole.name,
-      picked?.id ?? (/^-?\d+(\.\d+)?$/.test(trimmed) ? Number(trimmed) : trimmed),
-    );
+  const submit = (text: string) => {
+    const value = holeValue(text, choices);
+    if (value === null || busy) return;
+    void fill(hole.name, value);
   };
 
   const list = `choices-${view.steps.length}-${hole.name}`;

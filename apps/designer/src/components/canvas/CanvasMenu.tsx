@@ -3,6 +3,7 @@ import { useDraftStore } from '../../stores/draft-store.js';
 import { getChoices, type Choice } from '../../services/draft-client.js';
 import { colors, fontSize, borderRadius, fontFamily } from '../../tokens.js';
 import type { CanvasMenuModel } from './composition.js';
+import { holeValue, CHOICES_DELAY_MS } from '../draft/hole-value.js';
 
 type Moves = Extract<CanvasMenuModel, { kind: 'moves' }>['moves'];
 type Hole = Extract<CanvasMenuModel, { kind: 'hole' }>['hole'];
@@ -30,6 +31,7 @@ const item: React.CSSProperties = {
 /** The moves the fabric offers where a connection was released. */
 function MovesMenu({ moves, onClose }: { moves: Moves; onClose: () => void }) {
   const apply = useDraftStore((s) => s.apply);
+  const busy = useDraftStore((s) => s.busy);
   if (moves.length === 0) {
     return (
       <div style={{ ...item, color: colors.text.dim, cursor: 'default' }}>No moves from here</div>
@@ -42,11 +44,13 @@ function MovesMenu({ moves, onClose }: { moves: Moves; onClose: () => void }) {
           key={move.name}
           role="menuitem"
           title={move.description}
+          disabled={busy}
           onClick={() => {
+            if (busy) return;
             onClose();
             void apply(move.name);
           }}
-          style={item}
+          style={{ ...item, opacity: busy ? 0.5 : 1 }}
         >
           {move.name}
         </button>
@@ -55,25 +59,52 @@ function MovesMenu({ moves, onClose }: { moves: Moves; onClose: () => void }) {
   );
 }
 
-/** A hole's choices, from the fabric, narrowed as you type; picking one fills it. */
+type Lookup =
+  | { readonly kind: 'pending' }
+  | { readonly kind: 'choices'; readonly choices: readonly Choice[] }
+  | { readonly kind: 'failed'; readonly message: string };
+
+/**
+ * A hole's choices, from the fabric, narrowed as you type; picking one fills
+ * it. Typing a value and pressing Enter fills it too, by the panel's rule, for
+ * the holes the fabric lists no choices for.
+ */
 function HoleMenu({ hole, onClose }: { hole: Hole; onClose: () => void }) {
   const fill = useDraftStore((s) => s.fill);
   const subject = useDraftStore((s) => s.subject);
   const steps = useDraftStore((s) => s.steps);
   const token = useDraftStore((s) => s.token);
+  const busy = useDraftStore((s) => s.busy);
   const [text, setText] = useState('');
-  const [choices, setChoices] = useState<Choice[] | null>(null);
+  const [lookup, setLookup] = useState<Lookup>({ kind: 'pending' });
 
   useEffect(() => {
     if (subject === null) return;
     let stale = false;
-    void getChoices({ subject, steps }, hole.name, text, token).then((r) => {
-      if (!stale) setChoices(r.ok ? r.data.choices : []);
-    });
+    const timer = setTimeout(() => {
+      void getChoices({ subject, steps }, hole.name, text, token).then((r) => {
+        if (stale) return;
+        setLookup(
+          r.ok
+            ? { kind: 'choices', choices: r.data.choices }
+            : { kind: 'failed', message: r.message },
+        );
+      });
+    }, CHOICES_DELAY_MS);
     return () => {
       stale = true;
+      clearTimeout(timer);
     };
   }, [subject, steps, hole.name, text, token]);
+
+  const choices = lookup.kind === 'choices' ? lookup.choices : [];
+  const fillWith = (value: number | string | null) => {
+    if (value === null || busy) return;
+    onClose();
+    void fill(hole.name, value);
+  };
+  const typed = holeValue(text, choices);
+  const typedIsListed = choices.some((c) => c.name === text);
 
   return (
     <>
@@ -83,6 +114,7 @@ function HoleMenu({ hole, onClose }: { hole: Hole; onClose: () => void }) {
         placeholder={`${hole.name} (${hole.type})`}
         value={text}
         onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && fillWith(typed)}
         style={{
           margin: 6,
           width: 'calc(100% - 12px)',
@@ -95,22 +127,35 @@ function HoleMenu({ hole, onClose }: { hole: Hole; onClose: () => void }) {
           fontSize: fontSize.md,
         }}
       />
-      {choices !== null && choices.length === 0 && (
+      {lookup.kind === 'failed' && (
+        <div role="alert" style={{ ...item, color: colors.status.error, cursor: 'default' }}>
+          Could not load choices: {lookup.message}
+        </div>
+      )}
+      {lookup.kind === 'choices' && choices.length === 0 && (
         <div style={{ ...item, color: colors.text.dim, cursor: 'default' }}>No choices</div>
       )}
-      {(choices ?? []).map((choice) => (
+      {choices.map((choice) => (
         <button
           key={choice.id}
           role="menuitem"
-          onClick={() => {
-            onClose();
-            void fill(hole.name, choice.id);
-          }}
-          style={item}
+          disabled={busy}
+          onClick={() => fillWith(choice.id)}
+          style={{ ...item, opacity: busy ? 0.5 : 1 }}
         >
           {choice.name}
         </button>
       ))}
+      {typed !== null && !typedIsListed && (
+        <button
+          role="menuitem"
+          disabled={busy}
+          onClick={() => fillWith(typed)}
+          style={{ ...item, color: colors.text.secondary, opacity: busy ? 0.5 : 1 }}
+        >
+          Use “{String(typed)}”
+        </button>
+      )}
     </>
   );
 }

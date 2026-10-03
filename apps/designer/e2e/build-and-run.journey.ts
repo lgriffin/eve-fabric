@@ -19,12 +19,12 @@ test('build a question from a subject and run it', async ({ page }) => {
   await page.getByRole('button', { name: 'jumpsTo', exact: true }).click();
   await expect(page.getByText('Still needed')).toBeVisible();
   await page.getByLabel('destination', { exact: true }).fill('Amarr');
+  // Once the fabric has listed Amarr among the choices, the typed name is
+  // filled as that choice's id, so the hole closes in one step.
+  await expect(page.locator('datalist option[value="Amarr"]')).toHaveCount(1);
   await page.getByRole('button', { name: 'Fill destination' }).click();
-
-  // A typed name is sent as the loaded choice's id when the datalist has it,
-  // which fills the hole in one step; otherwise a resolve step is added first.
-  await expect(page.getByText(/[23] nodes, [12] edges/)).toBeVisible();
-  await expect(page.getByText(/jumpsTo\(destination: ("Amarr"|30002187)\)/)).toBeVisible();
+  await expect(page.getByText('2 nodes, 1 edges')).toBeVisible();
+  await expect(page.getByText(/jumpsTo\(destination: 30002187\)/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Run', exact: true }).click();
   await expect(page.getByLabel('Answer')).toHaveText('4');

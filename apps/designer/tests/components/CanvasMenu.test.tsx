@@ -84,6 +84,75 @@ describe('CanvasMenu', () => {
     });
   });
 
+  it('sends one change at a time: a second pick while the first is in flight is ignored', async () => {
+    useDraftStore.setState({ subject: fresh.subject, steps: [], view: fresh });
+    vi.mocked(client.postDraft).mockImplementationOnce(
+      (request: DraftRequest) =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, data: answer(request) }), 50),
+        ),
+    );
+    render(
+      <CanvasMenu
+        model={{ kind: 'moves', moves: fresh.moves }}
+        at={{ x: 0, y: 0 }}
+        onClose={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole('menuitem', { name: 'orders' }));
+    await waitFor(() => expect(useDraftStore.getState().busy).toBe(true));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'orders' }));
+    await waitFor(() => expect(useDraftStore.getState().busy).toBe(false));
+    expect(client.postDraft).toHaveBeenCalledTimes(1);
+    expect(useDraftStore.getState().steps).toHaveLength(1);
+  });
+
+  it('fills a hole with the value typed when the fabric lists no choice for it', async () => {
+    useDraftStore.setState({
+      subject: withOrders.subject,
+      steps: [{ kind: 'move', move: 'orders' }],
+      view: withOrders,
+    });
+    const onClose = vi.fn();
+    render(
+      <CanvasMenu
+        model={{ kind: 'hole', hole: withOrders.holes[0]! }}
+        at={{ x: 0, y: 0 }}
+        onClose={onClose}
+      />,
+    );
+    const input = screen.getByLabelText('Choose region');
+    fireEvent.change(input, { target: { value: ' 10000043 ' } });
+    await screen.findByText('No choices');
+    expect(screen.getByRole('menuitem', { name: 'Use “10000043”' })).toBeTruthy();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => expect(useDraftStore.getState().steps).toHaveLength(2));
+    expect(useDraftStore.getState().steps[1]).toEqual({
+      kind: 'fill',
+      hole: 'region',
+      value: 10000043,
+    });
+  });
+
+  it('says when the choices could not be loaded, rather than showing none', async () => {
+    useDraftStore.setState({
+      subject: withOrders.subject,
+      steps: [{ kind: 'move', move: 'orders' }],
+      view: withOrders,
+    });
+    vi.mocked(client.getChoices).mockResolvedValueOnce({ ok: false, message: 'HTTP 502' });
+    render(
+      <CanvasMenu
+        model={{ kind: 'hole', hole: withOrders.holes[0]! }}
+        at={{ x: 0, y: 0 }}
+        onClose={() => {}}
+      />,
+    );
+    expect((await screen.findByRole('alert')).textContent).toContain('HTTP 502');
+    expect(screen.queryByText('No choices')).toBeNull();
+  });
+
   it('closes on Escape', () => {
     const onClose = vi.fn();
     render(

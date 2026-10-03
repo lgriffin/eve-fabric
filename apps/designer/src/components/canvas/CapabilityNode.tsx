@@ -30,6 +30,7 @@ export const CapabilityNode = memo(function CapabilityNode({
   id,
   data,
   selected,
+  isConnectable,
 }: NodeProps<CapabilityFlowNode>) {
   injectPulseStyle();
 
@@ -41,9 +42,11 @@ export const CapabilityNode = memo(function CapabilityNode({
     [holes, id],
   );
   // The question continues from the cursor: only that step's outputs start a
-  // connection, and only an open hole takes one. (ReactFlow's nodesConnectable
-  // still decides whether any connection is drawn at all.)
-  const atCursor = useDraftStore((s) => s.view !== null && cursorNode(s.view) === id);
+  // connection, and only an open hole takes one; and only on a canvas that
+  // composes at all, which React Flow says through the node's isConnectable.
+  const atCursor = useDraftStore(
+    (s) => isConnectable && s.view !== null && cursorNode(s.view) === id,
+  );
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -137,7 +140,7 @@ export const CapabilityNode = memo(function CapabilityNode({
                     semanticType={input.semanticType}
                     label={input.name}
                     required={input.required}
-                    connectable={isHole}
+                    connectable={isConnectable && isHole}
                   />
                 </div>
               );
