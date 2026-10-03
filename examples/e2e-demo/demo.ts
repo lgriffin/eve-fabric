@@ -25,6 +25,9 @@ import { tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 import { createServer } from '../../apps/gateway/src/server.js';
 
 const live = process.argv.includes('--live');
+/** The ESI schema the gateway's own client pins. */
+const COMPATIBILITY_DATE = '2026-08-18';
+const WEAVE = { id: 'demo.forge.prices', version: '1.0.0', as: 'forge prices' };
 
 interface Response<T> {
   readonly status: number;
@@ -52,7 +55,10 @@ async function main(): Promise<void> {
   const app = createServer({
     logger: false,
     esi: live
-      ? createEsi({ userAgent: 'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)' })
+      ? createEsi({
+          userAgent: 'eve-fabric-demo/0.1 (+https://github.com/lgriffin/eve-fabric)',
+          compatibilityDate: COMPATIBILITY_DATE,
+        })
       : tranquilityEsi().esi,
     sde: createStaticSource(tranquilitySde()),
   });
@@ -147,10 +153,17 @@ async function main(): Promise<void> {
       'weave',
       await api<string>('POST', '/api/drafts/weave', {
         graphql,
-        weave: { id: 'demo.forge.prices', version: '1.0.0', as: 'forge prices' },
+        weave: WEAVE,
       }),
     );
     show(`exported ${String(weave.split('\n').length)} lines of weave YAML`);
+    // With FABRIC_DB set, a previous run's copy comes back on start; take it
+    // out so this run adds the weave it just exported.
+    const kept = await api<{ weaves: { id: string; version: string }[] }>('GET', '/api/weaves');
+    if (kept.data.weaves.some((w) => w.id === WEAVE.id && w.version === WEAVE.version)) {
+      expectOk('remove', await api('DELETE', `/api/weaves/${WEAVE.id}?version=${WEAVE.version}`));
+      show(`removed the ${WEAVE.id}@${WEAVE.version} kept from an earlier run`);
+    }
     const added = expectOk(
       'add',
       await api<{ id: string }>('POST', '/api/weaves', { document: weave }),

@@ -8,7 +8,7 @@ import { defineCapability, definePack } from '@eve-fabric/kit';
 
 interface Order {
   readonly price: number;
-  readonly volume_remain: number;
+  readonly volume_remain?: number;
   readonly is_buy_order?: boolean;
 }
 
@@ -28,13 +28,15 @@ export const costToBuy = defineCapability({
   attach: { on: 'eve.market.order.collection', as: 'cost to buy', subject: 'orders' },
   cost: { estimatedLatencyMs: 1 },
   run({ orders, quantity }) {
+    let wanted = Number(quantity);
+    if (wanted === 0) return { cost: 0 };
     const sells = (orders as readonly Order[])
       .filter((o) => o.is_buy_order !== true)
       .sort((a, b) => a.price - b.price);
-    let wanted = Number(quantity);
     let total = 0;
     for (const order of sells) {
-      const take = Math.min(wanted, order.volume_remain);
+      // An order that does not say how many remain has none to sell.
+      const take = Math.min(wanted, order.volume_remain ?? 0);
       total += take * order.price;
       wanted -= take;
       if (wanted === 0) return { cost: Math.round(total * 100) / 100 };
