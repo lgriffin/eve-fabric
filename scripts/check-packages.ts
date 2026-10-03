@@ -62,8 +62,8 @@ execFileSync(process.execPath, ['check.mjs'], { cwd: consumer, stdio: 'inherit' 
 // The CLI, as `npx @eve-fabric/cli` runs it: the installed bin, offline.
 const cli = execFileSync(
   join(consumer, 'node_modules', '.bin', 'eve-fabric'),
-  ['--offline', 'ask', '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }'],
+  ['--offline', '--json', 'ask', '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }'],
   { cwd: consumer, encoding: 'utf8' },
 );
-if (!cli.includes('4')) throw new Error(`the CLI answered ${cli.trim()}`);
+if (JSON.parse(cli) !== 4) throw new Error(`the CLI answered ${cli.trim()}`);
 console.log(`packages:check: ${PUBLISHED.join(', ')} install, import and run on their own`);
