@@ -12,14 +12,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@eve-fabric/compiler": "workspace:*",
     "@eve-fabric/core": "workspace:*",
-    "@eve-fabric/executor": "workspace:*",
     "@eve-fabric/fabric": "workspace:*",
-    "@eve-fabric/graphql": "workspace:*",
     "@eve-fabric/pack-core": "workspace:*",
     "@eve-fabric/persistence": "workspace:*",
-    "@eve-fabric/schema-package": "workspace:*",
     "@eve-fabric/source-esi": "workspace:*",
     "@eve-fabric/source-sde": "workspace:*",
     "@eve-fabric/weave": "workspace:*",
@@ -31,6 +27,8 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@eve-fabric/compiler": "workspace:*",
+    "@eve-fabric/executor": "workspace:*",
     "@eve-fabric/kit": "workspace:*",
     "@eve-fabric/test-support": "workspace:*",
     "tsx": "^4.0.0",

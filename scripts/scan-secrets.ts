@@ -11,9 +11,9 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { scanForSecrets, type SecretFinding } from '@eve-fabric/schema-package';
+import { scanForSecrets, type SecretFinding } from '@eve-fabric/weave';
 
-const DEFAULT_SCAN_DIRS = ['examples', 'packages/schema-package'];
+const DEFAULT_SCAN_DIRS = ['examples'];
 
 interface FileFinding {
   readonly filePath: string;

@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { tranquilityEsi } from '@eve-fabric/test-support';
 import { createServer } from '../../src/server.js';
 
-describe('Execution and reference data routes', () => {
+describe('Reference data routes', () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -14,51 +14,6 @@ describe('Execution and reference data routes', () => {
 
   afterAll(async () => {
     await app.close();
-  });
-
-  describe('POST /api/capabilities/:id/execute', () => {
-    it('returns 404 with CAPABILITY_NOT_FOUND for unknown capability', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/capabilities/nonexistent.capability/execute',
-        headers: { 'content-type': 'application/json' },
-        payload: JSON.stringify({ inputs: {} }),
-      });
-      expect(response.statusCode).toBe(404);
-      const body = JSON.parse(response.body);
-      expect(body.error.code).toBe('CAPABILITY_NOT_FOUND');
-    });
-
-    it('returns 400 with MISSING_INPUT when required inputs are missing', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/capabilities/market.orders/execute',
-        headers: { 'content-type': 'application/json' },
-        payload: JSON.stringify({ inputs: {} }),
-      });
-      expect(response.statusCode).toBe(400);
-      const body = JSON.parse(response.body);
-      expect(body.error.code).toBe('MISSING_INPUT');
-      expect(body.error.message).toContain('region');
-    });
-
-    it('runs the capability and returns its output ports', async () => {
-      const response = await app.inject({
-        method: 'POST',
-        url: '/api/capabilities/route.distance/execute',
-        headers: { 'content-type': 'application/json' },
-        payload: JSON.stringify({
-          inputs: {
-            origin: { value: 30000142, semanticType: 'eve.solar.system.reference' },
-            destination: { value: 30002187, semanticType: 'eve.solar.system.reference' },
-          },
-        }),
-      });
-      expect(response.statusCode).toBe(200);
-      const body = JSON.parse(response.body);
-      expect(body.outputs['node-1']).toEqual({ distance: 4 });
-      expect(body.provenance['node-1'].sourceVersion).toBe('esi-compat:2026-08-18');
-    });
   });
 
   describe('GET /api/reference/regions', () => {

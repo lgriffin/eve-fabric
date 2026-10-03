@@ -9,7 +9,6 @@
     "packages/compiler",
     "packages/planner",
     "packages/executor",
-    "packages/schema-package",
     "packages/graphql",
     "packages/source-esi",
     "packages/source-sde",

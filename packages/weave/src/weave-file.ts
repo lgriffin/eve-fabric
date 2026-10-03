@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import { pipelineDefinitionSchema, type PipelineDefinition } from '@eve-fabric/core';
-import { scanForSecrets } from '@eve-fabric/schema-package';
+import { scanForSecrets } from './secret-scanner.js';
 import { isRange } from './range.js';
 
 /** The package format this module reads and writes. */

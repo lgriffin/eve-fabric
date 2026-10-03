@@ -1,5 +1,3 @@
 {
-  "apps/designer/src/hooks/useExecutor.ts": ["const sessionId = `exec-${Date.now()}`;"],
-  "apps/designer/src/stores/toast-store.ts": ["createdAt: Date.now(),"],
-  "apps/gateway/src/routes/pipeline-routes.ts": ["const savedAt = new Date().toISOString();"]
+  "apps/designer/src/stores/toast-store.ts": ["createdAt: Date.now(),"]
 }
