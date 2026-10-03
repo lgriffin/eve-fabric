@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import { createRequire } from 'module';
+import { fabricSources } from '../../vitest.sources.js';
 
 const require = createRequire(import.meta.url);
 const graphqlPath = require.resolve('graphql');
@@ -9,9 +10,7 @@ export default defineConfig({
     passWithNoTests: true,
   },
   resolve: {
-    alias: {
-      graphql: graphqlPath,
-    },
+    alias: [...fabricSources, { find: 'graphql', replacement: graphqlPath }],
     dedupe: ['graphql'],
   },
 });

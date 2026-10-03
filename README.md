@@ -2,6 +2,12 @@
 
 A TypeScript-first fabric for asking questions of EVE Online data. Start from a subject, follow the moves the fabric offers, fill the holes it names, and the question compiles, plans and runs; its saved form is GraphQL, and it can be shared as a weave another fabric adds.
 
+New here? [TESTING.md](TESTING.md) takes you from an empty directory to an
+answered question and names five things to try. The command line is documented
+in [docs/cli.md](docs/cli.md), the gateway's HTTP API in
+[docs/gateway-api.md](docs/gateway-api.md), and what each pull request changed
+in [CHANGELOG.md](CHANGELOG.md).
+
 ## Quickstart
 
 ```bash
@@ -400,11 +406,16 @@ pnpm -r run build
 ### Run Tests
 
 ```bash
-pnpm test               # unit tests, the quickstart included
+pnpm test               # unit tests, from source: no build needed
 pnpm run test:bdd       # BDD scenarios
-pnpm run test:bank      # the question bank
+pnpm run test:bank      # the question bank (--live asks Tranquility's ESI)
 pnpm run validate       # the full gate CI runs
 ```
+
+`pnpm test` resolves `@eve-fabric/*` to each package's source, so it runs on a
+fresh checkout. Everything that runs through `tsx` (the BDD suite, the bank,
+the examples, the CLI) imports the built packages, so run `pnpm run build`
+first.
 
 ### Start the Gateway
 

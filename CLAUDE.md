@@ -44,7 +44,7 @@ packages/
 
 ## Commands
 
-- `pnpm test` — run all unit tests (vitest)
+- `pnpm test` — run all unit tests (vitest); `@eve-fabric/*` resolves to each package's `src` (`vitest.sources.ts`), so no build is needed. Everything run through tsx (bank, BDD, examples, CLI) needs `pnpm run build`
 - `pnpm run test:bdd` — run BDD/Cucumber tests
 - `pnpm run test:e2e` — the designer's Playwright journeys over `pnpm workbench` (apps/designer/e2e)
 - `pnpm run test:property` — run property-based tests (fast-check)
@@ -53,7 +53,8 @@ packages/
 - `pnpm run lint:fix` — auto-fix lint issues
 - `pnpm run lint:layers` — package layering (core imports only zod; the engine never imports a source); shrink-only baseline in `scripts/baselines/layers.json`
 - `pnpm run lint:determinism` — time is read only through the `Clock` port; shrink-only baseline in `scripts/baselines/determinism.json`
-- `pnpm run test:bank` — the question bank (`bank/features`): prints "bank: N of 8"; `--update` records newly passing questions
+- `pnpm run test:bank` — the question bank (`bank/features`): prints "bank: N of 8"; `--update` records newly passing questions; `--live` asks Tranquility's ESI (Q6, Q7 skipped; Q1, Q4, Q5 skipped without `SDE_DATA_PATH`; nightly)
+- `pnpm run docs:cli` / `pnpm run docs:check` — `docs/cli.md` from the CLI's `USAGE`; the check runs in CI and `validate`. `docs/gateway-api.md` is hand-written, kept in step by `apps/gateway/tests/routes/documented.test.ts`
 - `pnpm run format` / `pnpm run format:check` — Prettier
 - `pnpm run typecheck` — TypeScript type checking across all packages
 - `pnpm run knip` — dead code detection
@@ -65,6 +66,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 010-harness-for-outsiders: `TESTING.md` (empty directory to an answered question, five things to try, what does not work yet), `docs/cli.md` (generated), `docs/gateway-api.md`, READMEs for `core`, `kit`, `pack-core`, `fabric` and the CLI, `CHANGELOG.md` (one entry per PR from #40), `pnpm test` from source, and the live question bank in the nightly workflow.
 
 - 009-codegen-over-weaves: `@eve-fabric/codegen` takes a weave and a fabric (`generate(weave, fabric)`) and emits a package: the weave, an `index.ts` that builds a fabric, adds the weave and asks by port, and a `package.json` on the published packages. `pnpm fabric codegen <weave>` writes it; `packages:check` runs a generated package offline against the bank's answer (#28). `Fabric.runOne` reads a composite's ports from the expanded pipeline.
 
