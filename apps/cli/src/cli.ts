@@ -3,12 +3,14 @@
  * out of a fabric from the terminal. Every command takes the same fabric
  * options; nothing here holds state except the store named by --db.
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
+import { generate } from '@eve-fabric/codegen';
 import type { Draft, Fabric } from '@eve-fabric/fabric';
-import { weaveToYaml } from '@eve-fabric/weave';
+import { weaveFromYaml, weaveToYaml } from '@eve-fabric/weave';
 import { openFabric, type FabricSettings } from './fabric-for.js';
 
 export interface Io {
@@ -30,6 +32,9 @@ Commands:
   weave add <file>               Add a weave; keep it with --db
   weave list                     The weaves added (with --db, across runs)
   weave remove <id> <version>    Take one back
+  codegen <weave> [--out <dir>] [--name <package>]
+                                 A runnable package from a weave: a module that builds a
+                                 fabric, adds the weave and asks (default dir: the weave's id)
   schema                         The GraphQL schema questions are written against
 
 Options:
@@ -38,6 +43,7 @@ Options:
                    ./my-pack.ts, or an installed package name
   --db <file>      Keep added weaves in this SQLite file (default: $FABRIC_DB)
   --json           Print answers as JSON on one line
+  --name <package> The package name codegen emits (default: the weave's id with hyphens)
   -h, --help       Show this help
 
 Live use reads names from the SDE export at $SDE_DATA_PATH.`;
@@ -186,6 +192,27 @@ async function weaveCommand(
   }
 }
 
+/** The one positional `codegen` takes: a weave file. */
+const codegenArgsSchema = z.tuple([z.string().min(1)]);
+
+/** `codegen <weave>`: the weave is checked as `weave add` checks it, then the package is written. */
+function codegenCommand(fabric: Fabric, args: readonly string[], options: Options, io: Io): void {
+  const parsed = codegenArgsSchema.safeParse(args);
+  if (!parsed.success) throw new UsageError('codegen takes one weave file');
+  const [file] = parsed.data;
+  const weave = weaveFromYaml(readFileSync(file, 'utf8'));
+  const bundle = generate(weave, fabric, { packageName: options.name });
+  const dir = resolve(options.cwd ?? '.', options.out ?? weave.id.replaceAll('.', '-'));
+  mkdirSync(dir, { recursive: true });
+  for (const generated of bundle.files) {
+    writeFileSync(join(dir, generated.path), generated.content);
+    io.out(`wrote ${join(dir, generated.path)}`);
+  }
+  io.out(
+    `${weave.id}@${weave.version} as a package in ${dir}: install its dependencies and import index.ts`,
+  );
+}
+
 interface Options {
   readonly offline: boolean;
   readonly packs: readonly string[];
@@ -195,10 +222,13 @@ interface Options {
   readonly version: string | undefined;
   readonly as: string | undefined;
   readonly out: string | undefined;
+  readonly name: string | undefined;
   readonly help: boolean;
+  /** Where relative --out paths resolve from. */
+  readonly cwd: string | undefined;
 }
 
-function parse(argv: readonly string[], env: Io['env']): { command: string[]; options: Options } {
+function parse(argv: readonly string[], io: Io): { command: string[]; options: Options } {
   const { values, positionals } = parseArgs({
     args: [...argv],
     allowPositionals: true,
@@ -211,6 +241,7 @@ function parse(argv: readonly string[], env: Io['env']): { command: string[]; op
       version: { type: 'string' },
       as: { type: 'string' },
       out: { type: 'string' },
+      name: { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
     },
   });
@@ -219,13 +250,15 @@ function parse(argv: readonly string[], env: Io['env']): { command: string[]; op
     options: {
       offline: values.offline,
       packs: values.pack,
-      db: values.db ?? env['FABRIC_DB'],
+      db: values.db ?? io.env['FABRIC_DB'],
       json: values.json,
       id: values.id,
       version: values.version,
       as: values.as,
       out: values.out,
+      name: values.name,
       help: values.help,
+      cwd: io.cwd,
     },
   };
 }
@@ -235,7 +268,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   let command: string[];
   let options: Options;
   try {
-    ({ command, options } = parse(argv, io.env));
+    ({ command, options } = parse(argv, io));
   } catch (error) {
     io.err(`error: ${(error as Error).message}\n\n${USAGE}`);
     return 2;
@@ -254,14 +287,18 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
   };
   let opened: Awaited<ReturnType<typeof openFabric>> | undefined;
   try {
-    if (!['ask', 'moves', 'weave', 'schema'].includes(name)) {
+    if (!['ask', 'moves', 'weave', 'codegen', 'schema'].includes(name)) {
       throw new UsageError(`"${name}" is not a command`);
     }
     opened = await openFabric(settings);
     for (const weave of opened.skipped)
       io.err(`warning: kept weave ${weave} no longer adds; skipped`);
     const { fabric } = opened;
-    if (!settings.offline && settings.sdeDataPath === undefined && name !== 'weave') {
+    if (
+      !settings.offline &&
+      settings.sdeDataPath === undefined &&
+      !['weave', 'codegen'].includes(name)
+    ) {
       io.err('note: no SDE_DATA_PATH, so names will not resolve; use ids, or --offline');
     }
     switch (name) {
@@ -278,6 +315,9 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
         break;
       case 'weave':
         await weaveCommand(fabric, args, options, io);
+        break;
+      case 'codegen':
+        codegenCommand(fabric, args, options, io);
         break;
       default:
         exactly(args, 0, 'schema takes no arguments');

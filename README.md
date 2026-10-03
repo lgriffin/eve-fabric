@@ -34,7 +34,14 @@ pnpm fabric ask question.graphql --offline                     # run a saved que
 pnpm fabric weave export question.graphql --id me.prices --version 1.0.0 --as "forge prices" --out prices.weave.yaml --offline
 pnpm fabric weave add prices.weave.yaml --db fabric.db --offline
 pnpm fabric weave list --db fabric.db --offline
+pnpm fabric codegen prices.weave.yaml --out prices --offline        # a runnable package from a weave
 ```
+
+`codegen` writes a package holding the weave, an `index.ts` that builds a
+fabric, adds the weave and asks its question (typed by port, ids in and values
+out), and a `package.json` naming the published packages it depends on. The
+module carries no capability code: the fabric checks the weave's digest and
+requirements when it is first asked.
 
 ## What It Does
 
@@ -412,14 +419,16 @@ Set `FABRIC_DB` to a file to keep added weaves across restarts.
 
 The packages listed in `scripts/published.json` are versioned 0.1.0 and set
 up for npm: `core`, `kit` and `pack-core`, so a pack can be written outside
-this repository, and `fabric` with the sources, engine, `weave`, `persistence`
-and `fixture` it needs, so the CLI (`@eve-fabric/cli`, the `eve-fabric` bin)
-runs with `npx @eve-fabric/cli --offline ask question.graphql`.
+this repository, and `fabric` with the sources, engine, `weave`, `persistence`,
+`fixture` and `codegen` it needs, so the CLI (`@eve-fabric/cli`, the
+`eve-fabric` bin) runs with `npx @eve-fabric/cli --offline ask question.graphql`.
 `pnpm run packages:check` packs them all, installs them into an empty project
 with nothing from this workspace, asks a question through the fabric and
-through the installed bin; pushing a `v*` tag publishes them (the Release
-workflow needs an `NPM_TOKEN` secret). The gateway and designer stay
-in the repository.
+through the installed bin, then exports that question as a weave, generates a
+package from it with `eve-fabric codegen` and runs the generated module
+offline, checking its answer against the bank's; pushing a `v*` tag publishes
+them (the Release workflow needs an `NPM_TOKEN` secret). The gateway and
+designer stay in the repository.
 
 ### Start the Designer
 

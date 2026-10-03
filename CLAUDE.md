@@ -35,7 +35,7 @@ packages/
   cache/            # Cache implementation
   source-esi/       # ESI source: ESI.ts's public view for capabilities
   source-sde/       # SDE source: ESI.ts's static data provider, fails loudly
-  codegen/          # Generates a runnable module from a pipeline
+  codegen/          # A weave in, a runnable package out (the CLI's `codegen` command)
   weave/            # Package format v2: weaves, digest, secret scanning, git index
   graphql/          # GraphQL schema generation
   persistence/      # Data persistence
@@ -65,6 +65,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 009-codegen-over-weaves: `@eve-fabric/codegen` takes a weave and a fabric (`generate(weave, fabric)`) and emits a package: the weave, an `index.ts` that builds a fabric, adds the weave and asks by port, and a `package.json` on the published packages. `pnpm fabric codegen <weave>` writes it; `packages:check` runs a generated package offline against the bank's answer (#28). `Fabric.runOne` reads a composite's ports from the expanded pipeline.
 
 - 008-designer-thin-client: the designer is one store (`draft-store`: the question, the canvas derived from the fabric's view, the catalog) and one HTTP client (`draft-client`), shown in three modes that are URLs: Explore (`#explore`, no canvas), Build (`#build`), Review (`#review`, a saved question read-only with Run). Two Playwright journeys run in CI.
 
