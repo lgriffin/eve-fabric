@@ -134,7 +134,7 @@ export async function runQuickstart(options: QuickstartOptions): Promise<Quickst
   log(`   With it installed, 'cost to buy in' is a move on any item:`);
   log(`   10,000 Pyerite in The Forge costs ${formatIsk(sharedAnswer)}`);
 
-  step(9, 'Mistakes are named, with what would work instead');
+  step(9, 'Mistakes are named, with what was probably meant');
   try {
     start.apply('ordrs');
   } catch (error) {

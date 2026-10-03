@@ -28,6 +28,6 @@ describe('quickstart', () => {
     // The refusals it shows are named and say what would work.
     const output = lines.join('\n');
     expect(output).toContain('WeaveRequirementError: The weave requires quickstart.cost.to.buy');
-    expect(output).toContain('"ordrs" is not a move this draft offers; it offers orders');
+    expect(output).toContain('"ordrs" is not a move this draft offers. Did you mean "orders"?');
   });
 });

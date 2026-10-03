@@ -3,7 +3,9 @@ import { generateKeyPairSync, sign } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createFabric, type DraftView } from '@eve-fabric/fabric';
 import { corePack, WALLET_SCOPE } from '@eve-fabric/pack-core';
-import { fixedClock } from '@eve-fabric/core';
+import { fixedClock, SourceRateLimitedError } from '@eve-fabric/core';
+import { defineCapability, definePack } from '@eve-fabric/kit';
+import { gatewayErrorHandler } from '../../src/middleware/error-handler.js';
 import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 import { createDraftRoutes, MAX_DRAFT_STEPS } from '../../src/routes/draft-routes.js';
 import {
@@ -134,6 +136,16 @@ describe('Draft routes', () => {
     expect(body['answer']).toMatchObject({ name: 'Perimeter' });
   });
 
+  it('answers 422 naming what was meant when a name does not resolve', async () => {
+    const typo = { ...Q1, subject: { kind: 'type', value: 'Tritanum' } };
+    const { status, body } = await post('/api/drafts/run', typo);
+    expect(status).toBe(422);
+    expect(body['error']).toMatchObject({
+      code: 'NOT_FOUND',
+      message: expect.stringContaining('Did you mean "Tritanium"?') as unknown,
+    });
+  });
+
   it('answers 400 for a body that is not a draft request', async () => {
     for (const payload of [{}, { subject: {} }, { subject: Q1.subject, steps: [{ kind: 'x' }] }]) {
       const { status, body } = await post('/api/drafts', payload);
@@ -241,5 +253,96 @@ describe('identityFromAuthorization', () => {
     await expect(identityFromAuthorization(`Bearer ${forged}`, verifier)).rejects.toThrow(
       /signature/,
     );
+  });
+});
+
+describe('Draft routes, when a step fails', () => {
+  let app: FastifyInstance;
+
+  /** A start that needs nothing and fails the way `fail` says. */
+  const failing = (id: string, name: string, fail: () => never) =>
+    defineCapability({
+      id,
+      version: '1.0.0',
+      name,
+      description: `Fails: ${name}`,
+      inputs: {},
+      outputs: { n: { type: 'eve.quantity' } },
+      cost: { estimatedLatencyMs: 1 },
+      run: fail,
+    });
+
+  beforeAll(async () => {
+    const fabric = createFabric({
+      esi: tranquilityEsi().esi,
+      sde: tranquilitySde(),
+      packs: [
+        corePack,
+        definePack({
+          id: '@test/failing',
+          capabilities: [
+            failing('test.broken', 'Broken', () => {
+              throw new Error('secret internals');
+            }),
+            failing('test.forbidden', 'Forbidden', () => {
+              throw Object.assign(new Error('Forbidden'), {
+                statusCode: 403,
+                url: 'https://esi.evetech.net/x',
+              });
+            }),
+            failing('test.limited', 'Limited', () => {
+              throw new Error('wrapped', {
+                cause: new SourceRateLimitedError({
+                  source: 'ESI',
+                  capabilityId: 'test.limited',
+                  retryAfterMs: 2000,
+                }),
+              });
+            }),
+          ],
+        }),
+      ],
+      clock,
+    });
+    app = Fastify({ logger: false });
+    app.setErrorHandler(gatewayErrorHandler);
+    await app.register(createDraftRoutes(fabric, { verifier }));
+    await app.ready();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  const run = (start: string) =>
+    app.inject({ method: 'POST', url: '/api/drafts/run', payload: { subject: { start } } });
+
+  it('answers 500 and hides the message of a failure the caller cannot act on', async () => {
+    const response = await run('Broken');
+    expect(response.statusCode).toBe(500);
+    expect(response.body).not.toContain('secret internals');
+  });
+
+  it('answers 502 naming the request when a source answered with an HTTP error', async () => {
+    const response = await run('Forbidden');
+    expect(response.statusCode).toBe(502);
+    expect(JSON.parse(response.body)).toMatchObject({
+      error: { code: 'SOURCE_FAILED', message: expect.stringContaining('HTTP 403') as unknown },
+    });
+  });
+
+  it('leaves a typed gateway error, however deep, to the gateway handler', async () => {
+    const response = await run('Limited');
+    expect(response.statusCode).toBe(503);
+    expect(response.headers['retry-after']).toBe('2');
+  });
+
+  it('refuses names longer than any name', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/drafts',
+      payload: { subject: { kind: 'type', value: 'x'.repeat(201) } },
+    });
+    expect(response.statusCode).toBe(400);
   });
 });

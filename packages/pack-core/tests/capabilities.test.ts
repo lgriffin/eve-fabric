@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CapabilityCatalog,
+  NameNotFoundError,
   SemanticTypeRegistry,
   fixedClock,
   type CapabilityDefinition,
@@ -57,6 +58,15 @@ describe('universe resolvers', () => {
     expect(await run(core.resolveType, { query: TYPE.rifter })).toEqual({ type: TYPE.rifter });
     await expect(run(core.resolveType, { query: 999 })).rejects.toThrow('not found');
     await expect(run(core.resolveType, { query: 'Nothing Such' })).rejects.toThrow('No type');
+    await expect(run(core.resolveType, { query: 'Tritanum' })).rejects.toThrow(
+      'No type matching "Tritanum" found in SDE. Did you mean "Tritanium"?',
+    );
+    await expect(run(core.resolveType, { query: 'Xritanium' })).rejects.toThrow(
+      'Did you mean "Tritanium"?',
+    );
+    await expect(run(core.resolveType, { query: 'Tritanum' })).rejects.toBeInstanceOf(
+      NameNotFoundError,
+    );
     await expect(run(core.resolveType, { query: true })).rejects.toThrow('numeric ID or string');
   });
 
@@ -69,6 +79,9 @@ describe('universe resolvers', () => {
     });
     await expect(run(core.resolveRegion, { query: 1 })).rejects.toThrow('not found');
     await expect(run(core.resolveRegion, { query: 'Nowhere' })).rejects.toThrow('No region');
+    await expect(run(core.resolveRegion, { query: 'The Forj' })).rejects.toThrow(
+      'Did you mean "The Forge"?',
+    );
     await expect(run(core.resolveRegion, { query: null })).rejects.toThrow('numeric ID or string');
   });
 
@@ -80,6 +93,9 @@ describe('universe resolvers', () => {
     await expect(run(core.resolveSolarSystem, { query: 30999999 })).rejects.toThrow('not found');
     await expect(run(core.resolveSolarSystem, { query: 'Nowhere' })).rejects.toThrow(
       'No solar system',
+    );
+    await expect(run(core.resolveSolarSystem, { query: 'Perimiter' })).rejects.toThrow(
+      'Did you mean "Perimeter"?',
     );
     await expect(run(core.resolveSolarSystem, { query: [] })).rejects.toThrow(
       'numeric ID or string',

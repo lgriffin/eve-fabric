@@ -31,6 +31,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@eve-fabric/kit": "workspace:*",
     "@eve-fabric/test-support": "workspace:*",
     "tsx": "^4.0.0",
     "typescript": "^5.5.0",

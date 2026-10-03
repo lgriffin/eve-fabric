@@ -61,14 +61,24 @@ export class StepExecutionError extends Error {
   readonly capabilityId: string;
 
   constructor(stepId: string, capabilityId: string, cause: unknown) {
-    super(
-      `Step "${stepId}" (${capabilityId}) failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-      { cause },
-    );
+    super(`Step "${stepId}" (${capabilityId}) failed: ${describeCause(cause)}`, { cause });
     this.name = 'StepExecutionError';
     this.stepId = stepId;
     this.capabilityId = capabilityId;
   }
+}
+
+/**
+ * What went wrong, in words. An HTTP failure from a source (ESI.ts's errors
+ * carry the status and URL) says which request failed and how.
+ */
+function describeCause(cause: unknown): string {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  const http = cause as { readonly statusCode?: unknown; readonly url?: unknown } | null;
+  if (typeof http?.statusCode === 'number' && typeof http.url === 'string') {
+    return `${message} (HTTP ${String(http.statusCode)} from ${http.url})`;
+  }
+  return message;
 }
 
 /** A capability reached for a source the fabric was not given. */

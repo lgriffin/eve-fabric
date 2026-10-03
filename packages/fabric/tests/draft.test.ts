@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
+import { defineCapability, definePack } from '@eve-fabric/kit';
 import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/core';
 import { tranquilityEsi, tranquilitySde, REGION, SYSTEM, TYPE } from '@eve-fabric/test-support';
@@ -175,6 +176,50 @@ describe('a draft', () => {
       expect(() => draft.apply('cheapest')).toThrow(MoveNotOfferedError);
       expect(() => draft.apply('cheapest')).toThrow(/offers .*orders/);
       expect(draft.pipeline()).toEqual(before);
+    });
+
+    it('a mistyped move, naming the move that was meant', () => {
+      const draft = tranquilityFabric().draft({ type: 'Tritanium' });
+      expect(() => draft.apply('ordrs')).toThrow(
+        '"ordrs" is not a move this draft offers. Did you mean "orders"? It offers orders,',
+      );
+    });
+
+    it('a mistyped hole, naming the hole that was meant', () => {
+      const draft = tranquilityFabric().draft({ type: 'Tritanium' }).apply('orders');
+      expect(() => draft.fill('regoin', 'The Forge')).toThrow(
+        'Cannot fill "regoin": it is not a hole of this draft. Did you mean "region"? The holes are region.',
+      );
+    });
+
+    it('a mistyped subject or start, naming what was meant', () => {
+      const fabric = tranquilityFabric();
+      expect(() => fabric.draft({ tyep: 'Tritanium' })).toThrow(
+        /Did you mean "type"\? A draft starts from a .*type/,
+      );
+      expect(() => fabric.draft('wallt journal')).toThrow(UnknownSubjectError);
+    });
+
+    it('a mistyped start id, naming the id that was meant', () => {
+      const fabric = tranquilityFabric();
+      fabric.install(
+        definePack({
+          id: '@test/start',
+          capabilities: [
+            defineCapability({
+              id: 'test.start.thing',
+              version: '1.0.0',
+              name: 'Thing',
+              description: 'Needs nothing',
+              inputs: {},
+              outputs: { n: { type: 'eve.quantity' } },
+              cost: { estimatedLatencyMs: 1 },
+              run: () => ({ n: 1 }),
+            }),
+          ],
+        }),
+      );
+      expect(() => fabric.draft('test.start.thnig')).toThrow('Did you mean "test.start.thing"?');
     });
 
     it('a fill that is not a hole', () => {

@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
-import type { CapabilityDefinition } from '@eve-fabric/core';
+import { isGatewayError, NameNotFoundError, type CapabilityDefinition } from '@eve-fabric/core';
 import {
   Draft,
   draftFrom,
@@ -18,20 +18,22 @@ import {
 
 /** The most changes one draft request replays; each one compiles the draft. */
 export const MAX_DRAFT_STEPS = 200;
+/** The longest move, hole, kind, start or subject name a draft request may send. */
+const MAX_NAME = 200;
 /** The longest GraphQL document a draft request may send. */
 const MAX_DRAFT_DOCUMENT = 20_000;
 
 const changeSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('move'), move: z.string().min(1) }),
-  z.object({ kind: z.literal('fill'), hole: z.string().min(1), value: z.unknown() }),
+  z.object({ kind: z.literal('move'), move: z.string().min(1).max(MAX_NAME) }),
+  z.object({ kind: z.literal('fill'), hole: z.string().min(1).max(MAX_NAME), value: z.unknown() }),
 ]);
 
 const subjectSchema = z.union([
   z.object({
-    kind: z.string().min(1),
-    value: z.union([z.string().min(1), z.number().int().positive()]),
+    kind: z.string().min(1).max(MAX_NAME),
+    value: z.union([z.string().min(1).max(MAX_NAME), z.number().int().positive()]),
   }),
-  z.object({ start: z.string().min(1) }),
+  z.object({ start: z.string().min(1).max(MAX_NAME) }),
 ]);
 
 /** A draft as the client holds it: a GraphQL document, or a subject and its changes. */
@@ -85,7 +87,44 @@ function refuse(reply: FastifyReply, error: unknown): FastifyReply {
   if (error instanceof Error && REFUSALS.has(error.name)) {
     return reply.status(422).send({ error: { code: error.name, message: error.message } });
   }
-  throw error;
+  const failed = failedStep(error);
+  if (failed === undefined) throw error;
+  if (failed.status >= 500) reply.log.error({ err: error }, 'Draft step failed at its source');
+  else reply.log.warn({ err: error }, 'Draft step refused a name');
+  return reply.status(failed.status).send({ error: failed });
+}
+
+/** The error and what caused it, as far down as the gateway's handler looks. */
+function causes(error: Error): Error[] {
+  const chain: Error[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current instanceof Error; depth++) {
+    chain.push(current);
+    current = current.cause;
+  }
+  return chain;
+}
+
+/**
+ * A step that failed for a reason the caller can act on. A name or id that
+ * names nothing (its message says what was probably meant) is 422, and a
+ * source that answered with an HTTP error is 502. Anything else, typed
+ * gateway errors included (a rate limit, a missing scope), goes to the
+ * gateway's error handler, which answers for it and masks what it must.
+ */
+function failedStep(
+  error: unknown,
+): { readonly status: number; readonly code: string; readonly message: string } | undefined {
+  if (!(error instanceof Error) || error.name !== 'StepExecutionError') return undefined;
+  const chain = causes(error);
+  if (chain.some(isGatewayError)) return undefined;
+  if (chain.some((e) => e instanceof NameNotFoundError)) {
+    return { status: 422, code: 'NOT_FOUND', message: error.message };
+  }
+  if (chain.some((e) => typeof (e as { statusCode?: unknown }).statusCode === 'number')) {
+    return { status: 502, code: 'SOURCE_FAILED', message: error.message };
+  }
+  return undefined;
 }
 
 /** A capability a draft can start from: every input optional. */
