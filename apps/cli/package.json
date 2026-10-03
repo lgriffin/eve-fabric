@@ -30,6 +30,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@eve-fabric/codegen": "workspace:*",
     "@eve-fabric/core": "workspace:*",
     "@eve-fabric/fabric": "workspace:*",
     "@eve-fabric/kit": "workspace:*",

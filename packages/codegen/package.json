@@ -1,12 +1,32 @@
 {
   "name": "@eve-fabric/codegen",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
+  "description": "A weave in, a runnable package out: a module that builds a fabric, adds the weave and asks its question.",
+  "license": "ISC",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "bin": {
-    "eve-codegen": "./dist/cli.js"
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.map",
+    "!dist/**/*.tsbuildinfo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lgriffin/eve-fabric.git",
+    "directory": "packages/codegen"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22.12"
   },
   "scripts": {
     "build": "tsc",
@@ -16,11 +36,16 @@
   },
   "dependencies": {
     "@eve-fabric/core": "workspace:*",
-    "yaml": "^2.0.0",
+    "@eve-fabric/fabric": "workspace:*",
+    "@eve-fabric/weave": "workspace:*",
     "zod": "^3.23.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@eve-fabric/fixture": "workspace:*",
+    "@eve-fabric/pack-core": "workspace:*",
+    "@eve-fabric/source-sde": "workspace:*",
+    "@lgriffin/esi.ts": "11.1.1",
+    "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }

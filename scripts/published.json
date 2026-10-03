@@ -12,5 +12,6 @@
   "packages/persistence",
   "packages/fixture",
   "packages/fabric",
+  "packages/codegen",
   "apps/cli"
 ]

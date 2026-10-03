@@ -341,4 +341,21 @@ describe('weaves kept in a store', () => {
     // And it can be added once the store recovers.
     await expect(tranquilityFabric(memoryStore()).add(exportedQ3())).resolves.toBeDefined();
   });
+
+  it('checks a weave without adding it, giving the weave as it runs here and its plan', () => {
+    const fabric = tranquilityFabric();
+    const file = exportedQ3();
+    const before = fabric.describe().capabilities.length;
+    const { weave, plan } = fabric.check(file);
+    expect(weave.capability.id).toBe(OPPORTUNITY.id);
+    expect(weave.pipeline.nodes.every((n) => n.capability.version !== undefined)).toBe(true);
+    expect(plan.steps.length).toBeGreaterThan(0);
+    expect(fabric.describe().capabilities).toHaveLength(before);
+    expect(() => fabric.check(resealed(file, { id: 'eve.trade.opportunity' }))).toThrow(
+      WeaveRefusedError,
+    );
+    expect(() =>
+      fabric.check(resealed(file, { scopes: ['esi-wallet.read_character_wallet.v1'] })),
+    ).toThrow(WeaveMismatchError);
+  });
 });

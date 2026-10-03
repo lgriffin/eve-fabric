@@ -1,40 +1,37 @@
-import type { ExecutionPlan } from '@eve-fabric/core';
+import { createRequire } from 'node:module';
+import type { ResolvedWeave } from './generator.js';
 
-export interface PackageJsonOptions {
-  readonly packageName: string;
-  readonly packageScope?: string | undefined;
-  readonly version: string;
-  readonly description: string;
-}
+/** The version this package was built as: the published packages share one version line. */
+const { version: PUBLISHED_VERSION } = createRequire(import.meta.url)('../package.json') as {
+  version: string;
+};
 
-export function emitPackageJson(options: PackageJsonOptions, plan: ExecutionPlan): string {
-  const fullName = options.packageScope
-    ? `${options.packageScope}/${options.packageName}`
-    : options.packageName;
+/** ESI.ts, as the kit and the fabric pin it. */
+const ESI_TS_VERSION = '11.1.1';
 
-  const sources = new Set(plan.sourceRequirements.map((r) => r.source));
-
+/**
+ * The generated package depends on the published packages: the fabric and
+ * the core pack always, the sources the weave's steps run against as well.
+ */
+export function emitPackageJson(weave: ResolvedWeave, packageName: string): string {
   const dependencies: Record<string, string> = {
-    '@eve-fabric/core': '*',
-    '@eve-fabric/executor': '*',
-    '@eve-fabric/fabric': '*',
-    '@eve-fabric/pack-core': '*',
+    '@eve-fabric/fabric': `^${PUBLISHED_VERSION}`,
+    '@eve-fabric/pack-core': `^${PUBLISHED_VERSION}`,
   };
-
-  if (sources.has('ESI')) dependencies['@lgriffin/esi.ts'] = '11.1.1';
-  if (sources.has('SDE')) dependencies['@eve-fabric/source-sde'] = '*';
-
+  if (weave.sources.has('ESI')) dependencies['@lgriffin/esi.ts'] = ESI_TS_VERSION;
+  if (weave.sources.has('SDE')) dependencies['@eve-fabric/source-sde'] = `^${PUBLISHED_VERSION}`;
   const pkg = {
-    name: fullName,
-    version: options.version,
-    description: options.description,
+    name: packageName,
+    version: weave.file.version,
+    description: weave.file.description,
     type: 'module',
     main: './index.ts',
-    scripts: {
-      generate: 'echo "Load pipeline.yaml into eve-fabric designer to regenerate"',
-    },
     dependencies,
+    'eve-fabric': {
+      weave: `${weave.file.id}@${weave.file.version}`,
+      digest: weave.file.digest,
+      generator: `@eve-fabric/codegen@${PUBLISHED_VERSION}`,
+    },
   };
-
-  return JSON.stringify(pkg, null, 2) + '\n';
+  return `${JSON.stringify(pkg, null, 2)}\n`;
 }

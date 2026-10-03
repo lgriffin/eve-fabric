@@ -1,18 +1,11 @@
-import type { ExecutionPlan, PipelineDefinition, CapabilityDefinition } from '@eve-fabric/core';
-import { CapabilityCatalog } from '@eve-fabric/core';
+import type { Fabric } from '@eve-fabric/fabric';
+import { readWeave, weaveToYaml, type WeaveFile } from '@eve-fabric/weave';
 import { emitIndexTs } from './emit-index-ts.js';
 import { emitPackageJson } from './emit-package-json.js';
-import { emitPipelineYaml } from './emit-pipeline-yaml.js';
 
-export interface CodegenOptions {
-  readonly pipeline: PipelineDefinition;
-  readonly plan: ExecutionPlan;
-  readonly catalog: CapabilityCatalog;
-  readonly packageName: string;
-  readonly packageScope?: string | undefined;
-  readonly version?: string | undefined;
-  readonly description?: string | undefined;
-  readonly graphqlSdl?: string | undefined;
+export interface GenerateOptions {
+  /** The generated package's name; the weave's id with hyphens by default. */
+  readonly packageName?: string | undefined;
 }
 
 export interface GeneratedFile {
@@ -24,60 +17,40 @@ export interface GeneratedBundle {
   readonly files: readonly GeneratedFile[];
 }
 
-function collectCapabilities(
-  plan: ExecutionPlan,
-  catalog: CapabilityCatalog,
-): CapabilityDefinition[] {
-  const seen = new Set<string>();
-  const result: CapabilityDefinition[] = [];
-
-  for (const step of plan.steps) {
-    const key = `${step.capability.id as string}@${(step.capability.version as string) ?? 'latest'}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-
-    const def = catalog.get(step.capability.id, step.capability.version);
-    result.push(def);
-  }
-
-  return result;
+/** What the emitters read off a weave once the fabric has resolved it. */
+export interface ResolvedWeave {
+  readonly file: WeaveFile;
+  readonly yaml: string;
+  /** The sources the weave's steps run against, as the compiler planned them. */
+  readonly sources: ReadonlySet<string>;
 }
 
-export function generate(options: CodegenOptions): GeneratedBundle {
-  const {
-    pipeline,
-    plan,
-    catalog,
-    packageName,
-    packageScope,
-    version = '1.0.0',
-    description = pipeline.description ?? pipeline.name,
-    graphqlSdl,
-  } = options;
-
-  const capabilities = collectCapabilities(plan, catalog);
-
-  const files: GeneratedFile[] = [
-    {
-      path: 'pipeline.yaml',
-      content: emitPipelineYaml(pipeline),
-    },
-    {
-      path: 'index.ts',
-      content: emitIndexTs(pipeline, plan, capabilities, graphqlSdl),
-    },
-    {
-      path: 'package.json',
-      content: emitPackageJson({ packageName, packageScope, version, description }, plan),
-    },
-  ];
-
-  if (graphqlSdl) {
-    files.push({
-      path: 'schema.graphql',
-      content: graphqlSdl,
-    });
-  }
-
-  return { files };
+/**
+ * A weave in, a runnable package out. The fabric checks the weave as `add`
+ * would: its digest, that its id is not reserved, that every capability it
+ * requires is here in a version it accepts, that it compiles, and that what
+ * it declares is what it compiles to. The module emitted carries the weave
+ * and no capability code; at run time it builds a fabric, adds the weave,
+ * and asks.
+ */
+export function generate(
+  weave: WeaveFile,
+  fabric: Fabric,
+  options: GenerateOptions = {},
+): GeneratedBundle {
+  const file = readWeave(weave);
+  const { plan } = fabric.check(file);
+  const resolved: ResolvedWeave = {
+    file,
+    yaml: weaveToYaml(file),
+    sources: new Set(plan.sourceRequirements.map((r) => r.source)),
+  };
+  const packageName = options.packageName ?? file.id.replaceAll('.', '-');
+  return {
+    files: [
+      { path: `${file.id}.weave.yaml`, content: resolved.yaml },
+      { path: 'index.ts', content: emitIndexTs(resolved, fabric.types) },
+      { path: 'package.json', content: emitPackageJson(resolved, packageName) },
+    ],
+  };
 }
