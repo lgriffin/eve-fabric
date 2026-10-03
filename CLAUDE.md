@@ -46,6 +46,7 @@ packages/
 
 - `pnpm test` — run all unit tests (vitest)
 - `pnpm run test:bdd` — run BDD/Cucumber tests
+- `pnpm run test:e2e` — the designer's Playwright journeys over `pnpm workbench` (apps/designer/e2e)
 - `pnpm run test:property` — run property-based tests (fast-check)
 - `pnpm run coverage` — run tests with coverage thresholds (branches 80%, functions 75%, lines 90%, statements 90%)
 - `pnpm run lint` — ESLint 9 flat config with typescript-eslint type-checked rules, eslint-plugin-security, eslint-plugin-sonarjs
@@ -64,6 +65,8 @@ packages/
 TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conventional commits enforced via commitlint.
 
 ## Recent Changes
+
+- 008-designer-thin-client: the designer is one store (`draft-store`: the question, the canvas derived from the fabric's view, the catalog) and one HTTP client (`draft-client`), shown in three modes that are URLs: Explore (`#explore`, no canvas), Build (`#build`), Review (`#review`, a saved question read-only with Run). Two Playwright journeys run in CI.
 
 - 007-retire-legacy-pipeline-model: hand-authored pipelines are no longer a way in. The gateway serves drafts, weaves and the derived schema at `/graphql`; the designer's canvas is a read-only view of the open draft; `schema-package` (format v1) is folded into `weave`; examples are saved `.graphql` questions.
 

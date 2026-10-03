@@ -1,4 +1,8 @@
-import type { DraftRequest, DraftView } from '../../src/services/draft-client.js';
+import type {
+  CatalogCapability,
+  DraftRequest,
+  DraftView,
+} from '../../src/services/draft-client.js';
 
 /**
  * A fabric that answers three drafts about Tritanium: fresh, with orders
@@ -82,3 +86,30 @@ export function answer(request: DraftRequest): DraftView {
   if (steps.length === 1) return withOrders;
   return complete;
 }
+
+/** The two capabilities the fixture's scaffolds are made of, as the catalog describes them. */
+export const catalog: CatalogCapability[] = [
+  {
+    id: 'x.type',
+    version: '1.0.0',
+    name: 'Type',
+    description: '',
+    source: 'SDE',
+    inputs: [],
+    outputs: [{ name: 'type', semanticType: 'eve.type.reference' }],
+    isComposite: false,
+  },
+  {
+    id: 'x.orders',
+    version: '1.0.0',
+    name: 'Orders',
+    description: '',
+    source: 'ESI',
+    inputs: [
+      { name: 'item', semanticType: 'eve.type.reference', required: true },
+      { name: 'region', semanticType: 'eve.region.reference', required: true },
+    ],
+    outputs: [{ name: 'orders', semanticType: 'eve.market.orders' }],
+    isComposite: false,
+  },
+];

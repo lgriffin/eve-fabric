@@ -22,7 +22,6 @@ import {
 } from '@eve-fabric/fixture';
 import { incursionsPack } from '../../../../examples/incursions-pack/pack.js';
 import { useDraftStore } from '../../src/stores/draft-store.js';
-import { usePipelineStore } from '../../src/stores/pipeline-store.js';
 
 const TOKEN = 'ava-token';
 
@@ -152,7 +151,7 @@ describe('building a question in the designer', () => {
     expect(view.complete).toBe(true);
     expect(view.plan!.steps.length).toBeGreaterThan(0);
     // The canvas shows the scaffold the fabric built.
-    expect(usePipelineStore.getState().nodes.map((n) => n.id)).toEqual(
+    expect(useDraftStore.getState().nodes.map((n) => n.id)).toEqual(
       view.pipeline.nodes.map((n) => n.id),
     );
     expect(await store().run()).toBe(true);
@@ -249,13 +248,61 @@ describe('building a question in the designer', () => {
     expect(store().steps).toEqual([]);
   });
 
+  it('clears the error a missing catalog raised once the catalog arrives', async () => {
+    const answer = serve(tranquilityFabric());
+    let registryDown = true;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (path: string, init?: RequestInit) => {
+        if (path !== '/api/registry') return answer(path, init);
+        return registryDown
+          ? new Response(JSON.stringify({ error: { message: 'down' } }), { status: 503 })
+          : new Response(JSON.stringify({ capabilities: [] }), { status: 200 });
+      }),
+    );
+    const store = useDraftStore.getState;
+    expect(await store().loadCatalog()).toBe(false);
+    expect(store().error).toBe('The gateway did not answer: down');
+    registryDown = false;
+    expect(await store().loadCatalog()).toBe(true);
+    expect(store().error).toBeNull();
+  });
+
+  it("keeps an error of the question's own when the catalog arrives", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ capabilities: [] }), { status: 200 })),
+    );
+    const store = useDraftStore.getState;
+    await store().apply('orders');
+    expect(store().error).toBe('Start from a subject first');
+    expect(await store().loadCatalog()).toBe(true);
+    expect(store().error).toBe('Start from a subject first');
+  });
+
+  it('drops a catalog that a newer request overtook', async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        if (calls++ === 0) await new Promise((resolve) => setTimeout(resolve, 50));
+        return new Response(JSON.stringify({ capabilities: [] }), { status: 200 });
+      }),
+    );
+    const store = useDraftStore.getState;
+    const slow = store().loadCatalog();
+    const fast = store().loadCatalog();
+    expect(await fast).toBe(true);
+    expect(await slow).toBe(false);
+  });
+
   it('clears the canvas with the question', async () => {
     const store = useDraftStore.getState;
     await store().start({ kind: 'type', value: 'Tritanium' });
     await store().apply('orders');
-    expect(usePipelineStore.getState().nodes.length).toBeGreaterThan(0);
+    expect(useDraftStore.getState().nodes.length).toBeGreaterThan(0);
     store().clear();
     expect(store().subject).toBeNull();
-    expect(usePipelineStore.getState().nodes).toHaveLength(0);
+    expect(useDraftStore.getState().nodes).toHaveLength(0);
   });
 });

@@ -1,103 +1,73 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
-import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay.js';
+import { useEffect, useMemo, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
-import { DraftPanel } from './components/draft/DraftPanel.js';
-import { PipelineCanvas } from './components/canvas/PipelineCanvas.js';
-import { GraphQLPreview } from './components/preview/GraphQLPreview.js';
-import { ExecutionPlanPreview } from './components/preview/ExecutionPlanPreview.js';
-import { Toolbar } from './components/shared/Toolbar.js';
-import { ToastContainer } from './components/shared/ToastContainer.js';
-import { NodeDetailPanel } from './components/detail/NodeDetailPanel.js';
-import { BreadcrumbNav } from './components/drilldown/BreadcrumbNav.js';
-import { CompositeOverlay } from './components/drilldown/CompositeOverlay.js';
-import { usePipelineStore } from './stores/pipeline-store.js';
+import type { DraftSubject } from '@eve-fabric/fabric';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts.js';
+import { useMode } from './hooks/useMode.js';
+import { useOpenFile } from './hooks/useOpenFile.js';
 import { useDraftStore } from './stores/draft-store.js';
 import { useToastStore } from './stores/toast-store.js';
-import { colors, fontFamily, fontSize } from './tokens.js';
-import { useLoadCatalog } from './hooks/useGatewayApi.js';
-import { useOpenFile } from './hooks/useOpenFile.js';
-import { applyAutoLayout } from './services/layout-engine.js';
 import { download } from './services/download.js';
-import type { DraftSubject } from '@eve-fabric/fabric';
-
-type Tab = 'graphql' | 'plan';
-
-const TABS: Array<{ key: Tab; label: string }> = [
-  { key: 'graphql', label: 'GraphQL' },
-  { key: 'plan', label: 'Plan' },
-];
+import { ShortcutsOverlay } from './components/shared/ShortcutsOverlay.js';
+import { Toolbar } from './components/shared/Toolbar.js';
+import { ToastContainer } from './components/shared/ToastContainer.js';
+import { ExploreMode } from './components/modes/ExploreMode.js';
+import { BuildMode } from './components/modes/BuildMode.js';
+import { ReviewMode } from './components/modes/ReviewMode.js';
+import { colors, fontFamily } from './tokens.js';
 
 function titleOf(subject: DraftSubject | null): string {
   if (subject === null) return 'No question yet';
   return 'start' in subject ? subject.start : `${subject.kind} ${String(subject.value)}`;
 }
 
+const VIEWS = { explore: ExploreMode, build: BuildMode, review: ReviewMode } as const;
+
 /**
  * The designer: a question built from the moves and holes the fabric
- * offers, and a canvas that shows the scaffold the question becomes.
+ * offers, shown in one of three layouts over the same store.
  */
 export function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
-  const [activeTab, setActiveTab] = useState<Tab>('graphql');
-
-  const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
-  const drilldownStack = usePipelineStore((s) => s.drilldownStack);
-  const openComposite = usePipelineStore((s) => s.openComposite);
-  const closeComposite = usePipelineStore((s) => s.closeComposite);
-  const setSelectedNode = usePipelineStore((s) => s.setSelectedNode);
+  const mode = useMode();
   const subject = useDraftStore((s) => s.subject);
-  const undoChange = useDraftStore((s) => s.undo);
+  const loadCatalog = useDraftStore((s) => s.loadCatalog);
   const addToast = useToastStore((s) => s.addToast);
-  const title = titleOf(subject);
-
-  useLoadCatalog();
   const { handleOpen, handleDrop } = useOpenFile();
+  const View = VIEWS[mode];
 
-  // A question's saved form is its GraphQL, which it has once its holes are filled.
-  const handleSave = useCallback(() => {
-    const { subject: open, view } = useDraftStore.getState();
-    if (open === null) return;
-    if (view?.graphql === undefined) {
-      addToast('error', 'Not saved', 'Fill the question’s holes first');
-      return;
-    }
-    download(view.graphql, 'application/graphql', 'question.graphql');
-    addToast('success', 'Saved', 'The question, as GraphQL');
-  }, [addToast]);
-
-  const handleRelayout = useCallback(() => {
-    const { nodes, edges, loadPipeline } = usePipelineStore.getState();
-    loadPipeline(applyAutoLayout(nodes, edges), edges);
-  }, []);
-
-  const handleNavigate = useCallback(
-    (depth: number) => {
-      const target = depth < 0 ? 0 : depth + 1;
-      while (usePipelineStore.getState().drilldownStack.length > target) closeComposite();
-    },
-    [closeComposite],
-  );
+  useEffect(() => {
+    void loadCatalog();
+  }, [loadCatalog]);
 
   useKeyboardShortcuts(
     useMemo(
       () => ({
         // Nothing to take back before a question starts, so nothing to say either.
         onUndo: () => {
-          const { subject: open, steps } = useDraftStore.getState();
-          if (open !== null && steps.length > 0) void undoChange();
+          const { subject: open, steps, mode: now, undo } = useDraftStore.getState();
+          if (open !== null && steps.length > 0 && now !== 'review') void undo();
         },
-        onSave: handleSave,
+        // A question's saved form is its GraphQL, which it has once its holes are filled.
+        onSave: () => {
+          const { subject: open, view } = useDraftStore.getState();
+          if (open === null) return;
+          if (view?.graphql === undefined) {
+            addToast('error', 'Not saved', 'Fill the question’s holes first');
+            return;
+          }
+          download(view.graphql, 'application/graphql', 'question.graphql');
+          addToast('success', 'Saved', 'The question, as GraphQL');
+        },
         onSelectAll: () => {
           /* handled by React Flow */
         },
         onEscape: () => {
-          setSelectedNode(null);
+          useDraftStore.getState().selectNode(null);
           setShowShortcuts(false);
         },
         onToggleHelp: () => setShowShortcuts((v) => !v),
       }),
-      [undoChange, handleSave, setSelectedNode],
+      [addToast],
     ),
   );
 
@@ -119,76 +89,8 @@ export function App() {
           overflow: 'hidden',
         }}
       >
-        <Toolbar title={title} onOpen={handleOpen} onRelayout={handleRelayout} />
-
-        {drilldownStack.length > 0 && (
-          <BreadcrumbNav pipelineName={title} stack={drilldownStack} onNavigate={handleNavigate} />
-        )}
-
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <DraftPanel />
-
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <PipelineCanvas />
-            </div>
-
-            <div
-              style={{
-                height: 200,
-                background: colors.surface.raised,
-                borderTop: `1px solid ${colors.surface.border}`,
-                display: 'flex',
-                flexDirection: 'column',
-                flexShrink: 0,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  borderBottom: `1px solid ${colors.surface.border}`,
-                }}
-              >
-                {TABS.map((tab) => (
-                  <button
-                    key={tab.key}
-                    onClick={() => setActiveTab(tab.key)}
-                    style={{
-                      padding: '6px 14px',
-                      fontSize: fontSize.sm,
-                      fontWeight: 600,
-                      border: 'none',
-                      borderBottom:
-                        activeTab === tab.key
-                          ? `2px solid ${colors.accent}`
-                          : '2px solid transparent',
-                      background: 'transparent',
-                      color: activeTab === tab.key ? colors.text.primary : colors.text.dim,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ flex: 1, overflow: 'hidden' }}>
-                {activeTab === 'graphql' && <GraphQLPreview />}
-                {activeTab === 'plan' && <ExecutionPlanPreview />}
-              </div>
-            </div>
-          </div>
-
-          {selectedNodeId && <NodeDetailPanel />}
-        </div>
-
-        {drilldownStack.length > 0 && (
-          <CompositeOverlay
-            entry={drilldownStack[drilldownStack.length - 1]!}
-            onClose={closeComposite}
-            onDrillDown={openComposite}
-          />
-        )}
+        <Toolbar title={titleOf(subject)} onOpen={handleOpen} />
+        <View />
       </div>
       {showShortcuts && <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />}
       <ToastContainer />

@@ -1,6 +1,4 @@
-import { useState, useEffect } from 'react';
-import { usePipelineStore } from '../../stores/pipeline-store.js';
-import { useToastStore } from '../../stores/toast-store.js';
+import { useDraftStore } from '../../stores/draft-store.js';
 import { colors, fontSize, borderRadius, SOURCE_BADGES } from '../../tokens.js';
 
 const sectionHeaderStyle: React.CSSProperties = {
@@ -21,85 +19,11 @@ const portRowStyle: React.CSSProperties = {
   fontSize: fontSize.md,
 };
 
-interface DependencyTreeNode {
-  id: string;
-  version: string;
-  source: string;
-  children: DependencyTreeNode[];
-}
-
-function DependencyTree({ node, depth = 0 }: { node: DependencyTreeNode; depth?: number }) {
-  const [expanded, setExpanded] = useState(depth < 2);
-  const hasChildren = node.children.length > 0;
-
-  return (
-    <div style={{ marginLeft: depth * 12 }}>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '2px 0',
-          fontSize: '11px',
-        }}
-      >
-        {hasChildren && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: colors.text.muted,
-              cursor: 'pointer',
-              padding: 0,
-              fontSize: fontSize.xs,
-              width: 12,
-            }}
-          >
-            {expanded ? '▼' : '▶'}
-          </button>
-        )}
-        {!hasChildren && <span style={{ width: 12 }} />}
-        <span style={{ color: colors.text.primary }}>{node.id as string}</span>
-        <span style={{ color: colors.text.dim, fontSize: '9px' }}>v{node.version as string}</span>
-      </div>
-      {expanded &&
-        node.children.map((child, i) => (
-          <DependencyTree
-            key={`${child.id as string}-${String(i)}`}
-            node={child}
-            depth={depth + 1}
-          />
-        ))}
-    </div>
-  );
-}
-
-/** What the selected step is: its capability, its ports and, for a composite, what it is made of. */
+/** What the selected step is: its capability and its ports. */
 export function NodeDetailPanel() {
-  const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
-  const nodes = usePipelineStore((s) => s.nodes);
-
+  const selectedNodeId = useDraftStore((s) => s.selectedNodeId);
+  const nodes = useDraftStore((s) => s.nodes);
   const node = nodes.find((n) => n.id === selectedNodeId);
-
-  const [depTree, setDepTree] = useState<DependencyTreeNode | null>(null);
-
-  useEffect(() => {
-    if (!node || node.data.source !== 'COMPOSITE') {
-      setDepTree(null);
-      return;
-    }
-    fetch(`/api/registry/${node.data.capabilityId}/dependencies`)
-      .then((res) => (res.ok ? (res.json() as Promise<DependencyTreeNode>) : null))
-      .then((data) => setDepTree(data))
-      .catch(() => {
-        setDepTree(null);
-        useToastStore
-          .getState()
-          .addToast('warning', 'Dependencies', 'Failed to load dependency tree');
-      });
-  }, [node?.data.capabilityId, node?.data.source, node]);
-
   if (!node) return null;
 
   const { data } = node;
@@ -109,7 +33,8 @@ export function NodeDetailPanel() {
   };
 
   return (
-    <div
+    <aside
+      aria-label="Step"
       style={{
         width: 280,
         height: '100%',
@@ -180,18 +105,7 @@ export function NodeDetailPanel() {
             </span>
           </div>
         ))}
-
-        {data.source === 'COMPOSITE' && (
-          <>
-            <div style={sectionHeaderStyle}>DEPENDENCIES</div>
-            {depTree ? (
-              <DependencyTree node={depTree} />
-            ) : (
-              <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>Loading...</div>
-            )}
-          </>
-        )}
       </div>
-    </div>
+    </aside>
   );
 }
