@@ -459,7 +459,7 @@ export class Draft {
                 name,
                 latest(host.catalog)
                   .filter((c) => [...c.inputs.values()].every((port) => !port.required))
-                  .map((c) => c.name),
+                  .flatMap((c) => [c.name, c.id as string]),
               ),
             )
           : `"${name}" names more than one capability: ${roots.map((r) => r.id).join(', ')}`,

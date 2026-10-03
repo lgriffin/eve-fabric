@@ -1,4 +1,4 @@
-export { closestNames, didYouMean } from './suggest.js';
+export { closestNames, didYouMean, NameNotFoundError } from './suggest.js';
 export { GatewayError } from './gateway-error.js';
 export {
   SchemaError,

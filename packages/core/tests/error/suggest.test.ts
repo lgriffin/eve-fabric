@@ -22,6 +22,10 @@ describe('closestNames', () => {
     expect(closestNames('orders', moves)).toEqual([]);
   });
 
+  it('suggests nothing for text longer than any name', () => {
+    expect(closestNames('o'.repeat(101), ['o'.repeat(101)])).toEqual([]);
+  });
+
   it('suggests nothing for nothing close, or nothing typed', () => {
     expect(closestNames('wallet', moves)).toEqual([]);
     expect(closestNames('  ', moves)).toEqual([]);

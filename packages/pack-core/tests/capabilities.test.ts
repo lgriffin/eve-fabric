@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   CapabilityCatalog,
+  NameNotFoundError,
   SemanticTypeRegistry,
   fixedClock,
   type CapabilityDefinition,
@@ -59,6 +60,12 @@ describe('universe resolvers', () => {
     await expect(run(core.resolveType, { query: 'Nothing Such' })).rejects.toThrow('No type');
     await expect(run(core.resolveType, { query: 'Tritanum' })).rejects.toThrow(
       'No type matching "Tritanum" found in SDE. Did you mean "Tritanium"?',
+    );
+    await expect(run(core.resolveType, { query: 'Xritanium' })).rejects.toThrow(
+      'Did you mean "Tritanium"?',
+    );
+    await expect(run(core.resolveType, { query: 'Tritanum' })).rejects.toBeInstanceOf(
+      NameNotFoundError,
     );
     await expect(run(core.resolveType, { query: true })).rejects.toThrow('numeric ID or string');
   });
