@@ -107,6 +107,9 @@ importers:
       vitest:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
 
   apps/cli:
     dependencies:
@@ -143,6 +146,9 @@ importers:
       graphql:
         specifier: ^16.9.0
         version: 16.14.2
+      zod:
+        specifier: ^3.23.0
+        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: ^22.0.0

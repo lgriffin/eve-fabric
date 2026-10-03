@@ -19,15 +19,20 @@ export interface Choice {
 
 export type { DraftChange, DraftRequest, DraftView };
 
+/** JSON, and the bearer token that a character's scoped moves need, if one is given. */
+function headersFor(token: string | undefined): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token !== undefined && token.length > 0) headers['Authorization'] = `Bearer ${token}`;
+  return headers;
+}
+
 async function call<T>(
   path: string,
   init: RequestInit | undefined,
   token: string | undefined,
 ): Promise<DraftResult<T>> {
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token !== undefined && token.length > 0) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(path, { ...init, headers });
+    const res = await fetch(path, { ...init, headers: headersFor(token) });
     const body = (await res.json()) as T & { error?: { message?: string } };
     if (!res.ok) return { ok: false, message: body.error?.message ?? `HTTP ${res.status}` };
     return { ok: true, data: body };
@@ -68,6 +73,17 @@ interface WeaveRef {
   readonly version: string;
 }
 
+const WEAVE_ID = /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/;
+const VERSION = /^\d+\.\d+\.\d+$/;
+
+/**
+ * An id and version the gateway takes for a weave: two or more lowercase,
+ * dot-separated parts, such as me.forge.prices, and x.y.z.
+ */
+export function isWeaveName(id: string, version: string): boolean {
+  return WEAVE_ID.test(id) && VERSION.test(version);
+}
+
 /** The fields a draft is shared under as a weave. */
 interface WeaveOptions {
   readonly id: string;
@@ -76,15 +92,19 @@ interface WeaveOptions {
   readonly as?: string;
 }
 
-/** A draft as a weave: its YAML, ready to save and add to another fabric. */
+/**
+ * A draft as a weave: its YAML, ready to save and add to another fabric. The
+ * token replays it as the character whose scoped moves it used.
+ */
 export async function exportWeave(
   request: DraftRequest,
   weave: WeaveOptions,
+  token?: string,
 ): Promise<DraftResult<string>> {
   try {
     const res = await fetch('/api/drafts/weave', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: headersFor(token),
       body: JSON.stringify({ ...request, weave }),
     });
     const text = await res.text();

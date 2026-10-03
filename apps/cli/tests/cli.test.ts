@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -17,12 +17,20 @@ beforeEach(() => {
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 async function cli(...argv: string[]): Promise<{ code: number; out: string; err: string }> {
+  return cliIn(undefined, ...argv);
+}
+
+async function cliIn(
+  cwd: string | undefined,
+  ...argv: string[]
+): Promise<{ code: number; out: string; err: string }> {
   const out: string[] = [];
   const err: string[] = [];
   const code = await runCli(argv, {
     out: (t) => out.push(t),
     err: (t) => err.push(t),
     env: {},
+    cwd,
   });
   return { code, out: out.join('\n'), err: err.join('\n') };
 }
@@ -37,6 +45,19 @@ describe('eve-fabric ask', () => {
   it('runs a question given inline, with a pack from a module', async () => {
     const result = await cli('ask', COST, '--offline', '--pack', PACK, '--json');
     expect(result).toMatchObject({ code: 0, out: '8100000' });
+  });
+
+  it('runs an inline named query, or one that opens with a comment', async () => {
+    const named = `query prices ${PRICES}`;
+    expect(await cli('ask', named, '--offline')).toMatchObject({ code: 0, out: '3.98' });
+    const commented = `# the cheapest Tritanium\n${PRICES}`;
+    expect(await cli('ask', commented, '--offline')).toMatchObject({ code: 0, out: '3.98' });
+  });
+
+  it('says a question file that is missing is missing', async () => {
+    const { code, err } = await cli('ask', join(dir, 'nope.graphql'), '--offline');
+    expect(code).toBe(1);
+    expect(err).toContain('ENOENT');
   });
 
   it('says to install a pack when a move it needs is missing', async () => {
@@ -163,6 +184,32 @@ describe('eve-fabric weave', () => {
       expect((await cli('weave', ...argv, '--offline')).code).toBe(2);
     }
   });
+
+  it('refuses a weave id or version the gateway would refuse', async () => {
+    for (const [id, version, why] of [
+      ['foo', '1.0.0', '--id is two or more lowercase'],
+      ['Me.Prices', '1.0.0', '--id is two or more lowercase'],
+      ['me.prices', '1.0', '--version is x.y.z'],
+    ] as const) {
+      const result = await cli('weave', 'export', PRICES, '--id', id, '--version', version);
+      expect(result.code).toBe(2);
+      expect(result.err).toContain(why);
+    }
+  });
+
+  it('refuses words a command does not take, before doing anything', async () => {
+    for (const argv of [
+      ['weave', 'remove', 'me.prices', '1.0.0', 'typo'],
+      ['weave', 'list', 'extra'],
+      ['weave', 'add', 'a.yaml', 'b.yaml'],
+      ['ask', PRICES, 'extra'],
+      ['schema', 'extra'],
+    ]) {
+      const { code, err } = await cli(...argv, '--offline');
+      expect(code).toBe(2);
+      expect(err).toContain('unexpected: ');
+    }
+  });
 });
 
 describe('usage', () => {
@@ -182,6 +229,29 @@ describe('usage', () => {
     const { code, err } = await cli('schema', '--offline', '--pack', empty);
     expect(code).toBe(1);
     expect(err).toContain('exports no pack');
+  });
+
+  it('installs a pack by its package name, resolved from the current directory', async () => {
+    const pkg = join(dir, 'node_modules', 'my-pack');
+    mkdirSync(pkg, { recursive: true });
+    writeFileSync(
+      join(pkg, 'package.json'),
+      JSON.stringify({ name: 'my-pack', type: 'module', main: 'index.js' }),
+    );
+    writeFileSync(
+      join(pkg, 'index.js'),
+      "export const pack = { id: 'my.pack', capabilities: [] };\n",
+    );
+    writeFileSync(join(dir, 'package.json'), '{}');
+    expect((await cliIn(dir, 'schema', '--offline', '--pack', 'my-pack')).code).toBe(0);
+  });
+
+  it('refuses a pack whose capabilities are not whole', async () => {
+    const broken = join(dir, 'broken.mjs');
+    writeFileSync(broken, "export const pack = { id: 'my.pack', capabilities: [{ id: 'x' }] };\n");
+    const { code, err } = await cli('schema', '--offline', '--pack', broken);
+    expect(code).toBe(1);
+    expect(err).toContain('exports a pack that is not whole (capabilities.0.version');
   });
 
   it('prints the schema', async () => {

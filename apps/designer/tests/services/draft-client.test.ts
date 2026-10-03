@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { addWeave, exportWeave } from '../../src/services/draft-client.js';
+import { addWeave, exportWeave, isWeaveName } from '../../src/services/draft-client.js';
 
 const request = { subject: { kind: 'type', value: 'Tritanium' }, steps: [] };
 
@@ -17,6 +17,14 @@ describe('exportWeave', () => {
       ...request,
       weave: { id: 'me.prices', version: '1.0.0', as: 'prices' },
     });
+  });
+
+  it('sends the token, so a question that used a scoped move replays', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('format: 2\n', { status: 200 }));
+    vi.stubGlobal('fetch', fetch);
+    await exportWeave(request, { id: 'me.x', version: '1.0.0' }, 'abc');
+    const [, init] = fetch.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer abc' });
   });
 
   it('gives the refusal the gateway names', async () => {
@@ -52,5 +60,19 @@ describe('addWeave', () => {
     expect(JSON.parse(String((fetch.mock.calls[0] as [string, RequestInit])[1].body))).toEqual({
       document: 'format: 2\n',
     });
+  });
+});
+
+describe('isWeaveName', () => {
+  it.each([
+    ['me.prices', '1.0.0', true],
+    ['me.forge-hub.prices2', '10.2.33', true],
+    ['foo', '1.0.0', false],
+    ['Foo.Bar', '1.0.0', false],
+    ['me..prices', '1.0.0', false],
+    ['1me.prices', '1.0.0', false],
+    ['me.prices', '1.0', false],
+  ])('%s@%s is %s', (id, version, valid) => {
+    expect(isWeaveName(id, version)).toBe(valid);
   });
 });

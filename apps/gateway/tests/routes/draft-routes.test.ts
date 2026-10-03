@@ -8,6 +8,7 @@ import { defineCapability, definePack } from '@eve-fabric/kit';
 import { gatewayErrorHandler } from '../../src/middleware/error-handler.js';
 import { CHARACTER, tranquilityEsi, tranquilitySde } from '@eve-fabric/test-support';
 import { createDraftRoutes, MAX_DRAFT_STEPS } from '../../src/routes/draft-routes.js';
+import { createWeaveRoutes } from '../../src/routes/weave-routes.js';
 import {
   identityFromAuthorization,
   InvalidTokenError,
@@ -70,6 +71,7 @@ describe('Draft routes', () => {
     });
     app = Fastify();
     await app.register(createDraftRoutes(fabric, { verifier }));
+    await app.register(createWeaveRoutes(fabric, { verifier }));
     await app.ready();
   });
 
@@ -208,6 +210,33 @@ describe('Draft routes', () => {
         token,
       );
       expect(body['answer']).toBe(2_000_000);
+    });
+
+    it('shares a question that used a scoped move as a weave, as that character', async () => {
+      const payload = {
+        ...start,
+        steps: [
+          { kind: 'move', move: 'wallet journal' },
+          { kind: 'move', move: 'biggest spend this week' },
+        ],
+        weave: { id: 'me.wallet.spend', version: '1.0.0' },
+      };
+      const share = (authorization?: string) =>
+        app.inject({
+          method: 'POST',
+          url: '/api/drafts/weave',
+          payload,
+          headers: authorization === undefined ? {} : { authorization },
+        });
+      const anonymous = await share();
+      expect(JSON.parse(anonymous.body)).toMatchObject({
+        error: { code: 'MoveUnavailableError' },
+      });
+      const mine = await share(`Bearer ${ssoToken(CHARACTER.ava, [WALLET_SCOPE])}`);
+      expect(mine.statusCode).toBe(200);
+      expect(mine.body).toContain('id: me.wallet.spend');
+      const forged = await share('Bearer not.a.token');
+      expect(forged.statusCode).toBe(401);
     });
   });
 });

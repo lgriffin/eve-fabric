@@ -3,9 +3,10 @@
  * out of a fabric from the terminal. Every command takes the same fabric
  * options; nothing here holds state except the store named by --db.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { printSchema } from 'graphql';
+import { z } from 'zod';
 import type { Draft, Fabric } from '@eve-fabric/fabric';
 import { weaveToYaml } from '@eve-fabric/weave';
 import { openFabric, type FabricSettings } from './fabric-for.js';
@@ -14,6 +15,8 @@ export interface Io {
   readonly out: (text: string) => void;
   readonly err: (text: string) => void;
   readonly env: Readonly<Record<string, string | undefined>>;
+  /** Where --pack paths and package names resolve from; the process's by default. */
+  readonly cwd?: string | undefined;
 }
 
 export const USAGE = `Usage: eve-fabric <command> [options]
@@ -31,7 +34,8 @@ Commands:
 
 Options:
   --offline        Use the Tranquility fixture instead of live ESI (no network, no SDE)
-  --pack <module>  Install the packs a module exports (repeatable), e.g. ./my-pack.ts
+  --pack <module>  Install the packs a module exports (repeatable): a path such as
+                   ./my-pack.ts, or an installed package name
   --db <file>      Keep added weaves in this SQLite file (default: $FABRIC_DB)
   --json           Print answers as JSON on one line
   -h, --help       Show this help
@@ -46,8 +50,31 @@ export class UsageError extends Error {
   }
 }
 
+/** What a GraphQL document can open with: a selection, an operation, or a comment. */
+const DOCUMENT_START = /^\s*(\{|#|query\b|fragment\b)/;
+
+/** A file's text, or the argument itself when it is a document and no such file exists. */
 function questionText(source: string): string {
-  return source.trimStart().startsWith('{') ? source : readFileSync(source, 'utf8');
+  return !existsSync(source) && DOCUMENT_START.test(source) ? source : readFileSync(source, 'utf8');
+}
+
+/** The id and version a weave is shared under, as the gateway takes them. */
+const weaveNameSchema = z.object({
+  id: z
+    .string({ required_error: 'needs --id' })
+    .regex(
+      /^[a-z][a-z0-9-]*(\.[a-z][a-z0-9-]*)+$/,
+      'is two or more lowercase, dot-separated parts, such as me.forge.prices',
+    ),
+  version: z.string({ required_error: 'needs --version' }).regex(/^\d+\.\d+\.\d+$/, 'is x.y.z'),
+});
+
+/** The positionals a command takes, refusing any beyond them. */
+function exactly(words: readonly string[], count: number, usage: string): (string | undefined)[] {
+  if (words.length > count) {
+    throw new UsageError(`${usage} (unexpected: ${words.slice(count).join(' ')})`);
+  }
+  return [...words];
 }
 
 function parseValue(text: string): string | number {
@@ -111,15 +138,17 @@ async function weaveCommand(
   const [action, ...rest] = args;
   switch (action) {
     case 'export': {
-      const [question] = rest;
-      if (question === undefined || options.id === undefined || options.version === undefined) {
-        throw new UsageError('weave export needs <question> --id <id> --version <x.y.z>');
+      const usage = 'weave export needs <question> --id <id> --version <x.y.z>';
+      const [question] = exactly(rest, 1, usage);
+      if (question === undefined) throw new UsageError(usage);
+      const name = weaveNameSchema.safeParse({ id: options.id, version: options.version });
+      if (!name.success) {
+        const issue = name.error.issues[0];
+        throw new UsageError(`weave export: --${String(issue?.path[0])} ${String(issue?.message)}`);
       }
       const draft = fabric.fromGraphQL(questionText(question));
       const yaml = weaveToYaml(
-        fabric.export(
-          fabric.weave(draft, { id: options.id, version: options.version, as: options.as }),
-        ),
+        fabric.export(fabric.weave(draft, { ...name.data, as: options.as })),
       );
       if (options.out === undefined) io.out(yaml.trimEnd());
       else {
@@ -129,7 +158,7 @@ async function weaveCommand(
       return;
     }
     case 'add': {
-      const [file] = rest;
+      const [file] = exactly(rest, 1, 'weave add needs one weave file');
       if (file === undefined) throw new UsageError('weave add needs a weave file');
       const added = await fabric.add(readFileSync(file, 'utf8'));
       io.out(
@@ -138,13 +167,14 @@ async function weaveCommand(
       return;
     }
     case 'list': {
+      exactly(rest, 0, 'weave list takes no arguments');
       const weaves = fabric.weaves();
       if (weaves.length === 0) io.out('no weaves added');
       for (const w of weaves) io.out(`${w.id}@${w.version}  ${w.digest}`);
       return;
     }
     case 'remove': {
-      const [id, version] = rest;
+      const [id, version] = exactly(rest, 2, 'weave remove needs <id> <version>');
       if (id === undefined || version === undefined)
         throw new UsageError('weave remove needs <id> <version>');
       await fabric.remove(id, version);
@@ -220,6 +250,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     packs: options.packs,
     db: options.db,
     sdeDataPath: io.env['SDE_DATA_PATH'],
+    cwd: io.cwd,
   };
   let opened: Awaited<ReturnType<typeof openFabric>> | undefined;
   try {
@@ -235,7 +266,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     }
     switch (name) {
       case 'ask': {
-        const [question] = args;
+        const [question] = exactly(args, 1, 'ask takes one question');
         if (question === undefined)
           throw new UsageError('ask needs a question: a .graphql file or the document');
         const { answer } = await fabric.query(fabric.fromGraphQL(questionText(question)));
@@ -249,6 +280,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
         await weaveCommand(fabric, args, options, io);
         break;
       default:
+        exactly(args, 0, 'schema takes no arguments');
         io.out(printSchema(fabric.schema()));
     }
     return 0;

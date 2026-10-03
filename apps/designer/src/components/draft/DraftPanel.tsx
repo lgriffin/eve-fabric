@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useDraftStore } from '../../stores/draft-store.js';
 import {
   exportWeave,
+  isWeaveName,
   getChoices,
   getSubjects,
   type Choice,
@@ -136,9 +137,6 @@ function SubjectPicker() {
   );
 }
 
-const WEAVE_ID = /^[a-z0-9]+(?:[.-][a-z0-9]+)*$/i;
-const VERSION = /^\d+\.\d+\.\d+$/;
-
 /**
  * Save a complete question: as its GraphQL, or as a weave another fabric
  * adds as a move. The names typed into the question become the weave's
@@ -147,12 +145,13 @@ const VERSION = /^\d+\.\d+\.\d+$/;
 function SaveQuestion({ view }: { view: DraftView }) {
   const subject = useDraftStore((s) => s.subject);
   const steps = useDraftStore((s) => s.steps);
+  const token = useDraftStore((s) => s.token);
   const addToast = useToastStore((s) => s.addToast);
   const [id, setId] = useState('');
   const [version, setVersion] = useState('1.0.0');
   const [as, setAs] = useState('');
   const [sharing, setSharing] = useState(false);
-  const valid = WEAVE_ID.test(id) && VERSION.test(version);
+  const valid = isWeaveName(id, version);
 
   const share = async () => {
     if (subject === null || !valid) return;
@@ -160,6 +159,7 @@ function SaveQuestion({ view }: { view: DraftView }) {
     const result = await exportWeave(
       { subject, steps },
       { id, version, ...(as.trim().length > 0 ? { as: as.trim() } : {}) },
+      token,
     );
     setSharing(false);
     if (!result.ok) {

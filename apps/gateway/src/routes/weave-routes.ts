@@ -3,6 +3,11 @@ import { z } from 'zod';
 import { draftFrom, type DraftRequest, type Fabric } from '@eve-fabric/fabric';
 import { weaveToYaml } from '@eve-fabric/weave';
 import { draftRequestSchema } from './draft-routes.js';
+import {
+  eveSsoVerifier,
+  identityFromAuthorization,
+  type TokenVerifier,
+} from '../auth/eve-identity.js';
 
 /** A weave the fabric refused, or a draft it cannot make one of. */
 const REFUSALS = new Set([
@@ -73,6 +78,9 @@ function refuse(reply: FastifyReply, error: unknown): FastifyReply {
   if (error instanceof BadWeaveRequestError) {
     return reply.status(400).send({ error: { code: 'BAD_REQUEST', message: error.message } });
   }
+  if (error instanceof Error && error.name === 'InvalidTokenError') {
+    return reply.status(401).send({ error: { code: error.name, message: error.message } });
+  }
   if (error instanceof Error && error.name === 'WeaveNotFoundError') {
     return reply.status(404).send({ error: { code: 'NOT_FOUND', message: error.message } });
   }
@@ -87,9 +95,14 @@ const YAML = 'application/yaml';
 /**
  * Weaves over HTTP: add one (its YAML, or `id@range` from the fabric's
  * index), list what was added, remove one, and export a published weave or
- * a draft.
+ * a draft. A draft is replayed as the character its bearer token names, as
+ * the draft routes do, so a question that used a scoped move still shares.
  */
-export function createWeaveRoutes(fabric: Fabric): (app: FastifyInstance) => void {
+export function createWeaveRoutes(
+  fabric: Fabric,
+  options: { readonly verifier?: TokenVerifier | undefined } = {},
+): (app: FastifyInstance) => void {
+  const verifier = options.verifier ?? eveSsoVerifier(fabric.clock);
   return (app: FastifyInstance) => {
     app.get('/api/weaves', async () => ({ weaves: fabric.weaves() }));
 
@@ -131,7 +144,8 @@ export function createWeaveRoutes(fabric: Fabric): (app: FastifyInstance) => voi
     app.post('/api/drafts/weave', async (req, reply) => {
       try {
         const body = parsed(draftWeaveSchema, req.body);
-        const draft = draftFrom(fabric, body as DraftRequest);
+        const identity = await identityFromAuthorization(req.headers.authorization, verifier);
+        const draft = draftFrom(fabric, body as DraftRequest, identity);
         // Made before the reply is typed, so a refusal still goes out as JSON.
         const text = weaveToYaml(fabric.export(fabric.weave(draft, body.weave)));
         return await reply.type(YAML).send(text);
