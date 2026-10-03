@@ -61,3 +61,42 @@ export function runDraft(
 ): Promise<DraftResult<{ answer: unknown; view: DraftView }>> {
   return call('/api/drafts/run', post(request), token);
 }
+
+/** A weave as the gateway lists it. */
+interface WeaveRef {
+  readonly id: string;
+  readonly version: string;
+}
+
+/** The fields a draft is shared under as a weave. */
+interface WeaveOptions {
+  readonly id: string;
+  readonly version: string;
+  /** The move it is offered under on what the draft started from. */
+  readonly as?: string;
+}
+
+/** A draft as a weave: its YAML, ready to save and add to another fabric. */
+export async function exportWeave(
+  request: DraftRequest,
+  weave: WeaveOptions,
+): Promise<DraftResult<string>> {
+  try {
+    const res = await fetch('/api/drafts/weave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...request, weave }),
+    });
+    const text = await res.text();
+    if (res.ok) return { ok: true, data: text };
+    const body = JSON.parse(text) as { error?: { message?: string } };
+    return { ok: false, message: body.error?.message ?? `HTTP ${res.status}` };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : 'Network error' };
+  }
+}
+
+/** Adds a weave, from its YAML, to the gateway's fabric. */
+export function addWeave(document: string): Promise<DraftResult<WeaveRef>> {
+  return call('/api/weaves', post({ document }), undefined);
+}

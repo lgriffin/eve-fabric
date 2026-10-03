@@ -13,17 +13,9 @@ import {
   extractDefaultsFromYaml,
 } from '../services/pipeline-serializer.js';
 import { applyAutoLayout } from '../services/layout-engine.js';
-
-/** Downloads text as a file. */
-function download(text: string, type: string, name: string): void {
-  const blob = new Blob([text], { type });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+import { addWeave } from '../services/draft-client.js';
+import { fileKind, OPENABLE } from '../services/file-kind.js';
+import { download } from '../services/download.js';
 
 export function useYamlImportExport() {
   const nodes = usePipelineStore((s) => s.nodes);
@@ -117,22 +109,63 @@ export function useYamlImportExport() {
     [capabilities, loadPipeline, addToast],
   );
 
+  /**
+   * Opens what a file holds: a saved question becomes the open draft, a
+   * weave is added to the gateway's fabric (and offered as a move from then
+   * on), and anything else is read as pipeline YAML.
+   */
+  const openText = useCallback(
+    async (name: string, text: string) => {
+      const kind = fileKind(name, text);
+      if (kind === 'question') {
+        const opened = await useDraftStore.getState().load(text);
+        if (opened) addToast('success', 'Opened', `The question in ${name}`);
+        else addToast('error', 'Not opened', useDraftStore.getState().error ?? name);
+        return;
+      }
+      if (kind === 'weave') {
+        const added = await addWeave(text);
+        if (!added.ok) {
+          addToast('error', 'Weave not added', added.message);
+          return;
+        }
+        addToast('success', 'Weave added', `${added.data.id}@${added.data.version} is now a move`);
+        await useDraftStore.getState().refresh();
+        return;
+      }
+      processImportedYaml(text);
+    },
+    [processImportedYaml, addToast],
+  );
+
+  const openFile = useCallback(
+    (file: File) => {
+      void file.text().then((text) => openText(file.name, text));
+    },
+    [openText],
+  );
+
   const handleImport = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.yaml,.yml';
+    input.accept = OPENABLE;
     input.onchange = () => {
       const file = input.files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const yaml = e.target?.result;
-        if (typeof yaml === 'string') processImportedYaml(yaml);
-      };
-      reader.readAsText(file);
+      if (file) openFile(file);
     };
     input.click();
-  }, [processImportedYaml]);
+  }, [openFile]);
 
-  return { handleSave, handleExport, handleImport };
+  /** A file dropped anywhere on the designer is opened as if picked. */
+  const handleDrop = useCallback(
+    (event: { preventDefault(): void; dataTransfer: DataTransfer | null }) => {
+      const file = event.dataTransfer?.files[0];
+      if (file === undefined) return;
+      event.preventDefault();
+      openFile(file);
+    },
+    [openFile],
+  );
+
+  return { handleSave, handleExport, handleImport, handleDrop, openText };
 }

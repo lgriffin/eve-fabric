@@ -3,14 +3,18 @@
 .react-flow__handle.connectingto.valid {
   box-shadow: 0 0 8px 3px rgba(76, 175, 80, 0.8);
   transform: scale(1.6);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .react-flow__handle.connectingto:not(.valid) {
   opacity: 0.15 !important;
   transform: scale(0.5);
   pointer-events: none;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 
 .react-flow__handle.connectingfrom {

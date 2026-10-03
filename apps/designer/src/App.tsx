@@ -48,7 +48,7 @@ export function App() {
   const redo = useMemo(() => (drafting ? () => {} : redoCanvas), [drafting, redoCanvas]);
 
   useLoadCatalog();
-  const { handleSave, handleExport, handleImport } = useYamlImportExport();
+  const { handleSave, handleExport, handleImport, handleDrop } = useYamlImportExport();
   const {
     validationErrors,
     activeTab,
@@ -106,6 +106,10 @@ export function App() {
   return (
     <ReactFlowProvider>
       <div
+        onDragOver={(e) => {
+          if (e.dataTransfer.types.includes('Files')) e.preventDefault();
+        }}
+        onDrop={handleDrop}
         style={{
           width: '100vw',
           height: '100vh',
