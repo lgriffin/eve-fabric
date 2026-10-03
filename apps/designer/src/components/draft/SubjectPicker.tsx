@@ -3,6 +3,7 @@ import { useDraftStore } from '../../stores/draft-store.js';
 import { getSubjects, type DraftSubjects } from '../../services/draft-client.js';
 import { useOpenFile } from '../../hooks/useOpenFile.js';
 import { heading, input, button } from './styles.js';
+import { dragSubject } from '../canvas/composition.js';
 
 /** Pick what the question is about: a kind and a name or id, or something that needs nothing. */
 export function SubjectPicker() {
@@ -18,10 +19,11 @@ export function SubjectPicker() {
     void getSubjects().then((r) => r.ok && setSubjects(r.data));
   }, []);
 
+  const text = value.trim();
+  const subject = { kind, value: /^\d+$/.test(text) ? Number(text) : text };
   const begin = () => {
-    const text = value.trim();
     if (text.length === 0) return;
-    void start({ kind, value: /^\d+$/.test(text) ? Number(text) : text });
+    void start(subject);
   };
 
   return (
@@ -47,7 +49,13 @@ export function SubjectPicker() {
         onKeyDown={(e) => e.key === 'Enter' && begin()}
         style={input}
       />
-      <button onClick={begin} style={button(value.trim().length > 0, true)}>
+      <button
+        onClick={begin}
+        draggable={text.length > 0}
+        onDragStart={(e) => dragSubject(e.dataTransfer, subject)}
+        title={text.length > 0 ? 'Click, or drag onto the canvas' : 'Name what to ask about first'}
+        style={button(text.length > 0, true)}
+      >
         Start
       </button>
       {subjects !== null && subjects.starts.length > 0 && (
@@ -56,7 +64,9 @@ export function SubjectPicker() {
           {subjects.starts.map((s) => (
             <button
               key={s.name}
-              title={s.description}
+              title={`${s.description}. Click, or drag onto the canvas`}
+              draggable
+              onDragStart={(e) => dragSubject(e.dataTransfer, { start: s.name })}
               onClick={() => void start({ start: s.name })}
               style={button(true)}
             >

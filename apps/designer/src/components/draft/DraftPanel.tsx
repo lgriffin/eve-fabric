@@ -5,6 +5,7 @@ import { SubjectPicker } from './SubjectPicker.js';
 import { SaveQuestion } from './SaveQuestion.js';
 import { HoleInput } from './HoleInput.js';
 import { panel, heading, button, input as panelInput } from './styles.js';
+import { dragMove } from '../canvas/composition.js';
 
 function stepLabel(step: DraftView['steps'][number]): string {
   return step.kind === 'move' ? step.move : `${step.hole} = ${JSON.stringify(step.value)}`;
@@ -35,7 +36,9 @@ function Moves({ view }: { view: DraftView }) {
           <button
             key={move.name}
             disabled={!available || busy}
-            title={why}
+            title={available ? `${why}. Click, or drag onto the canvas` : why}
+            draggable={available && !busy}
+            onDragStart={(e) => dragMove(e.dataTransfer, move.name)}
             onClick={() => void apply(move.name)}
             style={button(available)}
           >

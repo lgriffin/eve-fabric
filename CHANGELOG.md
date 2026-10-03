@@ -8,6 +8,18 @@ hand, one entry per pull request. Earlier history is in git.
 
 ## Unreleased
 
+### Phase 6: composing on the canvas
+
+- In Build, the canvas takes gestures: a subject dropped on the empty canvas
+  starts the question, a move dragged from the panel onto the scaffold is
+  applied, a connection drawn out of the cursor step opens the moves offered
+  there, and one landing on an open hole opens that hole's choices (from
+  `/api/drafts/choices`). Every gesture is a change the fabric is asked for,
+  so Undo, Save as GraphQL and Share as weave work unchanged; nothing is wired
+  by hand. Review's canvas stays a picture.
+- A third Playwright journey composes a two-step question by drag and drop,
+  runs it and saves it.
+
 ### Phase 5: a harness for outsiders
 
 - **TESTING.md**, the CLI reference (`docs/cli.md`, generated from the CLI's

@@ -51,8 +51,9 @@ when `SDE_DATA_PATH` points at an SDE export.
 
 3. **Build a question in the browser.** `pnpm workbench` starts the gateway
    over the fixture and the designer against it, at
-   `http://localhost:5173`. Pick a subject in Explore, apply moves in Build,
-   run it, then Save as GraphQL or Share as weave.
+   `http://localhost:5173`. Pick a subject in Explore, apply moves in Build
+   (click them, or drag them onto the canvas), run it, then Save as GraphQL or
+   Share as weave.
 
    ```bash
    pnpm workbench
@@ -106,9 +107,10 @@ workflow runs it.
   names even with `--live`.
 - **Asking as a character needs a real EVE SSO token** in the designer or the
   `Authorization` header; the fixture's two characters exist only offline.
-- **The canvas is a view, not an editor.** Dragging a step onto it does nothing
-  yet; questions are built through the moves the fabric offers. Composing on
-  the canvas is the next phase of the plan.
+- **The canvas takes only what the fabric offers.** You can drop a subject or
+  a move on it, and draw a connection from the cursor step or onto a hole, but
+  there is no free wiring of ports and no hand-set inputs: a connection opens
+  the moves or choices the fabric lists, and nothing else.
 - **One fabric, one gateway.** Added weaves are kept in the SQLite file
   `FABRIC_DB` names; there is no shared registry across gateways.
 

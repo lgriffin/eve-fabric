@@ -67,6 +67,8 @@ TypeScript 5.x (strict mode), Node.js 20 LTS: Follow standard conventions. Conve
 
 ## Recent Changes
 
+- 011-composing-on-the-canvas: in Build the canvas takes drops (a subject on the empty canvas starts; a move applies) and connections (from the cursor step: the offered moves; onto an open hole: its choices via `/api/drafts/choices`), each a `DraftChange` sent through the one `draft-store`. Components only (`canvas/composition.ts`, `canvas/CanvasMenu.tsx`); no new store or client. Third Playwright journey.
+
 - 010-harness-for-outsiders: `TESTING.md` (empty directory to an answered question, five things to try, what does not work yet), `docs/cli.md` (generated), `docs/gateway-api.md`, READMEs for `core`, `kit`, `pack-core`, `fabric` and the CLI, `CHANGELOG.md` (one entry per PR from #40), `pnpm test` from source, and the live question bank in the nightly workflow.
 
 - 009-codegen-over-weaves: `@eve-fabric/codegen` takes a weave and a fabric (`generate(weave, fabric)`) and emits a package: the weave, an `index.ts` that builds a fabric, adds the weave and asks by port, and a `package.json` on the published packages. `pnpm fabric codegen <weave>` writes it; `packages:check` runs a generated package offline against the bank's answer (#28). `Fabric.runOne` reads a composite's ports from the expanded pipeline.
