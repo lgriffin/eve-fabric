@@ -59,8 +59,11 @@ function scanFile(filePath: string): FileFinding | null {
   try {
     parsed = isWeaveFile(path.basename(filePath)) ? parseYaml(content) : JSON.parse(content);
   } catch {
-    // Skip files that do not parse
-    return null;
+    // A file that does not parse cannot be shown to be clean, so it fails.
+    return {
+      filePath,
+      findings: [{ fieldPath: '(file)', patternName: 'does not parse', matchedValue: '-' }],
+    };
   }
 
   const findings = scanForSecrets(parsed);

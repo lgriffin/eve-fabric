@@ -148,7 +148,7 @@ and fills its holes in the document. Errors come back as GraphQL errors,
 `{ "errors": [ { "message", "extensions": { "code" } } ] }`:
 
 - 401 `UNAUTHORIZED`: the bearer token failed a check.
-- 400 `BAD_REQUEST`: the body has no `query` string, or it sends variables.
+- 400 `BAD_REQUEST`: the body has no `query` string, or it sends variables (`null` or `{}` count as none).
 - 400 `GRAPHQL_PARSE_FAILED`: the document does not parse.
 - 200 with `"data": null`: the fabric refused the question or it failed to
   run; `extensions.code` is the error's name, such as `GraphQLDraftError`.

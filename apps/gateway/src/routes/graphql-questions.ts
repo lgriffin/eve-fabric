@@ -66,7 +66,13 @@ export async function answerQuestion(
   if (typeof request.query !== 'string') {
     return refused('a JSON body with a "query" string is required', 'BAD_REQUEST', 400);
   }
-  if (request.variables !== undefined && Object.keys(request.variables as object).length > 0) {
+  const { variables } = request;
+  // Clients send `null` or `{}` when there are none; anything else is a variable.
+  if (
+    variables !== undefined &&
+    variables !== null &&
+    (typeof variables !== 'object' || Object.keys(variables).length > 0)
+  ) {
     return refused(
       'a question takes no variables; write its values in the document',
       'BAD_REQUEST',

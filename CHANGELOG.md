@@ -31,7 +31,8 @@ Nothing here is 1.0: the API may still change between minor versions.
   `packages/graphql`, which nothing imported, is removed; the derived schema
   has always come from `@eve-fabric/fabric`.
 - **Secret scanning** covers the committed weaves (`weaves/`), the bank and
-  the examples, JSON and YAML; it only read JSON under `examples/` before.
+  the examples, JSON and YAML, and fails on a file it cannot parse; it only
+  read JSON under `examples/` before.
 - **Examples.** `pnpm run demo:esi` asks the saved questions live instead of a
   hand-wired pipeline; a test asks each saved question offline and checks the
   answers its README now shows; the gateway demo's by-hand setup uses the
@@ -44,7 +45,8 @@ Nothing here is 1.0: the API may still change between minor versions.
   first and how exit codes show through pnpm; `specs/README.md` indexes the
   specs, and 001 to 006 say whether they were implemented or superseded.
 - **Gateway.** `POST /api/drafts/weave` answers a `CharacterMismatchError`
-  with 422, as the draft routes do, instead of a 500.
+  with 422, as the draft routes do, instead of a 500; `/graphql` takes
+  `"variables": null` as no variables instead of failing with a 500.
 - A `LICENSE` file (ISC, as every package already declared); the Changesets
   config publishes publicly and versions the published set as one.
 

@@ -125,6 +125,18 @@ describe('Questions at /graphql', () => {
     expect(body.errors?.[0]?.message).toMatch(/Tritanum/);
   });
 
+  it('refuses variables, and takes null or an empty object as none', async () => {
+    const query = '{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }';
+    const refused = await post({ query, variables: { from: 'Jita' } });
+    expect(refused.status).toBe(400);
+    expect(refused.body.errors?.[0]?.message).toMatch(/no variables/);
+    for (const variables of [null, {}]) {
+      const { status, body } = await post({ query, variables });
+      expect(status).toBe(200);
+      expect(body.data).toEqual({ system: { jumpsTo: expect.any(Number) } });
+    }
+  });
+
   it('still serves introspection', async () => {
     const { status, body } = await post({ query: '{ __schema { queryType { name } } }' });
     expect(status).toBe(200);
