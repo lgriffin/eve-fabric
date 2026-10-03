@@ -16,7 +16,7 @@ describe('fileKind', () => {
     expect(fileKind('x.weave.yaml', 'format: 2\nid: me.prices\n')).toBe('weave');
   });
 
-  it('reads other YAML as a pipeline', () => {
-    expect(fileKind('p.yaml', 'id: trade.opportunity\nversion: 1\n')).toBe('pipeline');
+  it('does not know other YAML: pipelines are not written by hand any more', () => {
+    expect(fileKind('p.yaml', 'id: trade.opportunity\nversion: 1\n')).toBe('unknown');
   });
 });

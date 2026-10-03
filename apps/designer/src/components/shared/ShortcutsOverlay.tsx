@@ -5,13 +5,11 @@ interface ShortcutsOverlayProps {
 }
 
 const SHORTCUTS = [
-  { category: 'File', items: [{ key: 'Ctrl+S', action: 'Save pipeline' }] },
+  { category: 'File', items: [{ key: 'Ctrl+S', action: 'Save the question as GraphQL' }] },
   {
-    category: 'Editing',
+    category: 'Question',
     items: [
-      { key: 'Ctrl+Z', action: 'Undo' },
-      { key: 'Ctrl+Shift+Z', action: 'Redo' },
-      { key: 'Delete / Backspace', action: 'Remove selected node' },
+      { key: 'Ctrl+Z', action: 'Undo the last change' },
       { key: 'Ctrl+A', action: 'Select all nodes' },
     ],
   },

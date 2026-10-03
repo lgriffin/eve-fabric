@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store.js';
 import { useToastStore } from '../../stores/toast-store.js';
-import { ResultInspector } from './ResultInspector.js';
 import { colors, fontSize, borderRadius, SOURCE_BADGES } from '../../tokens.js';
 
 const sectionHeaderStyle: React.CSSProperties = {
@@ -76,6 +75,7 @@ function DependencyTree({ node, depth = 0 }: { node: DependencyTreeNode; depth?:
   );
 }
 
+/** What the selected step is: its capability, its ports and, for a composite, what it is made of. */
 export function NodeDetailPanel() {
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const nodes = usePipelineStore((s) => s.nodes);
@@ -181,19 +181,6 @@ export function NodeDetailPanel() {
           </div>
         ))}
 
-        <div style={sectionHeaderStyle}>AUTHENTICATION</div>
-        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>
-          No authentication required
-        </div>
-
-        <div style={sectionHeaderStyle}>CACHE POLICY</div>
-        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>Default policy</div>
-
-        <div style={sectionHeaderStyle}>COST ESTIMATE</div>
-        <div style={{ color: colors.text.disabled, fontSize: fontSize.sm }}>
-          ~100ms estimated latency
-        </div>
-
         {data.source === 'COMPOSITE' && (
           <>
             <div style={sectionHeaderStyle}>DEPENDENCIES</div>
@@ -204,9 +191,6 @@ export function NodeDetailPanel() {
             )}
           </>
         )}
-
-        <div style={sectionHeaderStyle}>RESULTS</div>
-        <ResultInspector nodeId={selectedNodeId!} />
       </div>
     </div>
   );

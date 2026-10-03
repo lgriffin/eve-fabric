@@ -52,7 +52,6 @@ const LAYERS: readonly Layer[] = [
       'packages/executor',
       'packages/cache',
       'packages/graphql',
-      'packages/schema-package',
       'packages/persistence',
     ],
     check: noSources,

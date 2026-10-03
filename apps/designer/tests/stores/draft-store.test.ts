@@ -249,13 +249,13 @@ describe('building a question in the designer', () => {
     expect(store().steps).toEqual([]);
   });
 
-  it('keeps no canvas history of its own, and leaves the canvas to an imported pipeline', async () => {
+  it('clears the canvas with the question', async () => {
     const store = useDraftStore.getState;
     await store().start({ kind: 'type', value: 'Tritanium' });
     await store().apply('orders');
-    expect(usePipelineStore.getState().canUndo).toBe(false);
-    store().leave();
-    expect(store().subject).toBeNull();
     expect(usePipelineStore.getState().nodes.length).toBeGreaterThan(0);
+    store().clear();
+    expect(store().subject).toBeNull();
+    expect(usePipelineStore.getState().nodes).toHaveLength(0);
   });
 });

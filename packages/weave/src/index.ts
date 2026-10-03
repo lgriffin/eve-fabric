@@ -22,3 +22,4 @@ export {
   type IndexEntry,
   type WeaveIndex,
 } from './weave-index.js';
+export { scanForSecrets, type SecretFinding } from './secret-scanner.js';

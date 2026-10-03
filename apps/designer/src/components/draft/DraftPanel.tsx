@@ -10,7 +10,7 @@ import {
   type DraftView,
 } from '../../services/draft-client.js';
 import { download } from '../../services/download.js';
-import { useYamlImportExport } from '../../hooks/useYamlImportExport.js';
+import { useOpenFile } from '../../hooks/useOpenFile.js';
 import { useToastStore } from '../../stores/toast-store.js';
 import { colors, fontSize } from '../../tokens.js';
 
@@ -66,7 +66,7 @@ function SubjectPicker() {
   const [kind, setKind] = useState('type');
   const [value, setValue] = useState('');
   const [graphql, setGraphql] = useState('');
-  const { handleImport } = useYamlImportExport();
+  const { handleOpen } = useOpenFile();
 
   useEffect(() => {
     void getSubjects().then((r) => r.ok && setSubjects(r.data));
@@ -130,7 +130,7 @@ function SubjectPicker() {
       >
         Open
       </button>
-      <button onClick={handleImport} style={button(true)} title="Or drop a file anywhere">
+      <button onClick={handleOpen} style={button(true)} title="Or drop a file anywhere">
         Open a file… (.graphql or .weave.yaml)
       </button>
     </>
@@ -143,6 +143,7 @@ function SubjectPicker() {
  * holes, so it works on any item, not just this one.
  */
 function SaveQuestion({ view }: { view: DraftView }) {
+  const complete = view.graphql !== undefined;
   const subject = useDraftStore((s) => s.subject);
   const steps = useDraftStore((s) => s.steps);
   const token = useDraftStore((s) => s.token);
@@ -151,7 +152,7 @@ function SaveQuestion({ view }: { view: DraftView }) {
   const [version, setVersion] = useState('1.0.0');
   const [as, setAs] = useState('');
   const [sharing, setSharing] = useState(false);
-  const valid = isWeaveName(id, version);
+  const valid = complete && isWeaveName(id, version);
 
   const share = async () => {
     if (subject === null || !valid) return;
@@ -175,7 +176,9 @@ function SaveQuestion({ view }: { view: DraftView }) {
       <p style={heading}>Save</p>
       <button
         onClick={() => download(view.graphql ?? '', 'application/graphql', 'question.graphql')}
-        style={button(true)}
+        disabled={!complete}
+        title={complete ? 'Download it as a .graphql' : 'Fill the holes first'}
+        style={button(complete)}
       >
         Save as GraphQL
       </button>
@@ -207,7 +210,7 @@ function SaveQuestion({ view }: { view: DraftView }) {
         title={
           valid
             ? 'Download it as a .weave.yaml'
-            : 'Give an id like me.forge.prices and a version like 1.0.0'
+            : 'Fill the holes, then give an id like me.forge.prices and a version like 1.0.0'
         }
         style={button(valid && !sharing)}
       >
@@ -402,7 +405,7 @@ export function DraftPanel() {
               {JSON.stringify(answer, null, 2)}
             </pre>
           )}
-          {view.graphql !== undefined && <SaveQuestion view={view} />}
+          <SaveQuestion view={view} />
         </>
       )}
       {error !== null && (

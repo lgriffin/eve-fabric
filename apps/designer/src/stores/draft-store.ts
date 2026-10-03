@@ -40,8 +40,6 @@ interface DraftActions {
   refresh: () => Promise<boolean>;
   setToken: (token: string) => void;
   clear: () => void;
-  /** Drops the question without touching the canvas, for a pipeline loaded in its place. */
-  leave: () => void;
 }
 
 /** How long typing in the token field waits before asking the fabric again. */
@@ -73,10 +71,7 @@ function showOnCanvas(view: DraftView): void {
     return fields.length === 0 ? edge : { ...edge, sourceHandle: port, label: fields.join('.') };
   });
   const laid = applyAutoLayout(enrichNodesWithCatalog(nodes, catalog), ported);
-  const canvas = usePipelineStore.getState();
-  canvas.loadPipeline(laid, ported, { id: 'draft', name: 'Question', version: 1 });
-  // The question's own steps are its history; the canvas keeps none of it.
-  canvas.clearHistory();
+  usePipelineStore.getState().loadPipeline(laid, ported);
 }
 
 export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
@@ -158,11 +153,6 @@ export const useDraftStore = create<DraftState & DraftActions>()((set, get) => {
       latest++;
       set({ ...initial, token: get().token });
       usePipelineStore.getState().reset();
-      usePipelineStore.getState().clearHistory();
-    },
-    leave: () => {
-      latest++;
-      set({ ...initial, token: get().token });
     },
   };
 });

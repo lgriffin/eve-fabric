@@ -8,7 +8,6 @@
         "@stryker-mutator/api",
         "@eve-fabric/compiler",
         "@eve-fabric/planner",
-        "@eve-fabric/schema-package",
         "lint-staged"
       ],
       "typedoc": false

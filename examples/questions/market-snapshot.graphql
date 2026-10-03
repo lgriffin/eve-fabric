@@ -1,0 +1,9 @@
+{
+  type(name: "Tritanium") {
+    orders(region: "The Forge") {
+      prices {
+        lowestSell
+      }
+    }
+  }
+}

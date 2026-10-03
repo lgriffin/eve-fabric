@@ -1,42 +1,16 @@
-import { memo, useMemo, useCallback, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import type { NodeProps } from '@xyflow/react';
 import { usePipelineStore, type CapabilityFlowNode } from '../../stores/pipeline-store.js';
+import { useDraftStore } from '../../stores/draft-store.js';
 import { SemanticHandle } from './SemanticHandle.js';
-import { NodeInputEditor } from './NodeInputEditor.js';
-import { useNodeExecution } from '../../hooks/useNodeExecution.js';
 import { colors, fontSize, borderRadius, fontFamily, SOURCE_BADGES } from '../../tokens.js';
-
-function formatPreviewValue(val: unknown): string {
-  if (val === null || val === undefined) return '—';
-  if (typeof val === 'number') {
-    return val >= 1000 ? val.toLocaleString('en-US', { maximumFractionDigits: 2 }) : String(val);
-  }
-  if (typeof val === 'string') return val;
-  return JSON.stringify(val);
-}
 
 const pulseKeyframes = `
 @keyframes unconnected-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 167, 38, 0.4); }
   50% { box-shadow: 0 0 6px 2px rgba(255, 167, 38, 0.6); }
 }
-@keyframes queued-pulse {
-  0%, 100% { border-color: #666; }
-  50% { border-color: #999; }
-}
-@keyframes executing-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(66, 165, 245, 0.4); }
-  50% { box-shadow: 0 0 12px 4px rgba(66, 165, 245, 0.6); }
-}
 `;
-
-const EXECUTION_STYLES: Record<string, { border: string; animation?: string; opacity?: number }> = {
-  queued: { border: colors.text.dim, animation: 'queued-pulse 1.5s ease-in-out infinite' },
-  executing: { border: colors.status.info, animation: 'executing-pulse 1s ease-in-out infinite' },
-  completed: { border: colors.status.successLight },
-  failed: { border: colors.status.error },
-  skipped: { border: colors.text.disabled, opacity: 0.5 },
-};
 
 let styleInjected = false;
 function injectPulseStyle() {
@@ -47,6 +21,10 @@ function injectPulseStyle() {
   document.head.appendChild(style);
 }
 
+/**
+ * One step of the scaffold: its capability, its ports and what feeds them.
+ * A required input nothing feeds is a hole the question still needs filled.
+ */
 export const CapabilityNode = memo(function CapabilityNode({
   id,
   data,
@@ -54,47 +32,16 @@ export const CapabilityNode = memo(function CapabilityNode({
 }: NodeProps<CapabilityFlowNode>) {
   injectPulseStyle();
 
-  const edges = usePipelineStore((s) => s.edges);
-  const executionSession = usePipelineStore((s) => s.executionSession);
   const openComposite = usePipelineStore((s) => s.openComposite);
-  const nodeExecState = usePipelineStore((s) => s.nodeExecutionStates[id]);
-  const { executeNode } = useNodeExecution();
-  const executionState = executionSession?.stepStatuses[id];
-  const execStyle = executionState ? EXECUTION_STYLES[executionState] : undefined;
-  const stepError = executionSession?.stepMetrics[id]?.error;
   const isComposite = data.source === 'COMPOSITE';
 
-  let nodeExecBorder: string | undefined;
-  if (nodeExecState?.status === 'running') nodeExecBorder = colors.status.info;
-  else if (nodeExecState?.status === 'success') nodeExecBorder = colors.status.successLight;
-  else if (nodeExecState?.status === 'error') nodeExecBorder = colors.status.error;
-
-  const handleTest = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      void executeNode(id);
-    },
-    [executeNode, id],
+  // The question says which of this step's inputs are still holes; a filled
+  // one has no edge on the canvas either, so edges cannot tell them apart.
+  const holes = useDraftStore((s) => s.view?.holes);
+  const openHoles = useMemo(
+    () => new Set((holes ?? []).filter((h) => h.node === id).map((h) => h.port)),
+    [holes, id],
   );
-
-  const connectedInputs = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const edge of edges) {
-      if (edge.target === id && edge.targetHandle) {
-        map.set(edge.targetHandle, edge.source);
-      }
-    }
-    return map;
-  }, [edges, id]);
-
-  const unconnectedRequiredInputs = useMemo(() => {
-    const set = new Set<string>();
-    for (const input of data.inputs) {
-      if (!input.required) continue;
-      if (!connectedInputs.has(input.name)) set.add(input.name);
-    }
-    return set;
-  }, [data.inputs, connectedInputs]);
 
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -107,13 +54,11 @@ export const CapabilityNode = memo(function CapabilityNode({
     <div
       style={{
         background: colors.surface.raised,
-        border: `2px solid ${selected ? colors.accent : (execStyle?.border ?? nodeExecBorder ?? colors.surface.border)}`,
+        border: `2px solid ${selected ? colors.accent : colors.surface.border}`,
         borderRadius: borderRadius.xl,
         minWidth: 200,
         fontFamily,
         boxShadow: selected ? '0 0 12px rgba(124,77,255,0.3)' : '0 2px 8px rgba(0,0,0,0.3)',
-        animation: execStyle?.animation,
-        opacity: execStyle?.opacity ?? 1,
       }}
     >
       <div
@@ -172,39 +117,25 @@ export const CapabilityNode = memo(function CapabilityNode({
         {data.inputs.length > 0 && (
           <div style={{ padding: '2px 10px 4px' }}>
             {data.inputs.map((input) => {
-              const isConnected = connectedInputs.has(input.name);
+              const isHole = openHoles.has(input.name);
               return (
                 <div
                   key={input.name}
+                  title={isHole ? 'Still needed: fill it in the question panel' : undefined}
                   style={{
                     marginBottom: 4,
-                    ...(unconnectedRequiredInputs.has(input.name)
-                      ? {
-                          borderRadius: 4,
-                          animation: 'unconnected-pulse 2s ease-in-out infinite',
-                        }
+                    ...(isHole
+                      ? { borderRadius: 4, animation: 'unconnected-pulse 2s ease-in-out infinite' }
                       : {}),
                   }}
                 >
-                  <div style={{ position: 'relative' }}>
-                    <SemanticHandle
-                      type="target"
-                      id={input.name}
-                      semanticType={input.semanticType}
-                      label={input.name}
-                      required={input.required}
-                    />
-                  </div>
-                  <div style={{ paddingLeft: 12, paddingRight: 4, marginTop: 2 }}>
-                    <NodeInputEditor
-                      nodeId={id}
-                      portName={input.name}
-                      semanticType={input.semanticType}
-                      required={input.required}
-                      isConnected={isConnected}
-                      sourceName={isConnected ? connectedInputs.get(input.name) : undefined}
-                    />
-                  </div>
+                  <SemanticHandle
+                    type="target"
+                    id={input.name}
+                    semanticType={input.semanticType}
+                    label={input.name}
+                    required={input.required}
+                  />
                 </div>
               );
             })}
@@ -219,53 +150,13 @@ export const CapabilityNode = memo(function CapabilityNode({
             }}
           >
             {data.outputs.map((output) => (
-              <div key={output.name} style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  <SemanticHandle
-                    type="source"
-                    id={output.name}
-                    semanticType={output.semanticType}
-                    label={output.name}
-                  />
-                </div>
-                <button
-                  className="nopan nodrag"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                    window.dispatchEvent(
-                      new CustomEvent('fabric:show-contextual-palette', {
-                        detail: {
-                          semanticType: output.semanticType,
-                          sourceNodeId: id,
-                          sourcePort: output.name,
-                          position: { x: rect.right + 10, y: rect.top },
-                        },
-                      }),
-                    );
-                  }}
-                  style={{
-                    background: colors.surface.border,
-                    color: colors.text.secondary,
-                    border: `1px solid ${colors.surface.borderLight}`,
-                    borderRadius: '50%',
-                    width: 18,
-                    height: 18,
-                    fontSize: '11px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    padding: 0,
-                    lineHeight: 1,
-                    marginRight: 6,
-                  }}
-                  title="What can I do with this?"
-                >
-                  +
-                </button>
-              </div>
+              <SemanticHandle
+                key={output.name}
+                type="source"
+                id={output.name}
+                semanticType={output.semanticType}
+                label={output.name}
+              />
             ))}
           </div>
         )}
@@ -343,27 +234,9 @@ export const CapabilityNode = memo(function CapabilityNode({
         >
           {data.capabilityId}@{data.capabilityVersion}
         </span>
-        <button
-          className="nopan nodrag"
-          onClick={handleTest}
-          disabled={nodeExecState?.status === 'running'}
-          style={{
-            background: nodeExecState?.status === 'running' ? colors.text.disabled : colors.accent,
-            color: colors.text.primary,
-            border: 'none',
-            borderRadius: borderRadius.sm,
-            padding: '1px 8px',
-            fontSize: '9px',
-            fontWeight: 700,
-            cursor: nodeExecState?.status === 'running' ? 'wait' : 'pointer',
-            marginLeft: 4,
-            flexShrink: 0,
-          }}
-        >
-          {nodeExecState?.status === 'running' ? 'Testing...' : '▶ Test'}
-        </button>
         {isComposite && (
           <button
+            className="nopan nodrag"
             onClick={(e) => {
               e.stopPropagation();
               openComposite({
@@ -389,74 +262,6 @@ export const CapabilityNode = memo(function CapabilityNode({
           </button>
         )}
       </div>
-
-      {stepError && (
-        <div
-          style={{
-            padding: '4px 10px',
-            borderTop: '1px solid rgba(239,83,80,0.3)',
-            background: 'rgba(239,83,80,0.1)',
-            borderRadius: '0 0 6px 6px',
-            fontSize: fontSize.xs,
-            color: colors.status.error,
-          }}
-        >
-          {stepError}
-        </div>
-      )}
-
-      {nodeExecState?.status === 'success' && (
-        <div
-          style={{
-            padding: '4px 10px',
-            borderTop: '1px solid rgba(129,199,132,0.3)',
-            background: 'rgba(129,199,132,0.08)',
-            borderRadius: '0 0 6px 6px',
-            fontSize: fontSize.xs,
-            color: colors.status.successLight,
-          }}
-        >
-          <div style={{ display: 'flex', gap: 8, marginBottom: nodeExecState.preview ? 3 : 0 }}>
-            {nodeExecState.resultCount != null && (
-              <span>
-                {'✓'} {nodeExecState.resultCount} results
-              </span>
-            )}
-            {nodeExecState.durationMs != null && <span>{nodeExecState.durationMs}ms</span>}
-          </div>
-          {nodeExecState.preview != null &&
-            typeof nodeExecState.preview === 'object' &&
-            !Array.isArray(nodeExecState.preview) && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {Object.entries(nodeExecState.preview as Record<string, unknown>).map(
-                  ([key, val]) => (
-                    <div key={key} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: colors.text.dim }}>{key}</span>
-                      <span style={{ color: colors.text.primary, fontWeight: 600 }}>
-                        {formatPreviewValue(val)}
-                      </span>
-                    </div>
-                  ),
-                )}
-              </div>
-            )}
-        </div>
-      )}
-
-      {nodeExecState?.status === 'error' && !stepError && (
-        <div
-          style={{
-            padding: '4px 10px',
-            borderTop: '1px solid rgba(239,83,80,0.3)',
-            background: 'rgba(239,83,80,0.1)',
-            borderRadius: '0 0 6px 6px',
-            fontSize: fontSize.xs,
-            color: colors.status.error,
-          }}
-        >
-          {nodeExecState.error ?? 'Execution failed'}
-        </div>
-      )}
     </div>
   );
 });
