@@ -108,6 +108,52 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/cli:
+    dependencies:
+      '@eve-fabric/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@eve-fabric/fabric':
+        specifier: workspace:*
+        version: link:../../packages/fabric
+      '@eve-fabric/kit':
+        specifier: workspace:*
+        version: link:../../packages/kit
+      '@eve-fabric/pack-core':
+        specifier: workspace:*
+        version: link:../../packages/pack-core
+      '@eve-fabric/persistence':
+        specifier: workspace:*
+        version: link:../../packages/persistence
+      '@eve-fabric/source-esi':
+        specifier: workspace:*
+        version: link:../../packages/source-esi
+      '@eve-fabric/source-sde':
+        specifier: workspace:*
+        version: link:../../packages/source-sde
+      '@eve-fabric/test-support':
+        specifier: workspace:*
+        version: link:../../packages/test-support
+      '@eve-fabric/weave':
+        specifier: workspace:*
+        version: link:../../packages/weave
+      '@lgriffin/esi.ts':
+        specifier: 11.1.1
+        version: 11.1.1(js-yaml@4.3.1)
+      graphql:
+        specifier: ^16.9.0
+        version: 16.14.2
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.20.1)
+
   apps/designer:
     dependencies:
       '@dagrejs/dagre':

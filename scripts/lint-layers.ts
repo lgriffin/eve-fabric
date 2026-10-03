@@ -72,7 +72,13 @@ const LAYERS: readonly Layer[] = [
   },
   {
     name: 'driving',
-    packages: ['packages/fabric', 'packages/codegen', 'apps/gateway', 'packages/test-support'],
+    packages: [
+      'packages/fabric',
+      'packages/codegen',
+      'apps/gateway',
+      'apps/cli',
+      'packages/test-support',
+    ],
     check: () => undefined,
   },
   {

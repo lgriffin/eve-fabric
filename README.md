@@ -19,6 +19,22 @@ Add `--live` to ask Tranquility's ESI. The code is
 start a pack of your own. `pnpm demo` does the same through the gateway's HTTP
 API.
 
+### From the terminal
+
+`pnpm fabric` is the `eve-fabric` CLI. It asks saved questions, explores
+moves, and moves weaves in and out of a fabric. `--offline` uses the fixture,
+`--pack <module>` installs a pack you wrote, and `--db <file>` keeps added
+weaves across runs:
+
+```bash
+pnpm fabric moves type=Tritanium orders --offline              # what can come next
+pnpm fabric moves type=Tritanium orders "region=The Forge" prices --offline
+pnpm fabric ask question.graphql --offline                     # run a saved question
+pnpm fabric weave export question.graphql --id me.prices --version 1.0.0 --as "forge prices" --out prices.weave.yaml --offline
+pnpm fabric weave add prices.weave.yaml --db fabric.db --offline
+pnpm fabric weave list --db fabric.db --offline
+```
+
 ## What It Does
 
 EVE Fabric treats every EVE Online data operation as a **capability** — a typed, versioned unit with semantic inputs and outputs. You compose capabilities into **pipelines** (directed acyclic graphs), and the gateway compiles them into optimized execution plans that respect dependencies, parallelize where possible, and track data provenance.

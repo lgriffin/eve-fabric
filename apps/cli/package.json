@@ -1,0 +1,33 @@
+{
+  "name": "@eve-fabric/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "eve-fabric": "./dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@eve-fabric/core": "workspace:*",
+    "@eve-fabric/fabric": "workspace:*",
+    "@eve-fabric/kit": "workspace:*",
+    "@eve-fabric/pack-core": "workspace:*",
+    "@eve-fabric/persistence": "workspace:*",
+    "@eve-fabric/source-esi": "workspace:*",
+    "@eve-fabric/source-sde": "workspace:*",
+    "@eve-fabric/test-support": "workspace:*",
+    "@eve-fabric/weave": "workspace:*",
+    "@lgriffin/esi.ts": "11.1.1",
+    "graphql": "^16.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}
