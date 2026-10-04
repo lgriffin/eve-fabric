@@ -29,7 +29,8 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      'no-console': 'warn',
+      // FAB-LOG-01: diagnostics go through a Logger, output through an explicit channel.
+      'no-console': 'error',
       'sonarjs/cognitive-complexity': ['warn', 20],
       'sonarjs/todo-tag': 'warn',
       'sonarjs/no-hardcoded-passwords': 'off',
@@ -57,7 +58,6 @@ export default tseslint.config(
   {
     files: ['scripts/**/*.ts', 'examples/**/*.ts'],
     rules: {
-      'no-console': 'off',
       'security/detect-non-literal-fs-filename': 'off',
     },
   },

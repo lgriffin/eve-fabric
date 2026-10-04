@@ -18,7 +18,7 @@ describe('quickstart', () => {
   it('asks, saves, reopens and shares a question end to end', async () => {
     outDir = mkdtempSync(join(tmpdir(), 'quickstart-'));
     const lines: string[] = [];
-    const result = await runQuickstart({ outDir, log: (line) => lines.push(line) });
+    const result = await runQuickstart({ outDir, print: (line) => lines.push(line) });
 
     expect(result.answer).toBe(8_100_000);
     expect(result.reopenedAnswer).toBe(result.answer);

@@ -14,6 +14,19 @@ designer joined the published set and the legacy pipeline model was removed
 (**breaking** for anyone who built against it), so the first release is 0.2.0.
 Nothing here is 1.0: the API may still change between minor versions.
 
+### [#53](https://github.com/lgriffin/eve-fabric/pull/53) logging: a Logger port, and nothing calls `console`
+
+- **`Logger` port** in `@eve-fabric/core`: debug, info, warn and error;
+  `createLogger` over any sink, `memoryLogger()` for tests, `silentLogger`.
+  `@eve-fabric/fabric` adds `stderrLogger()` and `printLine`.
+- **Two channels.** Diagnostics go to the logger (stderr), output to stdout.
+  `EVE_FABRIC_LOG` (debug, info, warn, error, silent) sets how much is said.
+  The CLI prints `warn:` and `info:` where it printed `warning:` and `note:`.
+- **Scripts and examples** use `scripts/lib/terminal.ts` or the fabric's
+  channels; the quickstart's `log` option is now `print`.
+- **Constitution 2.3.0.** XXII describes the two channels; FAB-LOG-01 makes
+  `no-console` an ESLint error everywhere, with no allowances.
+
 ### [#51](https://github.com/lgriffin/eve-fabric/pull/51) final polish: docs, examples and architecture checked against the code
 
 - **Version.** Every package is 0.2.0, the published set and the private apps

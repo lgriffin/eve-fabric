@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { createStaticSource } from '@eve-fabric/source-sde';
 import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createServer } from '../apps/gateway/src/server.js';
+import { log, print } from './lib/terminal.js';
 
 const live = process.argv.includes('--live');
 const DESIGNER = join(import.meta.dirname, '..', 'apps', 'designer');
@@ -35,13 +36,11 @@ async function main(): Promise<void> {
     sde: createStaticSource(tranquilitySde()),
   });
   await app.listen({ port, host: '127.0.0.1' });
-  console.log(
+  print(
     `Gateway on http://localhost:${String(port)} (${live ? 'live ESI' : 'offline Tranquility fixture'})`,
   );
-  console.log(
-    '  The fixture knows Tritanium, Pyerite, Mexallon, Isogen, Rifter; The Forge, Domain;',
-  );
-  console.log('  Jita, Perimeter, Urlen, Sivala, Amarr.');
+  print('  The fixture knows Tritanium, Pyerite, Mexallon, Isogen, Rifter; The Forge, Domain;');
+  print('  Jita, Perimeter, Urlen, Sivala, Amarr.');
 
   const designer = process.argv.includes('--no-designer')
     ? undefined
@@ -66,8 +65,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  console.error(
-    `The workbench did not start: ${error instanceof Error ? error.message : String(error)}`,
-  );
+  log.error('the workbench did not start', { error });
   process.exitCode = 1;
 });

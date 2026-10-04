@@ -17,6 +17,7 @@ import { corePack } from '@eve-fabric/pack-core';
 import { fixedClock } from '@eve-fabric/core';
 import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { publishWeave } from '@eve-fabric/weave';
+import { log, print } from './lib/terminal.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const COMMITTED = join(ROOT, 'weaves');
@@ -50,7 +51,7 @@ async function exportInto(dir: string): Promise<void> {
     description: 'Buy in one region, sell in another: the profit per unit after sales tax',
   });
   const path = await publishWeave(dir, fabric.export(weave));
-  console.log(`exported ${relative(ROOT, path)}`);
+  print(`exported ${relative(ROOT, path)}`);
 }
 
 async function main(): Promise<void> {
@@ -68,10 +69,10 @@ async function main(): Promise<void> {
         readFileSync(join(scratch, f), 'utf8') !== readFileSync(join(COMMITTED, f), 'utf8'),
     );
     if (differ.length > 0) {
-      console.error(`weaves/ is out of date (${differ.join(', ')}); run pnpm run weaves`);
+      log.error(`weaves/ is out of date (${differ.join(', ')}); run pnpm run weaves`);
       process.exit(1);
     }
-    console.log('weaves/ matches a fresh export');
+    print('weaves/ matches a fresh export');
   } else {
     await exportInto(out ?? COMMITTED);
   }

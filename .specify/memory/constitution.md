@@ -1,6 +1,17 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 2.2.0 -> 2.3.0 (MINOR)
+  Modified principles:
+    - XXII. Observability: logging. Diagnostics go through the `Logger`
+      port (core); what a program exists to print goes to an explicit
+      output channel (stdout). Nothing calls `console`.
+  Added requirements, Enforced: FAB-LOG-01 (`pnpm run lint`, no-console
+    is an error everywhere, with no allowances).
+  Templates requiring updates: none.
+
+  Previous amendment
+  ------------------
   Version change: 2.1.0 -> 2.2.0 (MINOR)
   Modified principles:
     - XXVII. Runtime Baseline: Node.js 22.13 or later, tested at that
@@ -611,6 +622,19 @@ Preferred standard: OpenTelemetry.
 Observability MUST NOT leak user tokens, secrets, or sensitive
 payloads.
 
+Logging has two channels, and code MUST NOT call `console`:
+
+- **Diagnostics** (warnings, notes, failures) go through the `Logger`
+  port in `@eve-fabric/core`, with levels debug, info, warn and error.
+  A logger is injected, never global: libraries take one, tests pass
+  `memoryLogger()` or `silentLogger`, and Node programs write to stderr
+  (`stderrLogger`, whose level `EVE_FABRIC_LOG` sets). The gateway logs
+  through Fastify's logger.
+- **Output** (an answer, a table, a report: what the program exists to
+  print) goes to an explicit channel on stdout, such as the CLI's
+  `io.out` or `printLine`, so stdout stays the result and stderr the
+  commentary.
+
 ### XXIII. Error Model
 
 Errors MUST distinguish:
@@ -736,6 +760,7 @@ CI. Statuses move forward as the overhaul phases land.
 | FAB-IDX-01  | When the weaves in `weaves/` differ by a byte from a fresh export, the build shall fail.                                                       | `pnpm run weaves:check`                                 | Enforced |
 | FAB-UI-01   | The designer shall build and run a question, open a saved one, and compose one on the canvas, in a browser.                                    | `pnpm run test:e2e` (Designer Journeys)                 | Enforced |
 | FAB-EX-01   | The quickstart, the demo and the saved questions shall run offline and give the answers their READMEs show.                                    | CI Examples job, `examples/**/*.test.ts`                | Enforced |
+| FAB-LOG-01  | Source, scripts and examples shall never call `console`: diagnostics go through a `Logger`, output through an explicit channel.                | `pnpm run lint` (`no-console` is an error)              | Enforced |
 
 ## Governance
 
@@ -770,4 +795,4 @@ All pull requests and code reviews MUST verify compliance with
 this constitution. Complexity MUST be justified against these
 principles.
 
-**Version**: 2.2.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-03
+**Version**: 2.3.0 | **Ratified**: 2026-08-19 | **Last Amended**: 2026-10-04

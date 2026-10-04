@@ -36,6 +36,8 @@ Options:
   -h, --help       Show this help
 
 Live use reads names from the SDE export at $SDE_DATA_PATH.
+Warnings and notes go to stderr; $EVE_FABRIC_LOG sets how many (debug, info,
+warn, error or silent; info by default).
 ```
 
 ## Exit codes

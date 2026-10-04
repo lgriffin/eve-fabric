@@ -22,6 +22,9 @@ keeps added weaves across runs. Bad usage exits 2 with the help text; a
 failure exits 1 with an `error:` line saying why, sometimes followed by a
 hint.
 
+Answers go to stdout; warnings and notes go to stderr as `warn:` and `info:`
+lines, and `EVE_FABRIC_LOG` (debug, info, warn, error or silent) sets how many.
+
 The full reference is
 [docs/cli.md](https://github.com/lgriffin/eve-fabric/blob/master/docs/cli.md)
 in the repository, generated from this help.

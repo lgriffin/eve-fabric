@@ -14,6 +14,7 @@
  */
 import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { log, print } from './lib/terminal.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const BASELINE = join(ROOT, 'scripts', 'baselines', 'determinism.json');
@@ -72,7 +73,7 @@ function main(): void {
   const current = sites();
   if (process.argv.includes('--update')) {
     writeFileSync(BASELINE, `${JSON.stringify(current, null, 2)}\n`);
-    console.log(`lint:determinism baseline written for ${Object.keys(current).length} file(s)`);
+    print(`lint:determinism baseline written for ${Object.keys(current).length} file(s)`);
     return;
   }
   const baseline = existsSync(BASELINE)
@@ -83,17 +84,17 @@ function main(): void {
     const now = current[file] ?? [];
     const was = baseline[file] ?? [];
     for (const line of minus(now, was)) {
-      console.error(`${file}: new direct time/random read, use the Clock port: ${line}`);
+      log.error(`${file}: new direct time/random read, use the Clock port: ${line}`);
       failed = true;
     }
     for (const line of minus(was, now)) {
-      console.error(`${file}: baselined site gone, shrink the baseline with --update: ${line}`);
+      log.error(`${file}: baselined site gone, shrink the baseline with --update: ${line}`);
       failed = true;
     }
   }
   if (failed) process.exit(1);
   const total = Object.values(current).reduce((a, b) => a + b.length, 0);
-  console.log(`lint:determinism: ${total} baselined site(s), none new`);
+  print(`lint:determinism: ${total} baselined site(s), none new`);
 }
 
 main();

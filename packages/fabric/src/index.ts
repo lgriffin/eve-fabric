@@ -46,3 +46,10 @@ export {
   WeaveRequirementError,
   type WeaveOptions,
 } from './weaving.js';
+export {
+  LOG_LEVEL_VARIABLE,
+  envLogger,
+  printLine,
+  stderrLogger,
+  type StderrLoggerOptions,
+} from './terminal.js';

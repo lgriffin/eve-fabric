@@ -11,6 +11,7 @@
  */
 import { readdirSync, readFileSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { log, print } from './lib/terminal.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const BASELINE = join(ROOT, 'scripts', 'baselines', 'layers.json');
@@ -140,7 +141,7 @@ function main(): void {
   const violations = findViolations();
   if (process.argv.includes('--update')) {
     writeFileSync(BASELINE, `${JSON.stringify(violations, null, 2)}\n`);
-    console.log(`lint:layers baseline written with ${violations.length} entries`);
+    print(`lint:layers baseline written with ${violations.length} entries`);
     return;
   }
   const baseline = existsSync(BASELINE)
@@ -148,10 +149,10 @@ function main(): void {
     : [];
   const added = violations.filter((v) => !baseline.includes(v));
   const gone = baseline.filter((v) => !violations.includes(v));
-  for (const v of added) console.error(`new layer violation: ${v}`);
-  for (const v of gone) console.error(`fixed, remove from baseline (run with --update): ${v}`);
+  for (const v of added) log.error(`new layer violation: ${v}`);
+  for (const v of gone) log.error(`fixed, remove from baseline (run with --update): ${v}`);
   if (added.length > 0 || gone.length > 0) process.exit(1);
-  console.log(`lint:layers: ${violations.length} baselined violation(s), none new`);
+  print(`lint:layers: ${violations.length} baselined violation(s), none new`);
 }
 
 main();
