@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { format } from 'prettier';
 import { USAGE } from '../apps/cli/src/cli.js';
+import { log, print } from './lib/terminal.js';
 
 const OUT = join(import.meta.dirname, '..', 'docs', 'cli.md');
 
@@ -85,17 +86,17 @@ async function main(): Promise<void> {
   if (process.argv.includes('--check')) {
     const current = readFileSync(OUT, 'utf8');
     if (current !== page) {
-      console.error('docs/cli.md is out of date: run pnpm run docs:cli');
+      log.error('docs/cli.md is out of date: run pnpm run docs:cli');
       process.exit(1);
     }
-    console.log('docs/cli.md is current');
+    print('docs/cli.md is current');
     return;
   }
   writeFileSync(OUT, page);
-  console.log(`wrote ${OUT}`);
+  print(`wrote ${OUT}`);
 }
 
 main().catch((error: unknown) => {
-  console.error(error);
+  log.error('docs:cli failed', { error });
   process.exit(1);
 });

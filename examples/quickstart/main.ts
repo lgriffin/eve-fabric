@@ -3,6 +3,7 @@
  * writes what it saves to examples/quickstart/out/.
  */
 import { join } from 'node:path';
+import { stderrLogger } from '@eve-fabric/fabric';
 import { runQuickstart } from './quickstart.js';
 
 const live = process.argv.includes('--live');
@@ -20,7 +21,7 @@ function explain(error: unknown): string {
 
 runQuickstart({ live, outDir: join(process.cwd(), 'examples', 'quickstart', 'out') }).catch(
   (error: unknown) => {
-    console.error(`\nThe quickstart stopped: ${explain(error)}`);
+    stderrLogger().error(`The quickstart stopped: ${explain(error)}`);
     process.exitCode = 1;
   },
 );

@@ -21,6 +21,7 @@
  */
 import { createEsi } from '@lgriffin/esi.ts/client';
 import { createStaticSource } from '@eve-fabric/source-sde';
+import { printLine, stderrLogger } from '@eve-fabric/fabric';
 import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import { createServer } from '../../apps/gateway/src/server.js';
 
@@ -44,11 +45,11 @@ interface DraftView {
 type Step = { kind: 'move'; move: string } | { kind: 'fill'; hole: string; value: unknown };
 
 function section(n: number, title: string): void {
-  console.log(`\n${String(n)}. ${title}`);
+  printLine(`\n${String(n)}. ${title}`);
 }
 
 function show(line: string): void {
-  console.log(`   ${line}`);
+  printLine(`   ${line}`);
 }
 
 async function main(): Promise<void> {
@@ -63,7 +64,7 @@ async function main(): Promise<void> {
     sde: createStaticSource(tranquilitySde()),
   });
   const base = await app.listen({ port: 0, host: '127.0.0.1' });
-  console.log(`Gateway on ${base} (${live ? 'live ESI' : 'offline Tranquility fixture'})`);
+  printLine(`Gateway on ${base} (${live ? 'live ESI' : 'offline Tranquility fixture'})`);
 
   async function api<T>(method: string, path: string, body?: unknown): Promise<Response<T>> {
     const res = await fetch(
@@ -135,7 +136,7 @@ async function main(): Promise<void> {
     const graphql = run.view.graphql ?? '';
 
     section(5, 'POST /api/drafts/run  { graphql }  (the saved form)');
-    console.log(
+    printLine(
       graphql
         .trimEnd()
         .split('\n')
@@ -192,14 +193,15 @@ async function main(): Promise<void> {
     });
     show(`${String(refused.status)} ${refused.data.error.code}: ${refused.data.error.message}`);
 
-    console.log('\nThe same calls by hand are in examples/e2e-demo/README.md.');
+    printLine('\nThe same calls by hand are in examples/e2e-demo/README.md.');
   } finally {
     await app.close();
   }
 }
 
 main().catch((error: unknown) => {
-  console.error(`\nThe demo stopped: ${error instanceof Error ? error.message : String(error)}`);
-  if (live) console.error('Run without --live to use the offline fixture.');
+  const log = stderrLogger();
+  log.error(`The demo stopped: ${error instanceof Error ? error.message : String(error)}`);
+  if (live) log.info('Run without --live to use the offline fixture.');
   process.exitCode = 1;
 });

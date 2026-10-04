@@ -9,13 +9,18 @@ import { parseArgs } from 'node:util';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
 import { generate } from '@eve-fabric/codegen';
-import type { Draft, Fabric } from '@eve-fabric/fabric';
+import { createLogger, type Logger } from '@eve-fabric/core';
+import { logLevelFrom, type Draft, type Fabric } from '@eve-fabric/fabric';
 import { weaveFromYaml, weaveToYaml } from '@eve-fabric/weave';
 import { openFabric, type FabricSettings } from './fabric-for.js';
 
 export interface Io {
+  /** What a command prints: answers, tables, the schema, the help. */
   readonly out: (text: string) => void;
+  /** Where a failed command says why, with the usage when it was misused. */
   readonly err: (text: string) => void;
+  /** Warnings and notes; by default a logger over `err` at $EVE_FABRIC_LOG's level. */
+  readonly log?: Logger | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
   /** Where --pack paths and package names resolve from; the process's by default. */
   readonly cwd?: string | undefined;
@@ -46,7 +51,9 @@ Options:
   --name <package> The package name codegen emits (default: the weave's id with hyphens)
   -h, --help       Show this help
 
-Live use reads names from the SDE export at $SDE_DATA_PATH.`;
+Live use reads names from the SDE export at $SDE_DATA_PATH.
+Warnings and notes go to stderr; $EVE_FABRIC_LOG sets how many (debug, info,
+warn, error or silent; info by default).`;
 
 /** A command line that is not one this takes. */
 export class UsageError extends Error {
@@ -285,21 +292,21 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     sdeDataPath: io.env['SDE_DATA_PATH'],
     cwd: io.cwd,
   };
+  const log = io.log ?? createLogger({ write: io.err, level: logLevelFrom(io.env) });
   let opened: Awaited<ReturnType<typeof openFabric>> | undefined;
   try {
     if (!['ask', 'moves', 'weave', 'codegen', 'schema'].includes(name)) {
       throw new UsageError(`"${name}" is not a command`);
     }
     opened = await openFabric(settings);
-    for (const weave of opened.skipped)
-      io.err(`warning: kept weave ${weave} no longer adds; skipped`);
+    for (const weave of opened.skipped) log.warn('kept weave no longer adds; skipped', { weave });
     const { fabric } = opened;
     if (
       !settings.offline &&
       settings.sdeDataPath === undefined &&
       !['weave', 'codegen'].includes(name)
     ) {
-      io.err('note: no SDE_DATA_PATH, so names will not resolve; use ids, or --offline');
+      log.info('no SDE_DATA_PATH, so names will not resolve; use ids, or --offline');
     }
     switch (name) {
       case 'ask': {

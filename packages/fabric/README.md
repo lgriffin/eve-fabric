@@ -31,5 +31,9 @@ Live use takes an ESI.ts client (`createEsi` from `@lgriffin/esi.ts/client`)
 and an SDE source (`@eve-fabric/source-sde`); a `Store` from
 `@eve-fabric/persistence` keeps added weaves across restarts.
 
+A program built on the fabric writes answers with `printLine` (stdout) and
+diagnostics with `stderrLogger()` (stderr, at the level `EVE_FABRIC_LOG` names:
+debug, info, warn, error or silent; info by default).
+
 Part of [EVE Fabric](https://github.com/lgriffin/eve-fabric); the repository's
 README explains drafts, lists and joins, identities and weaves.

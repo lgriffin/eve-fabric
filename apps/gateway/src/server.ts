@@ -153,18 +153,17 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   return app;
 }
 
-async function start(): Promise<void> {
+/** `pnpm gateway`: a failure to build the server throws; a failure to listen is logged. */
+function start(): void {
   const port = Number(process.env['PORT'] ?? 3456);
   const host = process.env['HOST'] ?? '0.0.0.0';
   const app = createServer({ port, host });
-  await app.listen({ port, host });
+  app.listen({ port, host }).catch((err: unknown) => {
+    app.log.fatal({ err }, 'gateway did not start');
+    process.exit(1);
+  });
 }
 
 const isDirectRun =
   process.argv[1]?.endsWith('server.ts') || process.argv[1]?.endsWith('server.js');
-if (isDirectRun) {
-  start().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
-}
+if (isDirectRun) start();

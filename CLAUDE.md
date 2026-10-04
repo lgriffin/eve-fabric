@@ -1,6 +1,6 @@
 ﻿# eve-fabric Development Guidelines
 
-Kept by hand. Last updated: 2026-10-03 (0.2.0). The governing rules are the
+Kept by hand. Last updated: 2026-10-04 (0.2.0). The governing rules are the
 constitution, `.specify/memory/constitution.md`; this page is the map.
 
 ## Active Technologies
@@ -62,7 +62,7 @@ codegen, fixture, gateway, CLI) and designer.
 
 ## Code Style
 
-TypeScript strict, no `any` outside trust boundaries, external input validated with Zod. Time only through the `Clock` port. Conventional commits enforced via commitlint. Every merged pull request gets a `CHANGELOG.md` entry under Unreleased; the version is one line across `scripts/published.json`, and a release is a `v*` tag.
+TypeScript strict, no `any` outside trust boundaries, external input validated with Zod. Time only through the `Clock` port. Never `console` (FAB-LOG-01, an ESLint error): diagnostics through a `Logger` (core's port; `stderrLogger` in Node, `memoryLogger` in tests; `scripts/lib/terminal.ts` for scripts), output through an explicit stdout channel (`io.out`, `printLine`, `print`). Conventional commits enforced via commitlint. Every merged pull request gets a `CHANGELOG.md` entry under Unreleased; the version is one line across `scripts/published.json`, and a release is a `v*` tag.
 
 ## Recent Changes
 

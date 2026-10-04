@@ -13,6 +13,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { print } from './lib/terminal.js';
 
 const ROOT = join(import.meta.dirname, '..');
 // pnpm and npm come from the developer's or CI's own PATH, as when they run them.
@@ -46,7 +47,7 @@ writeFileSync(
   `import { corePack } from '@eve-fabric/pack-core';
 import { CapabilityCatalog } from '@eve-fabric/core';
 import { defineCapability, definePack } from '@eve-fabric/kit';
-import { createFabric } from '@eve-fabric/fabric';
+import { createFabric, printLine } from '@eve-fabric/fabric';
 import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 if (typeof CapabilityCatalog !== 'function' || typeof defineCapability !== 'function') {
   throw new Error('core or kit is missing its exports');
@@ -60,7 +61,7 @@ const fabric = createFabric({
 const draft = fabric.fromGraphQL('{ system(name: "Jita") { jumpsTo(destination: "Amarr") } }');
 const { answer } = await fabric.query(draft);
 if (answer !== 4) throw new Error(\`the fabric answered \${String(answer)}\`);
-console.log(\`\${corePack.id}: \${corePack.capabilities.length} capabilities; Jita to Amarr is 4 jumps\`);
+printLine(\`\${corePack.id}: \${corePack.capabilities.length} capabilities; Jita to Amarr is 4 jumps\`);
 `,
 );
 execFileSync(process.execPath, ['check.mjs'], { cwd: consumer, stdio: 'inherit' });
@@ -103,16 +104,17 @@ execFileSync(bin, ['--offline', 'codegen', weave, '--out', 'jumps'], {
 // index.ts with types stripped; the CLI needs Node 22.13, which has that.
 writeFileSync(
   join(consumer, 'run.mjs'),
-  `import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
+  `import { printLine } from '@eve-fabric/fabric';
+import { tranquilityEsi, tranquilitySde } from '@eve-fabric/fixture';
 import jumps from './jumps/index.ts';
 const options = { esi: tranquilityEsi().esi, sde: tranquilitySde() };
 const { distance } = await jumps({ system: 30000142, destination: 30002187 }, options);
 if (distance !== 4) throw new Error(\`the generated module answered \${String(distance)}\`);
-console.log('the generated package answers as the bank does: Jita to Amarr is 4 jumps');
+printLine('the generated package answers as the bank does: Jita to Amarr is 4 jumps');
 `,
 );
 execFileSync(process.execPath, ['--experimental-strip-types', '--no-warnings', 'run.mjs'], {
   cwd: consumer,
   stdio: 'inherit',
 });
-console.log(`packages:check: ${PUBLISHED.join(', ')} install, import and run on their own`);
+print(`packages:check: ${PUBLISHED.join(', ')} install, import and run on their own`);

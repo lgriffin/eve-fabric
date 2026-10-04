@@ -27,6 +27,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { log, print } from './lib/terminal.js';
 
 const ROOT = join(import.meta.dirname, '..');
 const MESSAGES = join(ROOT, 'reports', 'bank', 'messages.ndjson');
@@ -74,20 +75,20 @@ function runCucumber(): void {
     env: LIVE ? { ...process.env, BANK_LIVE: '1' } : process.env,
   });
   if (result.error !== undefined || result.signal !== null || (result.status ?? 2) > 1) {
-    console.error(
+    log.error(
       `question bank: cucumber did not complete (status ${String(result.status)}, signal ${String(result.signal)})`,
     );
     process.exit(1);
   }
   if (!existsSync(MESSAGES)) {
-    console.error('question bank: cucumber produced no messages');
+    log.error('question bank: cucumber produced no messages');
     process.exit(1);
   }
   const finished = readFileSync(MESSAGES, 'utf8')
     .split('\n')
     .some((line) => line.startsWith('{"testRunFinished"'));
   if (!finished) {
-    console.error('question bank: cucumber report has no testRunFinished; the run was cut short');
+    log.error('question bank: cucumber report has no testRunFinished; the run was cut short');
     process.exit(1);
   }
 }
@@ -134,7 +135,7 @@ function main(): void {
   const { passing, scenarios } = passingQuestions();
   const missing = ASKED.filter((q) => !scenarios.has(q));
   if (missing.length > 0) {
-    console.error(`question bank: no scenarios for ${missing.join(', ')}`);
+    log.error(`question bank: no scenarios for ${missing.join(', ')}`);
     process.exit(1);
   }
 
@@ -147,8 +148,8 @@ function main(): void {
   const title = LIVE ? 'bank (live ESI)' : 'bank';
   const line = `${title}: ${passing.length} of ${ASKED.length}`;
   const table = QUESTIONS.map((q) => `| ${q} | ${state(q)} |`);
-  console.log(line);
-  for (const row of table) console.log(row);
+  print(line);
+  for (const row of table) print(row);
   const summaryPath = process.env['GITHUB_STEP_SUMMARY'];
   if (summaryPath !== undefined) {
     appendFileSync(
@@ -167,22 +168,22 @@ function main(): void {
   if (LIVE) {
     // Live answers are checked for shape, not recorded: every question asked must pass.
     const failed = ASKED.filter((q) => !passing.includes(q));
-    for (const q of failed) console.error(`question bank: ${q} fails against live ESI`);
+    for (const q of failed) log.error(`question bank: ${q} fails against live ESI`);
     if (failed.length > 0) process.exit(1);
     return;
   }
 
   if (process.argv.includes('--update')) {
     writeFileSync(BASELINE, `${JSON.stringify({ passing }, null, 2)}\n`);
-    console.log('question bank: baseline updated');
+    print('question bank: baseline updated');
     return;
   }
 
   const baseline = (JSON.parse(readFileSync(BASELINE, 'utf8')) as { passing: string[] }).passing;
   const lost = baseline.filter((q) => !passing.includes(q));
   const gained = passing.filter((q) => !baseline.includes(q));
-  for (const q of lost) console.error(`question bank: ${q} passed before and fails now`);
-  for (const q of gained) console.error(`question bank: ${q} passes now; record it with --update`);
+  for (const q of lost) log.error(`question bank: ${q} passed before and fails now`);
+  for (const q of gained) log.error(`question bank: ${q} passes now; record it with --update`);
   if (lost.length > 0 || gained.length > 0) process.exit(1);
 }
 

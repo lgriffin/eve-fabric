@@ -11,7 +11,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { createFabric } from '@eve-fabric/fabric';
+import { createFabric, printLine, stderrLogger } from '@eve-fabric/fabric';
 import { corePack } from '@eve-fabric/pack-core';
 import { tranquilitySde } from '@eve-fabric/fixture';
 import { createEsi } from '@lgriffin/esi.ts/client';
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     for (const { file, says, check } of asks) {
       const document = readFileSync(join(QUESTIONS, file), 'utf8');
       const { answer } = await fabric.query(fabric.fromGraphQL(document));
-      console.log(`${says}: ${JSON.stringify(answer)}`);
+      printLine(`${says}: ${JSON.stringify(answer)}`);
       if (!check(answer)) {
         throw new Error(`${file} got no usable answer from Tranquility: ${JSON.stringify(answer)}`);
       }
@@ -67,6 +67,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err: unknown) => {
-  console.error(err);
+  stderrLogger().error('the live questions stopped', { error: err });
   process.exit(1);
 });

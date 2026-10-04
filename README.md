@@ -528,6 +528,7 @@ enforces it. Among them:
 - **TDD + BDD** — tests before implementation, behavior specifications, a question bank that never regresses (XVIII)
 - **Repository boundary** — never reimplement what ESI.ts already provides (XXV)
 - **Provenance** — every value traceable to its source (XIII)
+- **Logging** — diagnostics through the `Logger` port, output on stdout, never `console` (XXII)
 
 ## Tech Stack
 

@@ -2,6 +2,7 @@ import { CapabilityCatalog } from '@eve-fabric/core';
 import { compile } from '@eve-fabric/compiler';
 import type { PipelineDefinition } from '@eve-fabric/compiler';
 import { planExecution } from '@eve-fabric/planner';
+import { log, print } from './lib/terminal.js';
 
 function marketOrdersDef() {
   return {
@@ -110,7 +111,7 @@ function benchmark(
   const avg = times.reduce((a, b) => a + b, 0) / times.length;
   const min = Math.min(...times);
   const max = Math.max(...times);
-  console.log(
+  print(
     `  ${name}: avg=${avg.toFixed(3)}ms  min=${min.toFixed(3)}ms  max=${max.toFixed(3)}ms  (${iterations} iterations)`,
   );
   return { avgMs: avg, minMs: min, maxMs: max };
@@ -118,8 +119,8 @@ function benchmark(
 
 const ITERATIONS = 1000;
 
-console.log('EVE Schema Gateway - Performance Benchmark');
-console.log('='.repeat(50));
+print('EVE Schema Gateway - Performance Benchmark');
+print('='.repeat(50));
 
 const catalog = new CapabilityCatalog();
 catalog.register(marketOrdersDef());
@@ -128,19 +129,19 @@ catalog.register(sdeTypeLookupDef());
 
 const pipeline = tradeOpportunityPipeline();
 
-console.log('\nCompilation:');
+print('\nCompilation:');
 const compileResult = benchmark('compile()', () => compile(pipeline, catalog), ITERATIONS);
 
 const result = compile(pipeline, catalog);
 if (!result.success || !result.plan) {
-  console.error('Compilation failed:', result.diagnostics);
+  log.error('compilation failed', { diagnostics: result.diagnostics });
   process.exit(1);
 }
 
-console.log('\nPlan optimization:');
+print('\nPlan optimization:');
 const planResult = benchmark('planExecution()', () => planExecution(result.plan!), ITERATIONS);
 
-console.log('\nEnd-to-end (compile + plan):');
+print('\nEnd-to-end (compile + plan):');
 const e2eResult = benchmark(
   'compile + plan',
   () => {
@@ -150,11 +151,11 @@ const e2eResult = benchmark(
   ITERATIONS,
 );
 
-console.log('\n' + '='.repeat(50));
-console.log('Summary:');
-console.log(`  Compile:   ${compileResult.avgMs.toFixed(3)}ms avg`);
-console.log(`  Plan:      ${planResult.avgMs.toFixed(3)}ms avg`);
-console.log(`  End-to-end: ${e2eResult.avgMs.toFixed(3)}ms avg`);
-console.log(
+print('\n' + '='.repeat(50));
+print('Summary:');
+print(`  Compile:   ${compileResult.avgMs.toFixed(3)}ms avg`);
+print(`  Plan:      ${planResult.avgMs.toFixed(3)}ms avg`);
+print(`  End-to-end: ${e2eResult.avgMs.toFixed(3)}ms avg`);
+print(
   `  Steps: ${result.plan.steps.length}, Parallel groups: ${result.plan.parallelGroups.length}`,
 );

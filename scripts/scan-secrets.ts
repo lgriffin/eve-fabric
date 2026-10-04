@@ -13,6 +13,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { scanForSecrets, type SecretFinding } from '@eve-fabric/weave';
+import { log, print } from './lib/terminal.js';
 
 const DEFAULT_SCAN_DIRS = ['examples', 'weaves', 'bank'];
 
@@ -89,11 +90,11 @@ function main(): void {
   }
 
   if (jsonFiles.length === 0) {
-    console.log('No files found to scan.');
+    print('No files found to scan.');
     process.exit(0);
   }
 
-  console.log(`Scanning ${jsonFiles.length} file(s) for secrets...\n`);
+  print(`Scanning ${jsonFiles.length} file(s) for secrets...`);
 
   const allFindings: FileFinding[] = [];
 
@@ -105,25 +106,26 @@ function main(): void {
   }
 
   if (allFindings.length === 0) {
-    console.log('No secrets detected. All clean.');
+    print('No secrets detected. All clean.');
     process.exit(0);
   }
 
-  console.error('SECRET SCAN FAILED: Potential secrets detected!\n');
-
   for (const { filePath, findings } of allFindings) {
-    const relativePath = path.relative(rootDir, filePath);
-    console.error(`  File: ${relativePath}`);
+    const file = path.relative(rootDir, filePath);
     for (const finding of findings) {
-      console.error(`    - Field: ${finding.fieldPath}`);
-      console.error(`      Pattern: ${finding.patternName}`);
-      console.error(`      Value: ${finding.matchedValue}`);
+      log.error('potential secret', {
+        file,
+        field: finding.fieldPath,
+        pattern: finding.patternName,
+        value: finding.matchedValue,
+      });
     }
-    console.error('');
   }
 
   const totalFindings = allFindings.reduce((sum, f) => sum + f.findings.length, 0);
-  console.error(`Found ${totalFindings} potential secret(s) in ${allFindings.length} file(s).`);
+  log.error(
+    `SECRET SCAN FAILED: ${totalFindings} potential secret(s) in ${allFindings.length} file(s)`,
+  );
   process.exit(1);
 }
 

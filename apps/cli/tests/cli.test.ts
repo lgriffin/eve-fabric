@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { memoryLogger } from '@eve-fabric/core';
 import { runCli, USAGE } from '../src/cli.js';
 
 const PACK = join(import.meta.dirname, '..', '..', '..', 'examples', 'quickstart', 'pack.ts');
@@ -69,7 +70,31 @@ describe('eve-fabric ask', () => {
 
   it('notes that live names need an SDE export', async () => {
     const { err } = await cli('schema');
-    expect(err).toContain('no SDE_DATA_PATH');
+    expect(err).toContain('info: no SDE_DATA_PATH');
+  });
+
+  it('says less as $EVE_FABRIC_LOG asks, and never on stdout', async () => {
+    const err: string[] = [];
+    const out: string[] = [];
+    const code = await runCli(['schema'], {
+      out: (t) => out.push(t),
+      err: (t) => err.push(t),
+      env: { EVE_FABRIC_LOG: 'warn' },
+    });
+    expect(code).toBe(0);
+    expect(err).toEqual([]);
+    expect(out.join('\n')).not.toContain('SDE_DATA_PATH');
+  });
+
+  it('sends notes to the logger it is given', async () => {
+    const log = memoryLogger();
+    await runCli(['schema'], { out: () => undefined, err: () => undefined, env: {}, log });
+    expect(log.entries).toEqual([
+      {
+        level: 'info',
+        message: 'no SDE_DATA_PATH, so names will not resolve; use ids, or --offline',
+      },
+    ]);
   });
 });
 
