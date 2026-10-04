@@ -4,14 +4,16 @@
  * level). Imports the core's logger by path so the lint and check scripts run
  * before anything is built.
  */
-import { createLogger, isLogLevel, type Logger } from '../../packages/core/src/ports/logger.js';
+import { createLogger, readLogLevel, type Logger } from '../../packages/core/src/ports/logger.js';
 
-const level = process.env['EVE_FABRIC_LOG']?.trim().toLowerCase();
+const { level, invalid } = readLogLevel(process.env['EVE_FABRIC_LOG']);
 
 export const log: Logger = createLogger({
-  level: isLogLevel(level) ? level : 'info',
+  level,
   write: (line) => process.stderr.write(`${line}\n`),
 });
+if (invalid !== undefined)
+  log.warn('EVE_FABRIC_LOG names no level; using info', { value: invalid });
 
 /** One line of a script's report, on stdout. */
 export function print(text = ''): void {

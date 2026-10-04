@@ -48,7 +48,7 @@ export {
 } from './weaving.js';
 export {
   LOG_LEVEL_VARIABLE,
-  logLevelFrom,
+  envLogger,
   printLine,
   stderrLogger,
   type StderrLoggerOptions,

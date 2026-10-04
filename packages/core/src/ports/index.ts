@@ -13,7 +13,8 @@ export {
   type MemoryLogger,
   createLogger,
   formatLogEntry,
-  isLogLevel,
+  LogLevelSchema,
   memoryLogger,
+  readLogLevel,
   silentLogger,
 } from './logger.js';

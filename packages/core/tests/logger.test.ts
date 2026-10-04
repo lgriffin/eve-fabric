@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   createLogger,
   formatLogEntry,
-  isLogLevel,
+  readLogLevel,
   memoryLogger,
   silentLogger,
 } from '../src/ports/logger.js';
@@ -39,21 +39,33 @@ describe('Logger port', () => {
     expect(quiet.lines).toEqual([]);
   });
 
-  it('formats fields after the message, quoting spaced strings and naming errors', () => {
+  it('formats fields after the message, quoting spaced strings', () => {
     expect(
       formatLogEntry({
         level: 'warn',
         message: 'kept weave skipped',
-        fields: {
-          weave: 'jumps@1.0.0',
-          reason: 'no longer adds',
-          count: 2,
-          error: new TypeError('bad'),
-          absent: undefined,
-        },
+        fields: { weave: 'jumps@1.0.0', reason: 'no longer adds', count: 2, absent: undefined },
       }),
-    ).toBe(
-      'warn: kept weave skipped weave=jumps@1.0.0 reason="no longer adds" count=2 error=TypeError: bad',
+    ).toBe('warn: kept weave skipped weave=jumps@1.0.0 reason="no longer adds" count=2');
+  });
+
+  it("keeps an error field's stack and its causes", () => {
+    const error = new Error('outer', { cause: new TypeError('inner') });
+    const line = formatLogEntry({ level: 'error', message: 'stopped', fields: { error } });
+    expect(line).toMatch(/^error: stopped error=Error: outer\n\s+at /);
+    expect(line).toContain('caused by: TypeError: inner');
+    const bare = new Error('no stack');
+    bare.stack = undefined;
+    expect(formatLogEntry({ level: 'error', message: 'x', fields: { bare } })).toBe(
+      'error: x bare=Error: no stack',
+    );
+  });
+
+  it('never throws over a field it cannot serialise', () => {
+    const cycle: Record<string, unknown> = {};
+    cycle['self'] = cycle;
+    expect(formatLogEntry({ level: 'info', message: 'odd', fields: { n: 10n, cycle } })).toBe(
+      'info: odd n=10 cycle=[object Object]',
     );
   });
 
@@ -78,9 +90,20 @@ describe('Logger port', () => {
     expect(() => silentLogger.error('ignored')).not.toThrow();
   });
 
-  it('isLogLevel accepts the levels and silent, nothing else', () => {
-    expect(['debug', 'info', 'warn', 'error', 'silent'].every((l) => isLogLevel(l))).toBe(true);
-    expect(isLogLevel('verbose')).toBe(false);
-    expect(isLogLevel(undefined)).toBe(false);
+  it('readLogLevel parses an outside value, in any case', () => {
+    expect(['debug', 'info', 'warn', 'error', 'silent'].map((l) => readLogLevel(l).level)).toEqual([
+      'debug',
+      'info',
+      'warn',
+      'error',
+      'silent',
+    ]);
+    expect(readLogLevel(' Warn ')).toEqual({ level: 'warn' });
+  });
+
+  it('readLogLevel is info when unset, and names a value that is no level', () => {
+    expect(readLogLevel(undefined)).toEqual({ level: 'info' });
+    expect(readLogLevel('  ')).toEqual({ level: 'info' });
+    expect(readLogLevel('verbose')).toEqual({ level: 'info', invalid: 'verbose' });
   });
 });

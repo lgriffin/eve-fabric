@@ -3,6 +3,7 @@ import { createYoga, createSchema } from 'graphql-yoga';
 import { parse, type GraphQLSchema } from 'graphql';
 import type { Esi } from '@lgriffin/esi.ts/client';
 import type { StaticSource, Store } from '@eve-fabric/core';
+import { stderrLogger } from '@eve-fabric/fabric';
 import { createRegistryRoutes } from './routes/registry-routes.js';
 import { createDiscoveryRoutes } from './routes/discovery-routes.js';
 import { createReferenceDataRoutes } from './routes/reference-data-routes.js';
@@ -153,11 +154,21 @@ export function createServer(options?: ServerOptions): FastifyInstance {
   return app;
 }
 
-/** `pnpm gateway`: a failure to build the server throws; a failure to listen is logged. */
+/**
+ * `pnpm gateway`. A failure to build the server (a store that will not open)
+ * is logged to stderr, a failure to listen through the server's own logger;
+ * either exits 1.
+ */
 function start(): void {
   const port = Number(process.env['PORT'] ?? 3456);
   const host = process.env['HOST'] ?? '0.0.0.0';
-  const app = createServer({ port, host });
+  let app: FastifyInstance;
+  try {
+    app = createServer({ port, host });
+  } catch (error) {
+    stderrLogger().error('gateway did not start', { error });
+    process.exit(1);
+  }
   app.listen({ port, host }).catch((err: unknown) => {
     app.log.fatal({ err }, 'gateway did not start');
     process.exit(1);

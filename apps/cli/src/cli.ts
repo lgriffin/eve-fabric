@@ -9,8 +9,8 @@ import { parseArgs } from 'node:util';
 import { printSchema } from 'graphql';
 import { z } from 'zod';
 import { generate } from '@eve-fabric/codegen';
-import { createLogger, type Logger } from '@eve-fabric/core';
-import { logLevelFrom, type Draft, type Fabric } from '@eve-fabric/fabric';
+import type { Logger } from '@eve-fabric/core';
+import { envLogger, type Draft, type Fabric } from '@eve-fabric/fabric';
 import { weaveFromYaml, weaveToYaml } from '@eve-fabric/weave';
 import { openFabric, type FabricSettings } from './fabric-for.js';
 
@@ -292,7 +292,7 @@ export async function runCli(argv: readonly string[], io: Io): Promise<number> {
     sdeDataPath: io.env['SDE_DATA_PATH'],
     cwd: io.cwd,
   };
-  const log = io.log ?? createLogger({ write: io.err, level: logLevelFrom(io.env) });
+  const log = io.log ?? envLogger(io.err, io.env);
   let opened: Awaited<ReturnType<typeof openFabric>> | undefined;
   try {
     if (!['ask', 'moves', 'weave', 'codegen', 'schema'].includes(name)) {

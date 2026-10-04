@@ -9,9 +9,21 @@
  * tests pass `memoryLogger()` to read what was said, or `silentLogger`.
  */
 
+import { z } from 'zod';
+
 /** How much a logger says, least to most severe. */
 export const LOG_LEVELS = ['debug', 'info', 'warn', 'error'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/**
+ * A level as an outsider names it (an environment variable, a flag): one of
+ * the levels or `silent`, in any case and with surrounding space.
+ */
+export const LogLevelSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.enum([...LOG_LEVELS, 'silent']));
 
 /** Structured context for an entry: ids, counts, the error that caused it. */
 export type LogFields = Readonly<Record<string, unknown>>;
@@ -38,22 +50,45 @@ export interface LoggerOptions {
   readonly format?: ((entry: LogEntry) => string) | undefined;
 }
 
-/** Whether `value` names a level (or `silent`), for reading one from the environment. */
-export function isLogLevel(value: string | undefined): value is LogLevel | 'silent' {
-  return value === 'silent' || (LOG_LEVELS as readonly string[]).includes(value ?? '');
+/**
+ * The level an outside value names: `info` when it is unset, and `invalid`
+ * set to the value when it names none (the level is then `info` too), so the
+ * caller can say so rather than guess.
+ */
+export function readLogLevel(value: string | undefined): {
+  readonly level: LogLevel | 'silent';
+  readonly invalid?: string;
+} {
+  if (value === undefined || value.trim() === '') return { level: 'info' };
+  const parsed = LogLevelSchema.safeParse(value);
+  return parsed.success ? { level: parsed.data } : { level: 'info', invalid: value };
 }
 
-function fieldText(value: unknown): string {
-  if (value instanceof Error) return `${value.name}: ${value.message}`;
+/** An error with its stack (which names it) and the chain of causes under it. */
+function errorText(error: Error): string {
+  const own = error.stack ?? `${error.name}: ${error.message}`;
+  return error.cause === undefined ? own : `${own}\ncaused by: ${valueText(error.cause)}`;
+}
+
+function valueText(value: unknown): string {
+  if (value instanceof Error) return errorText(value);
   if (typeof value === 'string') return /\s/.test(value) ? JSON.stringify(value) : value;
-  return JSON.stringify(value) ?? String(value);
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    // A BigInt or a cycle; a logger never throws over what it was handed.
+    return String(value);
+  }
 }
 
-/** `warn: kept weave skipped weave=jumps@1.0.0`: the level, the message, then each field. */
+/**
+ * `warn: kept weave skipped weave=jumps@1.0.0`: the level, the message, then
+ * each field. An error field carries its stack and causes, so it spans lines.
+ */
 export function formatLogEntry(entry: LogEntry): string {
   const fields = Object.entries(entry.fields ?? {})
     .filter(([, value]) => value !== undefined)
-    .map(([key, value]) => `${key}=${fieldText(value)}`);
+    .map(([key, value]) => `${key}=${valueText(value)}`);
   return [`${entry.level}: ${entry.message}`, ...fields].join(' ');
 }
 
